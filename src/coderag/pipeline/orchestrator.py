@@ -1,9 +1,10 @@
 """Pipeline orchestrator — runs the extraction pipeline.
 
-For P0, implements phases 1-3 + 8:
+Implements phases 1-4 + 8:
   Phase 1: Discovery (FileScanner)
   Phase 2: Hash & diff (incremental)
   Phase 3: Extract (run plugin extractors)
+  Phase 4: Resolve (resolve cross-file references into edges)
   Phase 8: Persist (store in SQLite)
 """
 from __future__ import annotations
@@ -19,6 +20,7 @@ from coderag.core.models import (
     PipelineSummary,
 )
 from coderag.core.registry import PluginRegistry
+from coderag.pipeline.resolver import ReferenceResolver
 from coderag.pipeline.scanner import FileScanner
 from coderag.storage.sqlite_store import SQLiteStore
 
@@ -79,6 +81,7 @@ class PipelineOrchestrator:
         files_parsed = 0
         files_errored = 0
         all_results: list[ExtractionResult] = []
+        parse_time_ms = 0.0
 
         for fi in changed_files:
             plugin = self._registry.get_plugin_for_file(fi.path)
@@ -96,6 +99,7 @@ class PipelineOrchestrator:
                 n_edges = len(result.edges)
                 total_nodes += n_nodes
                 total_edges += n_edges
+                parse_time_ms += result.parse_time_ms
                 files_parsed += 1
 
                 if result.errors:
@@ -105,12 +109,53 @@ class PipelineOrchestrator:
                             err.file_path, err.line_number, err.message,
                         )
 
-                # ── Phase 8: Persist ──────────────────────────
+                # ── Phase 8a: Persist nodes & containment edges ──
                 self._persist_result(result, fi, plugin.name)
 
             except Exception as exc:
                 logger.error("Failed to process %s: %s", fi.path, exc)
                 files_errored += 1
+
+        # ── Phase 4: Reference Resolution ─────────────────────
+        resolved_edge_count = 0
+        unresolved_edge_count = 0
+        total_unresolved_refs = sum(
+            len(r.unresolved_references) for r in all_results
+        )
+
+        if total_unresolved_refs > 0:
+            logger.info(
+                "Phase 4: Resolving %d cross-file references...",
+                total_unresolved_refs,
+            )
+            resolver = ReferenceResolver(self._store)
+            resolver.build_symbol_table()
+
+            resolved_edges, placeholder_nodes, resolved_count, unresolved_count = (
+                resolver.resolve(all_results)
+            )
+
+            resolved_edge_count = resolved_count
+            unresolved_edge_count = unresolved_count
+
+            # Persist placeholder nodes for external references
+            if placeholder_nodes:
+                logger.info("Persisting %d placeholder nodes for external refs",
+                            len(placeholder_nodes))
+                self._store.upsert_nodes(placeholder_nodes)
+
+            # Persist resolved edges
+            if resolved_edges:
+                logger.info("Persisting %d resolved edges", len(resolved_edges))
+                self._store.upsert_edges(resolved_edges)
+                total_edges += len(resolved_edges)
+
+            logger.info(
+                "Phase 4 complete: %d resolved, %d unresolved (of %d total refs)",
+                resolved_count, unresolved_count, total_unresolved_refs,
+            )
+        else:
+            logger.info("Phase 4: No unresolved references to process.")
 
         elapsed = time.perf_counter() - t0
         summary = PipelineSummary(
@@ -123,8 +168,10 @@ class PipelineOrchestrator:
             total_pipeline_time_ms=elapsed * 1000,
         )
         logger.info(
-            "Pipeline complete: %d files, %d nodes, %d edges in %.1fs",
-            files_parsed, total_nodes, total_edges, elapsed,
+            "Pipeline complete: %d files, %d nodes, %d edges "
+            "(%d resolved, %d unresolved) in %.1fs",
+            files_parsed, total_nodes, total_edges,
+            resolved_edge_count, unresolved_edge_count, elapsed,
         )
         return summary
 
