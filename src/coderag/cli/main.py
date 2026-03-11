@@ -270,16 +270,8 @@ def query(ctx: click.Context, search: str, kind: str | None, depth: int, fmt: st
     store = _open_store(config)
 
     try:
-        # Search nodes
-        results = store.search_nodes(search, limit=limit)
-
-        # Filter by kind if specified
-        if kind:
-            kind_lower = kind.lower()
-            results = [
-                n for n in results
-                if (n.kind.value if isinstance(n.kind, NodeKind) else n.kind).lower() == kind_lower
-            ]
+        # Search nodes (kind filter applied at SQL level for efficiency)
+        results = store.search_nodes(search, limit=limit, kind=kind.lower() if kind else None)
 
         if fmt == "json":
             data = []

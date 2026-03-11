@@ -343,23 +343,77 @@ class SQLiteStore:
 
         return [self._row_to_node(r) for r in rows]
 
-    def search_nodes(self, query: str, limit: int = 20) -> list[Node]:
-        """Full-text search across node names, qualified names, and docblocks."""
-        # Sanitize query for FTS5
+    def search_nodes(self, query: str, limit: int = 20, kind: str | None = None) -> list[Node]:
+        """Full-text search across node names, qualified names, and docblocks.
+
+        Uses FTS5 first, then falls back to LIKE-based search if FTS
+        returns no results (handles camelCase/PascalCase edge cases).
+        Optionally filters by node kind at the SQL level.
+        """
+        # When kind filter is active, search more broadly then filter
+        search_limit = limit * 10 if kind else limit
+
+        results = []
+
+        # Try FTS5 first
         safe_query = self._sanitize_fts_query(query)
-        if not safe_query:
-            return []
+        if safe_query:
+            try:
+                if kind:
+                    rows = self.connection.execute(
+                        """SELECT n.* FROM nodes_fts fts
+                           JOIN nodes n ON n.rowid = fts.rowid
+                           WHERE nodes_fts MATCH ? AND n.kind = ?
+                           ORDER BY rank
+                           LIMIT ?""",
+                        (safe_query, kind, search_limit),
+                    ).fetchall()
+                else:
+                    rows = self.connection.execute(
+                        """SELECT n.* FROM nodes_fts fts
+                           JOIN nodes n ON n.rowid = fts.rowid
+                           WHERE nodes_fts MATCH ?
+                           ORDER BY rank
+                           LIMIT ?""",
+                        (safe_query, search_limit),
+                    ).fetchall()
+                if rows:
+                    results = [self._row_to_node(r) for r in rows]
+            except Exception:
+                pass  # Fall through to LIKE search
 
-        rows = self.connection.execute(
-            """SELECT n.* FROM nodes_fts fts
-               JOIN nodes n ON n.rowid = fts.rowid
-               WHERE nodes_fts MATCH ?
-               ORDER BY rank
-               LIMIT ?""",
-            (safe_query, limit),
-        ).fetchall()
+        # Fallback: LIKE-based search on name and qualified_name
+        if not results:
+            like_pattern = f"%{query}%"
+            if kind:
+                rows = self.connection.execute(
+                    """SELECT * FROM nodes
+                       WHERE (name LIKE ? OR qualified_name LIKE ?) AND kind = ?
+                       ORDER BY
+                           CASE WHEN name = ? THEN 0
+                                WHEN name LIKE ? THEN 1
+                                ELSE 2
+                           END,
+                           pagerank DESC
+                       LIMIT ?""",
+                    (like_pattern, like_pattern, kind, query, f"{query}%", search_limit),
+                ).fetchall()
+            else:
+                rows = self.connection.execute(
+                    """SELECT * FROM nodes
+                       WHERE name LIKE ? OR qualified_name LIKE ?
+                       ORDER BY
+                           CASE WHEN name = ? THEN 0
+                                WHEN name LIKE ? THEN 1
+                                ELSE 2
+                           END,
+                           pagerank DESC
+                       LIMIT ?""",
+                    (like_pattern, like_pattern, query, f"{query}%", search_limit),
+                ).fetchall()
+            results = [self._row_to_node(r) for r in rows]
 
-        return [self._row_to_node(r) for r in rows]
+        return results[:limit]
 
     def delete_nodes_for_file(self, file_path: str) -> int:
         """Delete all nodes and their edges for a given file."""
@@ -883,20 +937,38 @@ class SQLiteStore:
         """Sanitize a query string for FTS5.
 
         Escapes special characters and wraps terms for prefix matching.
+        Handles camelCase/PascalCase by splitting into sub-tokens.
         """
+        import re as _re
+
         # Remove FTS5 special characters that could cause syntax errors
-        special = set('(){}[]^~@:;!&|')
+        special = {'(', ')', '{', '}', '[', ']', '^', '~', '@', ':', ';', '!', '&', '|', '\\', '"', "'"}
         cleaned = "".join(c for c in query if c not in special)
         cleaned = cleaned.strip()
 
         if not cleaned:
             return ""
 
-        # Split into terms and add prefix matching
-        terms = cleaned.split()
-        # Quote each term and add * for prefix matching
-        quoted = [f'"{term}"*' for term in terms if term]
-        return " OR ".join(quoted)
+        # Split camelCase/PascalCase into sub-tokens
+        # e.g. "HttpKernel" -> ["Http", "Kernel"], "WP_Query" -> ["WP", "Query"]
+        all_tokens = []
+        for term in cleaned.split():
+            # Split on underscores and camelCase boundaries
+            sub = _re.sub(r'([a-z])([A-Z])', r'\1 \2', term)
+            sub = _re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', sub)
+            sub = sub.replace('_', ' ')
+            parts = [p.strip() for p in sub.split() if p.strip()]
+            all_tokens.extend(parts)
+            # Also keep the original term as-is for exact matching
+            if len(parts) > 1:
+                all_tokens.append(term)
+
+        if not all_tokens:
+            return ""
+
+        # Use unquoted terms with * for prefix matching (works with porter stemmer)
+        fts_terms = [f"{t}*" for t in all_tokens if t]
+        return " OR ".join(fts_terms)
 
     # ── Dunder Methods ────────────────────────────────────────
 
