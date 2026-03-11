@@ -8,22 +8,193 @@ CodeRAG parses your codebase into a rich knowledge graph — functions, classes,
 
 ## 🚀 Quick Start
 
-```bash
-# Clone and install
-git clone https://github.com/dmnkhorvath/coderag.git
-cd coderag
-pip install -e .
+### One-Line Install
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+```
+
+This installs CodeRAG to `~/.coderag`, creates an isolated virtual environment, and adds the `coderag` command to your PATH.
+
+After installation, restart your terminal (or `source ~/.bashrc`) and run:
+
+```bash
 # Parse a codebase
 coderag parse /path/to/your/project --full
 
 # View graph statistics
 coderag info
 
-# Query for symbols
+# Search for symbols
 coderag query "UserController"
 coderag query "Router" --kind class
 ```
+
+### Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Python**  | 3.11+   | 3.12 or 3.13 also work |
+| **git**     | any     | For cloning the repository |
+| **pip**     | any     | Included with Python |
+| **C compiler** | any  | Required by tree-sitter (usually pre-installed) |
+
+The installer checks for these automatically and provides install commands if anything is missing.
+
+### Platform-Specific Setup
+
+<details>
+<summary><strong>🐧 Ubuntu / Debian</strong></summary>
+
+```bash
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3-pip git build-essential
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+```
+
+</details>
+
+<details>
+<summary><strong>🐧 Fedora / RHEL</strong></summary>
+
+```bash
+sudo dnf install python3.11 git gcc gcc-c++ make
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+```
+
+</details>
+
+<details>
+<summary><strong>🍎 macOS</strong></summary>
+
+```bash
+# Install Homebrew if not present
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+brew install python@3.12
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+```
+
+</details>
+
+### Manual Installation
+
+If you prefer to manage the installation yourself:
+
+```bash
+# Clone the repository
+git clone https://github.com/dmnkhorvath/coderag.git
+cd coderag
+
+# Create and activate a virtual environment
+python3.11 -m venv .venv
+source .venv/bin/activate
+
+# Install in editable mode
+pip install -e .
+
+# Verify
+coderag --help
+```
+
+### Updating
+
+If you used the one-line installer:
+
+```bash
+# Option 1: Built-in update command
+coderag-update
+
+# Option 2: Remote update script
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/update.sh | sh
+```
+
+For manual installations:
+
+```bash
+cd coderag
+git pull
+pip install -e .
+```
+
+### Uninstalling
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/uninstall.sh | sh
+```
+
+This removes `~/.coderag` and cleans PATH entries from your shell configuration files.
+
+### Configuration
+
+Override the default install location with:
+
+```bash
+CODERAG_INSTALL_DIR=/opt/coderag curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+```
+
+### Troubleshooting
+
+<details>
+<summary><strong>"python3.11: command not found"</strong></summary>
+
+The installer tries `python3.13`, `python3.12`, `python3.11`, `python3`, and `python` in order. If none meet the 3.11+ requirement, install Python using the platform-specific commands above.
+
+On Ubuntu, you may also need the `deadsnakes` PPA:
+```bash
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.12 python3.12-venv
+```
+
+</details>
+
+<details>
+<summary><strong>"No module named venv" or venv creation fails</strong></summary>
+
+On Debian/Ubuntu, the `venv` module is packaged separately:
+```bash
+sudo apt install python3.11-venv
+```
+
+</details>
+
+<details>
+<summary><strong>tree-sitter build errors (missing C compiler)</strong></summary>
+
+Tree-sitter grammars compile native extensions. Install a C toolchain:
+```bash
+# Ubuntu/Debian
+sudo apt install build-essential
+
+# Fedora/RHEL
+sudo dnf install gcc gcc-c++ make
+
+# macOS (installs Xcode CLI tools)
+xcode-select --install
+```
+
+</details>
+
+<details>
+<summary><strong>"coderag: command not found" after install</strong></summary>
+
+The installer adds `~/.coderag/bin` to your PATH via shell config files. Either:
+- Restart your terminal, or
+- Run `source ~/.bashrc` (or `~/.zshrc`), or
+- Run directly: `~/.coderag/bin/coderag`
+
+</details>
+
+<details>
+<summary><strong>Permission errors during install</strong></summary>
+
+CodeRAG installs to your home directory — no `sudo` needed. If you see permission errors, ensure `~/.coderag` is owned by your user:
+```bash
+ls -la ~/.coderag
+```
+
+</details>
 
 ---
 
