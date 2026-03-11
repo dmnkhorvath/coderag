@@ -66,6 +66,9 @@ class NodeKind(str, enum.Enum):
     MODEL = "model"
     EVENT = "event"
     MIDDLEWARE = "middleware"
+    LISTENER = "listener"
+    PROVIDER = "provider"
+    CONTROLLER = "controller"
 
 
 class EdgeKind(str, enum.Enum):
@@ -112,6 +115,7 @@ class EdgeKind(str, enum.Enum):
     PASSES_PROP = "passes_prop"
     USES_HOOK = "uses_hook"
     PROVIDES_CONTEXT = "provides_context"
+    CONSUMES_CONTEXT = "consumes_context"
 
     # -- Cross-Language --
     API_CALLS = "api_calls"

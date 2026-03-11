@@ -632,6 +632,299 @@ def architecture(ctx: click.Context, top: int, fmt: str) -> None:
     finally:
         store.close()
 
+
+
+# ── frameworks ────────────────────────────────────────────────
+
+@cli.command()
+@click.option(
+    "--format", "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.pass_context
+def frameworks(ctx: click.Context, fmt: str) -> None:
+    """Show detected frameworks and their patterns.
+
+    Displays which frameworks were detected during parsing,
+    along with the nodes and edges they contributed.
+    """
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        # Get detected frameworks from metadata
+        fw_str = store.get_metadata("detected_frameworks")
+        detected = fw_str.split(",") if fw_str else []
+
+        if fmt == "json":
+            data: dict[str, Any] = {
+                "detected_frameworks": detected,
+                "framework_patterns": {},
+            }
+
+            for fw_name in detected:
+                fw_data: dict[str, Any] = {"nodes": {}, "edges": {}}
+
+                # Count framework-specific nodes
+                for kind_name in ("route", "component", "hook", "model",
+                                  "event", "listener", "middleware",
+                                  "provider", "controller"):
+                    try:
+                        kind = NodeKind(kind_name)
+                        nodes = store.find_nodes(kind=kind, limit=10000)
+                        fw_nodes = [
+                            n for n in nodes
+                            if n.metadata.get("framework") == fw_name
+                        ]
+                        if fw_nodes:
+                            fw_data["nodes"][kind_name] = [
+                                {
+                                    "name": n.name,
+                                    "qualified_name": n.qualified_name,
+                                    "file": n.file_path,
+                                    "line": n.start_line,
+                                }
+                                for n in fw_nodes[:50]
+                            ]
+                    except ValueError:
+                        pass
+
+                data["framework_patterns"][fw_name] = fw_data
+
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            if not detected:
+                console.print(
+                    "[yellow]No frameworks detected.[/yellow]\n"
+                    "Run [cyan]coderag parse <path> --full[/cyan] first."
+                )
+                return
+
+            console.print(Panel(
+                Text.assemble(
+                    ("Detected Frameworks", "bold cyan"),
+                ),
+                expand=False,
+            ))
+
+            for fw_name in detected:
+                console.print(f"\n[bold green]✓ {fw_name.title()}[/bold green]")
+
+                # Show framework-specific nodes by kind
+                for kind_name, label in [
+                    ("route", "Routes"),
+                    ("component", "Components"),
+                    ("hook", "Hooks"),
+                    ("model", "Models"),
+                    ("event", "Events"),
+                    ("listener", "Listeners"),
+                    ("middleware", "Middleware"),
+                    ("provider", "Providers"),
+                    ("controller", "Controllers"),
+                ]:
+                    try:
+                        kind = NodeKind(kind_name)
+                        nodes = store.find_nodes(kind=kind, limit=10000)
+                        fw_nodes = [
+                            n for n in nodes
+                            if n.metadata.get("framework") == fw_name
+                        ]
+                        if fw_nodes:
+                            console.print(f"  [bold]{label}[/bold] ({len(fw_nodes)})")
+                            for n in fw_nodes[:10]:
+                                loc = f"  [dim]{n.file_path}:{n.start_line}[/dim]" if n.start_line else ""
+                                console.print(f"    • {n.qualified_name}{loc}")
+                            if len(fw_nodes) > 10:
+                                console.print(f"    [dim]... and {len(fw_nodes) - 10} more[/dim]")
+                    except ValueError:
+                        pass
+
+    finally:
+        store.close()
+
+
+# ── cross-language ────────────────────────────────────────────
+
+@cli.command("cross-language")
+@click.option(
+    "--format", "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.option(
+    "--min-confidence", "-c",
+    default=0.0,
+    type=float,
+    help="Minimum confidence threshold for matches.",
+)
+@click.pass_context
+def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
+    """Show cross-language connections.
+
+    Displays API endpoints matched to frontend API calls,
+    showing how backend routes connect to frontend code.
+    """
+    from coderag.core.models import EdgeKind
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    # Infer project root from database path (db is at <root>/.codegraph/graph.db)
+    import os as _os
+    _project_root = None
+    if config.db_path:
+        _db_abs = _os.path.abspath(config.db_path)
+        _codegraph_dir = _os.path.dirname(_db_abs)
+        if _os.path.basename(_codegraph_dir) == ".codegraph":
+            _project_root = _os.path.dirname(_codegraph_dir)
+
+    try:
+        # Get cross-language stats from metadata
+        n_endpoints = store.get_metadata("cross_language_endpoints") or "0"
+        n_calls = store.get_metadata("cross_language_calls") or "0"
+        n_matches = store.get_metadata("cross_language_matches") or "0"
+
+        # Get API_CALLS edges
+        xl_edges = store.get_edges(
+            kind=EdgeKind.API_CALLS,
+            min_confidence=min_confidence,
+        )
+
+        if fmt == "json":
+            data = {
+                "summary": {
+                    "endpoints_found": int(n_endpoints),
+                    "api_calls_found": int(n_calls),
+                    "matches": int(n_matches),
+                    "edges": len(xl_edges),
+                },
+                "connections": [],
+            }
+
+            for edge in xl_edges:
+                source_node = store.get_node(edge.source_id)
+                target_node = store.get_node(edge.target_id)
+                data["connections"].append({
+                    "caller": {
+                        "name": source_node.qualified_name if source_node else edge.source_id,
+                        "file": source_node.file_path if source_node else None,
+                    },
+                    "endpoint": {
+                        "name": target_node.qualified_name if target_node else edge.target_id,
+                        "file": target_node.file_path if target_node else None,
+                    },
+                    "http_method": edge.metadata.get("http_method", "UNKNOWN"),
+                    "call_url": edge.metadata.get("call_url", ""),
+                    "endpoint_url": edge.metadata.get("endpoint_url", ""),
+                    "match_strategy": edge.metadata.get("match_strategy", ""),
+                    "confidence": edge.confidence,
+                })
+
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            console.print(Panel(
+                Text.assemble(
+                    ("Cross-Language Connections", "bold cyan"),
+                ),
+                expand=False,
+            ))
+
+            console.print(f"  Endpoints found:  [bold]{n_endpoints}[/bold]")
+            console.print(f"  API calls found:  [bold]{n_calls}[/bold]")
+            console.print(f"  Matches:          [bold]{n_matches}[/bold]")
+            console.print(f"  Edges:            [bold]{len(xl_edges)}[/bold]")
+
+            if not xl_edges:
+                console.print(
+                    "\n[yellow]No cross-language connections found.[/yellow]\n"
+                    "This requires a mixed-language project with backend API routes "
+                    "and frontend API calls."
+                )
+                return
+
+            console.print("\n[bold]Connections:[/bold]")
+
+            # Group by match strategy
+            by_strategy: dict[str, list] = {}
+            for edge in xl_edges:
+                strategy = edge.metadata.get("match_strategy", "unknown")
+                by_strategy.setdefault(strategy, []).append(edge)
+
+            strategy_order = ["exact", "parameterized", "prefix", "fuzzy", "unknown"]
+            for strategy in strategy_order:
+                edges_for_strategy = by_strategy.get(strategy, [])
+                if not edges_for_strategy:
+                    continue
+
+                strategy_label = {
+                    "exact": "✅ Exact Matches",
+                    "parameterized": "🔄 Parameterized Matches",
+                    "prefix": "🔗 Prefix Matches",
+                    "fuzzy": "🔍 Fuzzy Matches",
+                    "unknown": "❓ Other Matches",
+                }.get(strategy, strategy)
+
+                console.print(f"\n  [bold]{strategy_label}[/bold] ({len(edges_for_strategy)})")
+
+                for edge in edges_for_strategy[:20]:
+                    source_node = store.get_node(edge.source_id)
+                    target_node = store.get_node(edge.target_id)
+
+                    method = edge.metadata.get("http_method", "?")
+                    call_url = edge.metadata.get("call_url", "?")
+                    ep_url = edge.metadata.get("endpoint_url", "?")
+
+                    caller_name = source_node.qualified_name if source_node else "?"
+                    caller_file = source_node.file_path if source_node else "?"
+                    handler_name = target_node.qualified_name if target_node else "?"
+                    handler_file = target_node.file_path if target_node else "?"
+
+                    # Clean up display names: extract short name from qualified_name
+                    # e.g. "/path/to/file.ts/storeName" → "storeName"
+                    if caller_name != "?" and caller_file != "?":
+                        if caller_name.startswith(caller_file):
+                            short = caller_name[len(caller_file):].lstrip("/")
+                            if short:
+                                caller_name = short
+                    # Show relative paths if possible
+                    _root = config.project_root or _project_root
+                    if caller_file != "?" and _root:
+                        import os as _os
+                        try:
+                            caller_file = _os.path.relpath(caller_file, _root)
+                        except ValueError:
+                            pass
+                    if handler_file != "?" and _root:
+                        import os as _os
+                        try:
+                            handler_file = _os.path.relpath(handler_file, _root)
+                        except ValueError:
+                            pass
+
+                    console.print(
+                        f"    [cyan]{method}[/cyan] {call_url} → {ep_url}\n"
+                        f"      [dim]Caller:[/dim]  {caller_name} [dim]({caller_file})[/dim]\n"
+                        f"      [dim]Handler:[/dim] {handler_name} [dim]({handler_file})[/dim]\n"
+                        f"      [dim]Confidence:[/dim] {edge.confidence:.2f}"
+                    )
+
+                if len(edges_for_strategy) > 20:
+                    console.print(
+                        f"    [dim]... and {len(edges_for_strategy) - 20} more[/dim]"
+                    )
+
+    finally:
+        store.close()
+
 # ── Entry Point ───────────────────────────────────────────────
 
 if __name__ == "__main__":

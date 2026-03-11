@@ -58,8 +58,9 @@ class JavaScriptPlugin(LanguagePlugin):
         return self._resolver
 
     def get_framework_detectors(self) -> list[FrameworkDetector]:
-        # P1: no framework detectors yet
-        return []
+        from coderag.plugins.javascript.frameworks.express import ExpressDetector
+        from coderag.plugins.javascript.frameworks.react import ReactDetector
+        return [ExpressDetector(), ReactDetector()]
 
     def cleanup(self) -> None:
         self._extractor = None

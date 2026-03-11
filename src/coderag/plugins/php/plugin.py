@@ -58,8 +58,8 @@ class PHPPlugin(LanguagePlugin):
         return self._resolver
 
     def get_framework_detectors(self) -> list[FrameworkDetector]:
-        # P0: no framework detectors yet
-        return []
+        from coderag.plugins.php.frameworks.laravel import LaravelDetector
+        return [LaravelDetector()]
 
     def cleanup(self) -> None:
         self._extractor = None
