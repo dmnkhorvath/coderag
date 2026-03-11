@@ -925,6 +925,38 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
     finally:
         store.close()
 
+
+
+# ── serve ─────────────────────────────────────────────────────
+
+@cli.command()
+@click.argument("project_dir", default=".", type=click.Path(exists=True))
+@click.option(
+    "--db",
+    default=None,
+    type=click.Path(),
+    help="Override path to graph database (default: PROJECT_DIR/.codegraph/graph.db).",
+)
+@click.pass_context
+def serve(ctx: click.Context, project_dir: str, db: str | None) -> None:
+    """Start MCP server for LLM tool integration.
+
+    Exposes the knowledge graph as MCP tools that LLMs can call
+    to understand code structure and relationships.
+
+    Uses stdio transport (for Claude Code, Cursor, etc.).
+    Diagnostic messages are printed to stderr.
+
+    PROJECT_DIR is the project root directory (default: current directory).
+    """
+    from pathlib import Path as _Path
+
+    resolved_dir = str(_Path(project_dir).resolve())
+    db_override = db or ctx.obj.get("db_override")
+
+    from coderag.mcp.server import run_stdio_server
+    run_stdio_server(resolved_dir, db_override)
+
 # ── Entry Point ───────────────────────────────────────────────
 
 if __name__ == "__main__":

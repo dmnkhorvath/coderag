@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "coderag": {
+      "command": "coderag",
+      "args": ["serve", "/path/to/your/project"],
+      "env": {}
+    }
+  }
+}
