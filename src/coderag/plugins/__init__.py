@@ -4,10 +4,12 @@ Auto-registers built-in plugins when imported.
 """
 from coderag.plugins.php.plugin import PHPPlugin
 from coderag.plugins.javascript.plugin import JavaScriptPlugin
+from coderag.plugins.typescript.plugin import TypeScriptPlugin
 
 BUILTIN_PLUGINS = [
     PHPPlugin,
     JavaScriptPlugin,
+    TypeScriptPlugin,
 ]
 
-__all__ = ["BUILTIN_PLUGINS", "PHPPlugin", "JavaScriptPlugin"]
+__all__ = ["BUILTIN_PLUGINS", "PHPPlugin", "JavaScriptPlugin", "TypeScriptPlugin"]
