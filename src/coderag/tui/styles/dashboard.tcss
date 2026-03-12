@@ -1,0 +1,100 @@
+/* CodeRAG Monitor Dashboard — Dark Theme */
+
+$coderag-primary: #00d4aa;
+$coderag-secondary: #7c3aed;
+$coderag-accent: #f59e0b;
+$coderag-bg: #0f172a;
+$coderag-surface: #1e293b;
+$coderag-border: #334155;
+
+Screen {
+    background: $coderag-bg;
+}
+
+/* ── Header Bar ─────────────────────────────────────────────── */
+#header-bar {
+    dock: top;
+    height: 1;
+    background: $coderag-surface;
+    color: $coderag-primary;
+    text-style: bold;
+    padding: 0 1;
+}
+
+/* ── Metrics Row ────────────────────────────────────────────── */
+#metrics-row {
+    height: auto;
+    min-height: 5;
+    layout: horizontal;
+    padding: 0;
+    margin: 0;
+}
+
+#metrics-row MetricCard {
+    border: solid $coderag-border;
+    height: 5;
+}
+
+#metrics-row MetricCard .metric-value {
+    color: $coderag-primary;
+    text-style: bold;
+}
+
+#metrics-row #metric-errors .metric-value {
+    color: $error;
+}
+
+/* ── Pipeline Progress ──────────────────────────────────────── */
+#pipeline-section {
+    height: auto;
+    min-height: 5;
+    border: solid $coderag-border;
+    padding: 0 1;
+}
+
+#pipeline-section ProgressBar Bar {
+    color: $coderag-primary;
+}
+
+/* ── Throughput Chart ───────────────────────────────────────── */
+#throughput-section {
+    height: 5;
+    border: solid $coderag-border;
+}
+
+#throughput-section Sparkline {
+    color: $coderag-primary;
+}
+
+/* ── Log Section ────────────────────────────────────────────── */
+#log-section {
+    height: 1fr;
+    min-height: 8;
+    border: solid $coderag-border;
+}
+
+#log-section RichLog {
+    background: $coderag-bg;
+    scrollbar-size: 1 1;
+}
+
+#log-section .log-status {
+    background: $coderag-surface;
+    color: $text-muted;
+}
+
+/* ── Resource Monitor ───────────────────────────────────────── */
+#resource-section {
+    height: 3;
+    border: solid $coderag-border;
+    padding: 0 1;
+}
+
+/* ── Footer / Keybindings ───────────────────────────────────── */
+#footer-bar {
+    dock: bottom;
+    height: 1;
+    background: $coderag-surface;
+    color: $text-muted;
+    padding: 0 1;
+}

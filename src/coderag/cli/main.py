@@ -1474,6 +1474,36 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
         store.close()
 
 
+
+
+# ── Monitor Command (TUI Dashboard) ──────────────────────────
+
+@cli.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--config", "-c", "config_path", type=click.Path(), default=None,
+              help="Path to codegraph.yaml config file.")
+def monitor(path: str, config_path: str | None) -> None:
+    """Launch the TUI monitoring dashboard for a parse run.
+
+    Runs the full pipeline while displaying real-time progress,
+    throughput metrics, and resource usage in a terminal UI.
+
+    Requires: pip install coderag[tui]
+    """
+    try:
+        from coderag.tui.app import CodeRAGApp
+    except ImportError:
+        console.print(
+            "[red]Error:[/red] TUI dependencies not installed.\n"
+            "Install with: [bold]pip install coderag[tui][/bold]\n"
+            "Or: [bold]pip install textual psutil[/bold]"
+        )
+        raise SystemExit(1)
+
+    project_root = str(Path(path).resolve())
+    app = CodeRAGApp(project_root=project_root, config_path=config_path)
+    app.run()
+
 # ── Entry Point ───────────────────────────────────────────────
 
 if __name__ == "__main__":

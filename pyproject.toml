@@ -64,6 +64,10 @@ semantic = [
     "sentence-transformers>=2.2.0",
     "faiss-cpu>=1.7.0",
 ]
+tui = [
+    "textual>=1.0.0",
+    "psutil>=5.9.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -86,7 +90,7 @@ codegraph = "coderag.cli.main:cli"
 where = ["src"]
 
 [tool.setuptools.package-data]
-coderag = ["py.typed"]
+coderag = ["py.typed", "tui/styles/*.tcss"]
 
 [tool.ruff]
 target-version = "py311"
