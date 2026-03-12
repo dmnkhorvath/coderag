@@ -461,6 +461,7 @@ class PluginRegistry:
             "coderag.plugins.php",
             "coderag.plugins.javascript",
             "coderag.plugins.typescript",
+            "coderag.plugins.python",
         ]
 
         for module_path in builtin_modules:

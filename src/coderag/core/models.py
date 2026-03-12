@@ -131,6 +131,7 @@ class Language(str, enum.Enum):
     PHP = "php"
     JAVASCRIPT = "javascript"
     TYPESCRIPT = "typescript"
+    PYTHON = "python"
 
 
 class DetailLevel(str, enum.Enum):
