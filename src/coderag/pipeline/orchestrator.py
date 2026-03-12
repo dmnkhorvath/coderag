@@ -21,6 +21,7 @@ from coderag.core.config import CodeGraphConfig
 from coderag.core.models import (
     ExtractionResult,
     FileInfo,
+    NodeKind,
     PipelineSummary,
 )
 from coderag.core.registry import FrameworkDetector, PluginRegistry
@@ -304,6 +305,11 @@ class PipelineOrchestrator:
         if xl_edges:
             total_edges += xl_edges
 
+        # ── Phase 6b: Style Edge Matching ─────────────────────
+        style_edges = self._run_style_edge_matching(project_root)
+        if style_edges:
+            total_edges += style_edges
+
         # ── Phase 7: Git Enrichment ────────────────────────────
         git_enrichment_stats = self._run_git_enrichment(project_root)
 
@@ -327,6 +333,47 @@ class PipelineOrchestrator:
             resolved_edge_count, unresolved_edge_count, elapsed,
         )
         return summary
+
+
+    def _run_style_edge_matching(self, project_root: str) -> int:
+        """Run style edge matching to connect JS/TS components to CSS/SCSS.
+
+        Returns:
+            Number of style edges added.
+        """
+        logger.info("Phase 6b: Style edge matching...")
+        t0 = time.perf_counter()
+
+        try:
+            from coderag.pipeline.style_edges import StyleEdgeMatcher
+        except ImportError:
+            logger.warning("Phase 6b: StyleEdgeMatcher not available.")
+            return 0
+
+        # Check if we have CSS/SCSS files in the project
+        has_css = bool(self._store.find_nodes(
+            kind=NodeKind.FILE, language="css", limit=1,
+        ))
+        has_scss = bool(self._store.find_nodes(
+            kind=NodeKind.FILE, language="scss", limit=1,
+        ))
+
+        if not has_css and not has_scss:
+            logger.info("Phase 6b: No CSS/SCSS files found, skipping.")
+            return 0
+
+        try:
+            matcher = StyleEdgeMatcher(self._store, project_root)
+            edge_count = matcher.match()
+            elapsed = time.perf_counter() - t0
+            logger.info(
+                "Phase 6b complete: %d style edges in %.1fs",
+                edge_count, elapsed,
+            )
+            return edge_count
+        except Exception:
+            logger.exception("Phase 6b: Style edge matching failed.")
+            return 0
 
     # ── Phase 7: Git Enrichment ───────────────────────────
 
