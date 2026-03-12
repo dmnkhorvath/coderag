@@ -13,6 +13,7 @@ from coderag.core.registry import (
 )
 from coderag.plugins.css.extractor import CSSExtractor
 from coderag.plugins.css.resolver import CSSResolver
+from coderag.plugins.css.frameworks import TailwindDetector
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class CSSPlugin(LanguagePlugin):
         return self._resolver
 
     def get_framework_detectors(self) -> list[FrameworkDetector]:
-        return []
+        return [TailwindDetector()]
 
     def cleanup(self) -> None:
         self._extractor = None

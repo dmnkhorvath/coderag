@@ -83,6 +83,10 @@ class NodeKind(str, enum.Enum):
     SCSS_FUNCTION = "scss_function"
     SCSS_PLACEHOLDER = "scss_placeholder"
 
+    # -- Tailwind --
+    TAILWIND_THEME_TOKEN = "tailwind_theme_token"
+    TAILWIND_UTILITY = "tailwind_utility"
+
 
 class EdgeKind(str, enum.Enum):
     """All recognized edge types in the knowledge graph.
@@ -149,6 +153,19 @@ class EdgeKind(str, enum.Enum):
     SCSS_USES_FUNCTION = "scss_uses_function"
     SCSS_FORWARDS = "scss_forwards"
     SCSS_NESTS = "scss_nests"
+
+    # -- Tailwind --
+    TAILWIND_THEME_DEFINES = "tailwind_theme_defines"
+    TAILWIND_APPLIES = "tailwind_applies"
+    TAILWIND_SOURCE_SCANS = "tailwind_source_scans"
+
+    # -- Cross-Language Style --
+    IMPORTS_STYLESHEET = "imports_stylesheet"
+    CSS_MODULE_IMPORT = "css_module_import"
+    USES_CSS_CLASS = "uses_css_class"
+    JS_SETS_CSS_VARIABLE = "js_sets_css_variable"
+    JS_READS_CSS_VARIABLE = "js_reads_css_variable"
+    TAILWIND_CLASS_USES_TOKEN = "tailwind_class_uses_token"
 
 
 class Language(str, enum.Enum):
