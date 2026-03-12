@@ -1,0 +1,32 @@
+/* CodeRAG Monitor — Graph Screen Styles */
+
+#graph-container {
+    height: 1fr;
+}
+
+#graph-tab-bar {
+    dock: top;
+    height: 1;
+    background: #1e293b;
+    padding: 0 1;
+}
+
+#graph-summary {
+    height: 1;
+    background: #0f172a;
+    padding: 0 1;
+}
+
+#graph-overview-table,
+#graph-nodes-table,
+#graph-edges-table,
+#graph-languages-table {
+    height: 1fr;
+}
+
+#graph-overview-table.hidden,
+#graph-nodes-table.hidden,
+#graph-edges-table.hidden,
+#graph-languages-table.hidden {
+    display: none;
+}

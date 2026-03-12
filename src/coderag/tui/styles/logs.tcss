@@ -1,0 +1,38 @@
+/* CodeRAG Monitor — Logs Screen Styles */
+
+#logs-container {
+    height: 1fr;
+}
+
+#logs-level-bar {
+    dock: top;
+    height: 1;
+    background: #1e293b;
+    padding: 0 1;
+}
+
+#logs-output {
+    height: 1fr;
+    background: #0f172a;
+    scrollbar-size: 1 1;
+}
+
+#logs-search-input {
+    dock: bottom;
+    height: 1;
+    background: #1e293b;
+    border: none;
+    padding: 0 1;
+}
+
+#logs-search-input.hidden {
+    display: none;
+}
+
+#logs-status-bar {
+    dock: bottom;
+    height: 1;
+    background: #1e293b;
+    color: #94a3b8;
+    padding: 0 1;
+}

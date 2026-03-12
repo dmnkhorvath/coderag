@@ -1,0 +1,30 @@
+/* CodeRAG Monitor — Details Screen Styles */
+
+#details-container {
+    height: 1fr;
+}
+
+#details-tab-bar {
+    dock: top;
+    height: 1;
+    background: #1e293b;
+    padding: 0 1;
+}
+
+#details-summary {
+    height: 1;
+    background: #0f172a;
+    padding: 0 1;
+}
+
+#details-files-table,
+#details-nodes-table,
+#details-edges-table {
+    height: 1fr;
+}
+
+#details-files-table.hidden,
+#details-nodes-table.hidden,
+#details-edges-table.hidden {
+    display: none;
+}

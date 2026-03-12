@@ -1,0 +1,19 @@
+/* CodeRAG Monitor — Common Styles */
+
+Screen {
+    background: #0f172a;
+}
+
+.hidden {
+    display: none;
+}
+
+DataTable {
+    scrollbar-size: 1 1;
+}
+
+DataTable > .datatable--header {
+    background: #1e293b;
+    color: #00d4aa;
+    text-style: bold;
+}

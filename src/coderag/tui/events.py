@@ -6,6 +6,7 @@ message system (main thread).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from textual.message import Message
 
@@ -42,6 +43,34 @@ class LogMessage(Message):
         self.text = text
         self.level = level
         self.file_path = file_path
+
+
+class FileProcessed(Message):
+    """Emitted when a file has been fully processed.
+
+    Carries metadata for the DetailsScreen.
+    """
+
+    def __init__(
+        self,
+        file_path: str,
+        language: str = "",
+        nodes_count: int = 0,
+        edges_count: int = 0,
+        parse_time_ms: float = 0.0,
+        node_kinds: dict[str, int] | None = None,
+        edge_kinds: dict[str, int] | None = None,
+        error: str = "",
+    ) -> None:
+        super().__init__()
+        self.file_path = file_path
+        self.language = language
+        self.nodes_count = nodes_count
+        self.edges_count = edges_count
+        self.parse_time_ms = parse_time_ms
+        self.node_kinds = node_kinds or {}
+        self.edge_kinds = edge_kinds or {}
+        self.error = error
 
 
 class PipelineFinished(Message):
