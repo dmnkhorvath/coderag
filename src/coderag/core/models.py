@@ -70,6 +70,19 @@ class NodeKind(str, enum.Enum):
     PROVIDER = "provider"
     CONTROLLER = "controller"
 
+    # -- CSS/SCSS --
+    CSS_CLASS = "css_class"
+    CSS_ID = "css_id"
+    CSS_VARIABLE = "css_variable"
+    CSS_KEYFRAMES = "css_keyframes"
+    CSS_MEDIA_QUERY = "css_media_query"
+    CSS_LAYER = "css_layer"
+    CSS_FONT_FACE = "css_font_face"
+    SCSS_VARIABLE = "scss_variable"
+    SCSS_MIXIN = "scss_mixin"
+    SCSS_FUNCTION = "scss_function"
+    SCSS_PLACEHOLDER = "scss_placeholder"
+
 
 class EdgeKind(str, enum.Enum):
     """All recognized edge types in the knowledge graph.
@@ -125,6 +138,18 @@ class EdgeKind(str, enum.Enum):
     # -- Git-Derived --
     CO_CHANGES_WITH = "co_changes_with"
 
+    # -- CSS/SCSS --
+    CSS_USES_VARIABLE = "css_uses_variable"
+    CSS_MEDIA_CONTAINS = "css_media_contains"
+    CSS_LAYER_CONTAINS = "css_layer_contains"
+    CSS_KEYFRAMES_USED_BY = "css_keyframes_used_by"
+    SCSS_INCLUDES_MIXIN = "scss_includes_mixin"
+    SCSS_EXTENDS = "scss_extends"
+    SCSS_USES_VARIABLE = "scss_uses_variable"
+    SCSS_USES_FUNCTION = "scss_uses_function"
+    SCSS_FORWARDS = "scss_forwards"
+    SCSS_NESTS = "scss_nests"
+
 
 class Language(str, enum.Enum):
     """Supported programming languages."""
@@ -132,6 +157,8 @@ class Language(str, enum.Enum):
     JAVASCRIPT = "javascript"
     TYPESCRIPT = "typescript"
     PYTHON = "python"
+    CSS = "css"
+    SCSS = "scss"
 
 
 class DetailLevel(str, enum.Enum):
@@ -153,6 +180,11 @@ class ResolutionStrategy(str, enum.Enum):
     PSR4 = "psr4"
     HEURISTIC = "heuristic"
     UNRESOLVED = "unresolved"
+    CSS_IMPORT = "css_import"
+    SCSS_USE = "scss_use"
+    SCSS_FORWARD = "scss_forward"
+    SCSS_PARTIAL = "scss_partial"
+    SCSS_INDEX = "scss_index"
 
 
 # =============================================================================
