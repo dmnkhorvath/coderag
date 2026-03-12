@@ -426,7 +426,6 @@ class ReactDetector(FrameworkDetector):
             comp_edges = store.get_edges(
                 source_id=comp.id,
                 kind=EdgeKind.USES_HOOK,
-                limit=50,
             )
             for edge in comp_edges:
                 if edge.target_id.startswith("__unresolved__:hook:"):
