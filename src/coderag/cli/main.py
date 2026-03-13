@@ -1644,6 +1644,683 @@ def watch(ctx: click.Context, path: str, debounce: float, incremental: bool) -> 
         store.close()
 
 
+# -- Find Usages Command ----------------------------------------------------
+
+
+@cli.command("find-usages")
+@click.argument("symbol")
+@click.option(
+    "--types",
+    "-t",
+    default="all",
+    show_default=True,
+    help="Comma-separated usage types: calls, imports, extends, implements, instantiates, type_references, all.",
+)
+@click.option(
+    "--depth",
+    "-d",
+    default=1,
+    show_default=True,
+    help="Transitive traversal depth (1=direct, up to 5).",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.option(
+    "--budget",
+    "-b",
+    default=4000,
+    show_default=True,
+    help="Token budget for output.",
+)
+@click.pass_context
+def find_usages(ctx: click.Context, symbol: str, types: str, depth: int, fmt: str, budget: int) -> None:
+    """Find all usages of a symbol (calls, imports, extends, etc.).
+
+    Shows where a symbol is called, imported, extended, implemented,
+    or instantiated across the codebase.
+    """
+    from coderag.core.models import EdgeKind
+    from coderag.mcp.tools import _USAGE_TYPE_TO_EDGE_KINDS, _format_candidates, _resolve_symbol
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        depth = min(max(depth, 1), 5)
+        budget = min(max(budget, 500), 16000)
+
+        node, candidates = _resolve_symbol(symbol, store)
+        if node is None:
+            if candidates:
+                console.print(_format_candidates(candidates, symbol))
+            else:
+                console.print("[red]Symbol not found:[/red] " + symbol)
+            return
+
+        # Parse usage types
+        usage_type_list = [t.strip() for t in types.split(",")]
+        if "all" in usage_type_list:
+            edge_kind_filter = None
+        else:
+            edge_kind_filter: list[EdgeKind] = []
+            for ut in usage_type_list:
+                edge_kind_filter.extend(_USAGE_TYPE_TO_EDGE_KINDS.get(ut, []))
+
+        neighbors = store.get_neighbors(
+            node_id=node.id,
+            direction="incoming",
+            edge_kinds=edge_kind_filter,
+            max_depth=depth,
+        )
+
+        if not neighbors:
+            kind = node.kind.value if isinstance(node.kind, NodeKind) else node.kind
+            msg = f"No usages found for {node.qualified_name} ({kind}).\nDefined at {node.file_path}:{node.start_line}"
+            console.print("[yellow]" + msg + "[/yellow]")
+            return
+
+        if fmt == "json":
+            data = {
+                "symbol": node.qualified_name,
+                "kind": node.kind.value if isinstance(node.kind, NodeKind) else node.kind,
+                "file": node.file_path,
+                "line": node.start_line,
+                "total_usages": len(neighbors),
+                "usages": [],
+            }
+            for n, edge, d in neighbors:
+                ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                data["usages"].append(
+                    {
+                        "qualified_name": n.qualified_name,
+                        "kind": nk,
+                        "edge_kind": ek,
+                        "file": n.file_path,
+                        "line": n.start_line,
+                        "depth": d,
+                    }
+                )
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            kind = node.kind.value if isinstance(node.kind, NodeKind) else node.kind
+            lines = [
+                f"## Usages of `{node.qualified_name}`\n",
+                f"**Kind**: {kind}  ",
+                f"**Defined at**: `{node.file_path}:{node.start_line}`  ",
+                f"**Total usages found**: {len(neighbors)}\n",
+            ]
+
+            by_depth: dict[int, list[tuple]] = {}
+            for n, edge, d in neighbors:
+                by_depth.setdefault(d, []).append((n, edge))
+
+            for d in sorted(by_depth.keys()):
+                items = by_depth[d]
+                lines.append(f"### Depth {d} ({len(items)} usages)\n")
+
+                by_kind: dict[str, list] = {}
+                for n, edge in items:
+                    ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                    by_kind.setdefault(ek, []).append(n)
+
+                for ek, nodes_list in sorted(by_kind.items()):
+                    lines.append(f"**{ek}** ({len(nodes_list)}):\n")
+                    for n in nodes_list:
+                        nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                        lines.append(f"- `{n.qualified_name}` ({nk}, `{n.file_path}:{n.start_line}`)")
+                    lines.append("")
+
+            formatter.render_to_console("\n".join(lines), console)
+    finally:
+        store.close()
+
+
+# -- Impact Command ----------------------------------------------------------
+
+
+@cli.command()
+@click.argument("symbol")
+@click.option(
+    "--depth",
+    "-d",
+    default=3,
+    show_default=True,
+    help="Impact analysis depth (1-5).",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.option(
+    "--budget",
+    "-b",
+    default=4000,
+    show_default=True,
+    help="Token budget for context assembly.",
+)
+@click.pass_context
+def impact(ctx: click.Context, symbol: str, depth: int, fmt: str, budget: int) -> None:
+    """Analyze the blast radius of changing a symbol.
+
+    Shows all code that would be affected by a change,
+    organized by depth level. Essential before refactoring.
+    """
+    from coderag.analysis.networkx_analyzer import NetworkXAnalyzer
+    from coderag.output.context import ContextAssembler
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        depth = min(max(depth, 1), 5)
+        budget = min(max(budget, 500), 16000)
+
+        with console.status("[bold cyan]Loading graph into analyzer..."):
+            analyzer = NetworkXAnalyzer()
+            analyzer.load_from_store(store)
+
+        console.print(
+            "[green]\u2713[/green] Graph loaded: "
+            f"[bold]{analyzer.node_count:,}[/bold] nodes, "
+            f"[bold]{analyzer.edge_count:,}[/bold] edges"
+        )
+        console.print()
+
+        if fmt == "json":
+            node = store.get_node_by_qualified_name(symbol)
+            if not node:
+                results = store.search_nodes(symbol, limit=1)
+                node = results[0] if results else None
+
+            if not node:
+                console.print("[red]Symbol not found:[/red] " + symbol)
+                return
+
+            blast = analyzer.blast_radius(node.id, max_depth=depth)
+            data = {
+                "symbol": node.qualified_name,
+                "kind": node.kind.value if isinstance(node.kind, NodeKind) else node.kind,
+                "file": node.file_path,
+                "blast_radius": {},
+            }
+            for d, node_ids in blast.items():
+                data["blast_radius"][str(d)] = []
+                for nid in node_ids:
+                    n = store.get_node(nid)
+                    if n:
+                        data["blast_radius"][str(d)].append(
+                            {
+                                "id": n.id,
+                                "kind": n.kind.value if isinstance(n.kind, NodeKind) else n.kind,
+                                "name": n.qualified_name,
+                                "file": n.file_path,
+                            }
+                        )
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            assembler = ContextAssembler()
+            result = assembler.assemble_impact_analysis(symbol, store, analyzer, token_budget=budget)
+            formatter.render_to_console(result.text, console)
+
+            console.print()
+            console.print(
+                f"[dim]Tokens: {result.tokens_used}/{result.token_budget} | Nodes: {result.nodes_included}/{result.nodes_available}[/dim]"
+            )
+    finally:
+        store.close()
+
+
+# -- File Context Command ----------------------------------------------------
+
+
+@cli.command("file-context")
+@click.argument("file_path")
+@click.option(
+    "--no-source",
+    is_flag=True,
+    default=False,
+    help="Exclude source code snippets.",
+)
+@click.option(
+    "--budget",
+    "-b",
+    default=4000,
+    show_default=True,
+    help="Token budget for context assembly.",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.pass_context
+def file_context(ctx: click.Context, file_path: str, no_source: bool, budget: int, fmt: str) -> None:
+    """Get context for a file -- symbols, relationships, and importance.
+
+    Shows all symbols defined in a file, their relationships,
+    and how the file connects to the rest of the codebase.
+    """
+    from coderag.analysis.networkx_analyzer import NetworkXAnalyzer
+    from coderag.mcp.tools import _normalize_file_path
+    from coderag.output.context import ContextAssembler
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        budget = min(max(budget, 500), 16000)
+
+        resolved = _normalize_file_path(file_path, store)
+        if resolved is None:
+            conn = store.connection
+            basename = file_path.rsplit("/", 1)[-1] if "/" in file_path else file_path
+            rows = conn.execute(
+                "SELECT DISTINCT file_path FROM nodes WHERE file_path LIKE ? LIMIT 10",
+                ("%" + basename + "%",),
+            ).fetchall()
+            if rows:
+                console.print("[yellow]File not found. Similar files:[/yellow]")
+                for r in rows:
+                    console.print("  - " + r[0])
+            else:
+                console.print("[red]File not found:[/red] " + file_path)
+            return
+
+        if fmt == "json":
+            nodes = store.find_nodes(file_path=resolved, limit=500)
+            data = {
+                "file": resolved,
+                "total_symbols": len(nodes),
+                "symbols": [],
+            }
+            for n in nodes:
+                nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                data["symbols"].append(
+                    {
+                        "id": n.id,
+                        "name": n.name,
+                        "qualified_name": n.qualified_name,
+                        "kind": nk,
+                        "line": n.start_line,
+                        "language": n.language,
+                    }
+                )
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            with console.status("[bold cyan]Loading graph into analyzer..."):
+                analyzer = NetworkXAnalyzer()
+                analyzer.load_from_store(store)
+
+            assembler = ContextAssembler()
+            result = assembler.assemble_for_file(
+                file_path=resolved,
+                store=store,
+                analyzer=analyzer,
+                token_budget=budget,
+            )
+            formatter.render_to_console(result.text, console)
+
+            console.print()
+            console.print(
+                f"[dim]Tokens: {result.tokens_used}/{result.token_budget} | Nodes: {result.nodes_included}/{result.nodes_available}[/dim]"
+            )
+    finally:
+        store.close()
+
+
+# -- Routes Command ----------------------------------------------------------
+
+
+@cli.command()
+@click.argument("pattern")
+@click.option(
+    "--method",
+    "-m",
+    type=click.Choice(["GET", "POST", "PUT", "PATCH", "DELETE", "ANY"], case_sensitive=False),
+    default=None,
+    help="Filter by HTTP method.",
+)
+@click.option(
+    "--no-frontend",
+    is_flag=True,
+    default=False,
+    help="Exclude frontend API callers.",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.pass_context
+def routes(ctx: click.Context, pattern: str, method: str | None, no_frontend: bool, fmt: str) -> None:
+    """Find API routes/endpoints matching a URL pattern.
+
+    Supports glob patterns like /api/users/*.
+    Shows route definitions and optionally frontend code that calls them.
+    """
+    import fnmatch as _fnmatch
+
+    from coderag.core.models import EdgeKind
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        route_nodes = store.find_nodes(kind=NodeKind.ROUTE, limit=1000)
+
+        if not route_nodes:
+            console.print("[yellow]No routes found in the knowledge graph.[/yellow]")
+            console.print("The codebase may not have been parsed with framework detection enabled.")
+            return
+
+        matched: list[Node] = []
+        for rnode in route_nodes:
+            route_url = rnode.metadata.get("url", rnode.name)
+            if _fnmatch.fnmatch(route_url, pattern) or pattern in route_url:
+                if method and method.upper() != "ANY":
+                    node_method = rnode.metadata.get("http_method", "").upper()
+                    if node_method != method.upper():
+                        continue
+                matched.append(rnode)
+
+        if not matched:
+            console.print("[yellow]No routes matching pattern found.[/yellow]")
+            console.print(f"Total routes in graph: {len(route_nodes)}")
+            return
+
+        if fmt == "json":
+            data: dict[str, Any] = {
+                "pattern": pattern,
+                "total_matched": len(matched),
+                "routes": [],
+            }
+            for rnode in matched:
+                route_data: dict[str, Any] = {
+                    "url": rnode.metadata.get("url", rnode.name),
+                    "method": rnode.metadata.get("http_method", "ANY"),
+                    "file": rnode.file_path,
+                    "line": rnode.start_line,
+                    "controller": rnode.metadata.get("controller", ""),
+                    "action": rnode.metadata.get("action", ""),
+                }
+                if not no_frontend:
+                    incoming = store.get_edges(target_id=rnode.id)
+                    callers = [
+                        e
+                        for e in incoming
+                        if (e.kind == EdgeKind.API_CALLS or (isinstance(e.kind, str) and e.kind == "api_calls"))
+                    ]
+                    if callers:
+                        route_data["frontend_callers"] = []
+                        for edge in callers:
+                            source = store.get_node(edge.source_id)
+                            if source:
+                                route_data["frontend_callers"].append(
+                                    {
+                                        "name": source.qualified_name,
+                                        "file": source.file_path,
+                                        "line": source.start_line,
+                                    }
+                                )
+                data["routes"].append(route_data)
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            lines = [
+                f"## Routes matching `{pattern}`\n",
+                f"**Matched**: {len(matched)} routes\n",
+            ]
+
+            for rnode in matched:
+                http_method = rnode.metadata.get("http_method", "ANY")
+                url = rnode.metadata.get("url", rnode.name)
+                controller = rnode.metadata.get("controller", "")
+                action = rnode.metadata.get("action", "")
+
+                lines.append(f"### {http_method} `{url}`")
+                lines.append(f"- **File**: `{rnode.file_path}:{rnode.start_line}`")
+                if controller:
+                    lines.append(f"- **Controller**: `{controller}`")
+                if action:
+                    lines.append(f"- **Action**: `{action}`")
+
+                outgoing = store.get_edges(source_id=rnode.id)
+                for edge in outgoing:
+                    ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                    target_node = store.get_node(edge.target_id)
+                    if target_node:
+                        lines.append(
+                            f"- **{ek}** -> `{target_node.qualified_name}` (`{target_node.file_path}:{target_node.start_line}`)"
+                        )
+
+                if not no_frontend:
+                    incoming = store.get_edges(target_id=rnode.id)
+                    api_callers = [
+                        e
+                        for e in incoming
+                        if (e.kind == EdgeKind.API_CALLS or (isinstance(e.kind, str) and e.kind == "api_calls"))
+                    ]
+                    if api_callers:
+                        lines.append("")
+                        lines.append(f"  **Frontend callers** ({len(api_callers)}):")
+                        for edge in api_callers:
+                            source = store.get_node(edge.source_id)
+                            if source:
+                                call_url = edge.metadata.get("call_url", "")
+                                entry = f"  - `{source.qualified_name}` (`{source.file_path}:{source.start_line}`)"
+                                if call_url:
+                                    entry += f" via `{call_url}`"
+                                lines.append(entry)
+                lines.append("")
+
+            formatter.render_to_console("\n".join(lines), console)
+    finally:
+        store.close()
+
+
+# -- Deps Command ------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("target")
+@click.option(
+    "--direction",
+    "-D",
+    type=click.Choice(["dependencies", "dependents", "both"]),
+    default="both",
+    show_default=True,
+    help="Show dependencies, dependents, or both.",
+)
+@click.option(
+    "--depth",
+    "-d",
+    default=2,
+    show_default=True,
+    help="Traversal depth (1-5).",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.option(
+    "--budget",
+    "-b",
+    default=4000,
+    show_default=True,
+    help="Token budget for output.",
+)
+@click.pass_context
+def deps(ctx: click.Context, target: str, direction: str, depth: int, fmt: str, budget: int) -> None:
+    """Show the dependency graph for a symbol or file.
+
+    Visualizes what depends on what, including transitive dependencies.
+    Useful for understanding coupling and planning refactors.
+    """
+    from coderag.core.models import EdgeKind
+    from coderag.mcp.tools import _format_candidates, _normalize_file_path, _resolve_symbol
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        depth = min(max(depth, 1), 5)
+        budget = min(max(budget, 500), 16000)
+
+        node, candidates = _resolve_symbol(target, store)
+
+        if node is None:
+            resolved_path = _normalize_file_path(target, store)
+            if resolved_path:
+                file_nodes = store.find_nodes(file_path=resolved_path, limit=1)
+                if file_nodes:
+                    node = file_nodes[0]
+
+        if node is None:
+            if candidates:
+                console.print(_format_candidates(candidates, target))
+            else:
+                console.print("[red]Target not found:[/red] " + target)
+            return
+
+        kind = node.kind.value if isinstance(node.kind, NodeKind) else node.kind
+
+        deps_list: list[tuple] = []
+        dependents_list: list[tuple] = []
+
+        if direction in ("dependencies", "both"):
+            deps_list = store.get_neighbors(
+                node_id=node.id,
+                direction="outgoing",
+                max_depth=depth,
+            )
+
+        if direction in ("dependents", "both"):
+            dependents_list = store.get_neighbors(
+                node_id=node.id,
+                direction="incoming",
+                max_depth=depth,
+            )
+
+        if fmt == "json":
+            data: dict[str, Any] = {
+                "target": node.qualified_name,
+                "kind": kind,
+                "file": node.file_path,
+                "line": node.start_line,
+                "direction": direction,
+                "max_depth": depth,
+            }
+            if direction in ("dependencies", "both"):
+                data["dependencies"] = []
+                for n, edge, d in deps_list:
+                    ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                    nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                    data["dependencies"].append(
+                        {
+                            "qualified_name": n.qualified_name,
+                            "kind": nk,
+                            "edge_kind": ek,
+                            "file": n.file_path,
+                            "line": n.start_line,
+                            "depth": d,
+                        }
+                    )
+            if direction in ("dependents", "both"):
+                data["dependents"] = []
+                for n, edge, d in dependents_list:
+                    ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                    nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                    data["dependents"].append(
+                        {
+                            "qualified_name": n.qualified_name,
+                            "kind": nk,
+                            "edge_kind": ek,
+                            "file": n.file_path,
+                            "line": n.start_line,
+                            "depth": d,
+                        }
+                    )
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            lines = [
+                f"## Dependency Graph: `{node.qualified_name}`\n",
+                f"**Kind**: {kind}  ",
+                f"**File**: `{node.file_path}:{node.start_line}`  ",
+                f"**Direction**: {direction} | **Max depth**: {depth}\n",
+            ]
+
+            if direction in ("dependencies", "both"):
+                lines.append(f"### Dependencies ({len(deps_list)} nodes)\n")
+                if deps_list:
+                    lines.append(f"What `{node.name}` depends on:\n")
+                    by_depth: dict[int, list] = {}
+                    for n, edge, d in deps_list:
+                        by_depth.setdefault(d, []).append((n, edge))
+                    for d in sorted(by_depth.keys()):
+                        indent = "  " * (d - 1)
+                        for n, edge in by_depth[d]:
+                            ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                            nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                            lines.append(
+                                f"{indent}  - **{ek}** -> `{n.qualified_name}` ({nk}, `{n.file_path}:{n.start_line}`)"
+                            )
+                else:
+                    lines.append("No dependencies found.\n")
+                lines.append("")
+
+            if direction in ("dependents", "both"):
+                lines.append(f"### Dependents ({len(dependents_list)} nodes)\n")
+                if dependents_list:
+                    lines.append(f"What depends on `{node.name}`:\n")
+                    by_depth_dep: dict[int, list] = {}
+                    for n, edge, d in dependents_list:
+                        by_depth_dep.setdefault(d, []).append((n, edge))
+                    for d in sorted(by_depth_dep.keys()):
+                        indent = "  " * (d - 1)
+                        for n, edge in by_depth_dep[d]:
+                            ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
+                            nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
+                            lines.append(
+                                f"{indent}  - **{ek}** <- `{n.qualified_name}` ({nk}, `{n.file_path}:{n.start_line}`)"
+                            )
+                else:
+                    lines.append("No dependents found.\n")
+
+            formatter.render_to_console("\n".join(lines), console)
+    finally:
+        store.close()
+
+
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
 
 
