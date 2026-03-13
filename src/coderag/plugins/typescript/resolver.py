@@ -7,6 +7,7 @@ Implements TypeScript module resolution including:
 - Declaration file resolution
 - Extends chain in tsconfig.json
 """
+
 from __future__ import annotations
 
 import json
@@ -25,39 +26,120 @@ from coderag.core.registry import ModuleResolver
 logger = logging.getLogger(__name__)
 
 # Node.js built-in modules (core modules)
-_NODE_BUILTINS: frozenset[str] = frozenset({
-    "assert", "async_hooks", "buffer", "child_process", "cluster",
-    "console", "constants", "crypto", "dgram", "diagnostics_channel",
-    "dns", "domain", "events", "fs", "http", "http2", "https",
-    "inspector", "module", "net", "os", "path", "perf_hooks",
-    "process", "punycode", "querystring", "readline", "repl",
-    "stream", "string_decoder", "sys", "timers", "tls", "trace_events",
-    "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
-    # Node.js prefixed versions
-    "node:assert", "node:async_hooks", "node:buffer",
-    "node:child_process", "node:cluster", "node:console",
-    "node:constants", "node:crypto", "node:dgram",
-    "node:diagnostics_channel", "node:dns", "node:domain",
-    "node:events", "node:fs", "node:http", "node:http2",
-    "node:https", "node:inspector", "node:module", "node:net",
-    "node:os", "node:path", "node:perf_hooks", "node:process",
-    "node:punycode", "node:querystring", "node:readline",
-    "node:repl", "node:stream", "node:string_decoder", "node:sys",
-    "node:timers", "node:tls", "node:trace_events", "node:tty",
-    "node:url", "node:util", "node:v8", "node:vm", "node:wasi",
-    "node:worker_threads", "node:zlib",
-})
+_NODE_BUILTINS: frozenset[str] = frozenset(
+    {
+        "assert",
+        "async_hooks",
+        "buffer",
+        "child_process",
+        "cluster",
+        "console",
+        "constants",
+        "crypto",
+        "dgram",
+        "diagnostics_channel",
+        "dns",
+        "domain",
+        "events",
+        "fs",
+        "http",
+        "http2",
+        "https",
+        "inspector",
+        "module",
+        "net",
+        "os",
+        "path",
+        "perf_hooks",
+        "process",
+        "punycode",
+        "querystring",
+        "readline",
+        "repl",
+        "stream",
+        "string_decoder",
+        "sys",
+        "timers",
+        "tls",
+        "trace_events",
+        "tty",
+        "url",
+        "util",
+        "v8",
+        "vm",
+        "wasi",
+        "worker_threads",
+        "zlib",
+        # Node.js prefixed versions
+        "node:assert",
+        "node:async_hooks",
+        "node:buffer",
+        "node:child_process",
+        "node:cluster",
+        "node:console",
+        "node:constants",
+        "node:crypto",
+        "node:dgram",
+        "node:diagnostics_channel",
+        "node:dns",
+        "node:domain",
+        "node:events",
+        "node:fs",
+        "node:http",
+        "node:http2",
+        "node:https",
+        "node:inspector",
+        "node:module",
+        "node:net",
+        "node:os",
+        "node:path",
+        "node:perf_hooks",
+        "node:process",
+        "node:punycode",
+        "node:querystring",
+        "node:readline",
+        "node:repl",
+        "node:stream",
+        "node:string_decoder",
+        "node:sys",
+        "node:timers",
+        "node:tls",
+        "node:trace_events",
+        "node:tty",
+        "node:url",
+        "node:util",
+        "node:v8",
+        "node:vm",
+        "node:wasi",
+        "node:worker_threads",
+        "node:zlib",
+    }
+)
 
 # TypeScript extensions to try (TS-first, then JS fallback)
 _TS_EXTENSIONS: tuple[str, ...] = (
-    ".ts", ".tsx", ".d.ts", ".mts", ".cts",
-    ".js", ".jsx", ".mjs", ".cjs",
+    ".ts",
+    ".tsx",
+    ".d.ts",
+    ".mts",
+    ".cts",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".cjs",
 )
 
 # Index file names to try when resolving directories
 _INDEX_FILES: tuple[str, ...] = (
-    "index.ts", "index.tsx", "index.d.ts", "index.mts", "index.cts",
-    "index.js", "index.jsx", "index.mjs", "index.cjs",
+    "index.ts",
+    "index.tsx",
+    "index.d.ts",
+    "index.mts",
+    "index.cts",
+    "index.js",
+    "index.jsx",
+    "index.mjs",
+    "index.cjs",
 )
 
 
@@ -124,9 +206,7 @@ class TSResolver(ModuleResolver):
 
         # 3. baseUrl resolution (non-relative imports resolved from baseUrl)
         if self._base_url and not import_path.startswith("."):
-            result = self._resolve_relative(
-                f"./{import_path}", self._base_url
-            )
+            result = self._resolve_relative(f"./{import_path}", self._base_url)
             if result is not None:
                 return ResolutionResult(
                     resolved_path=result,
@@ -137,9 +217,7 @@ class TSResolver(ModuleResolver):
 
         # 4. Relative imports (./foo, ../bar)
         if import_path.startswith("."):
-            from_dir = os.path.dirname(
-                os.path.join(self._project_root, from_file)
-            )
+            from_dir = os.path.dirname(os.path.join(self._project_root, from_file))
             result = self._resolve_relative(import_path, from_dir)
             if result is not None:
                 return ResolutionResult(
@@ -183,9 +261,7 @@ class TSResolver(ModuleResolver):
             self._known_files.add(fi.path)
             abs_path = os.path.join(self._project_root, fi.path)
             self._known_abs.add(os.path.normpath(abs_path))
-        logger.info(
-            "TS resolver indexed %d files from project", len(self._known_files)
-        )
+        logger.info("TS resolver indexed %d files from project", len(self._known_files))
 
     # -- Internal: relative resolution --------------------------------------
 
@@ -221,7 +297,9 @@ class TSResolver(ModuleResolver):
     # -- Internal: package resolution ---------------------------------------
 
     def _resolve_package(
-        self, import_path: str, from_file: str,
+        self,
+        import_path: str,
+        from_file: str,
     ) -> ResolutionResult | None:
         """Resolve a bare package specifier via node_modules."""
         # Split scoped packages: @scope/pkg/path -> package=@scope/pkg, subpath=path
@@ -302,7 +380,7 @@ class TSResolver(ModuleResolver):
             if import_path == prefix:
                 return replacement
             if import_path.startswith(prefix + "/"):
-                rest = import_path[len(prefix) + 1:]
+                rest = import_path[len(prefix) + 1 :]
                 return os.path.join(replacement, rest)
         return None
 
@@ -314,7 +392,7 @@ class TSResolver(ModuleResolver):
         if not os.path.isfile(pkg_path):
             return
         try:
-            with open(pkg_path, "r") as f:
+            with open(pkg_path) as f:
                 data = json.load(f)
             self._module_type = data.get("type", "commonjs")
             logger.info(
@@ -335,7 +413,9 @@ class TSResolver(ModuleResolver):
                 return
 
     def _load_tsconfig_recursive(
-        self, config_path: str, _seen: set[str] | None = None,
+        self,
+        config_path: str,
+        _seen: set[str] | None = None,
     ) -> dict:
         """Load tsconfig.json, handling comments, trailing commas, and extends."""
         if _seen is None:
@@ -347,7 +427,7 @@ class TSResolver(ModuleResolver):
         _seen.add(real)
 
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 raw = f.read()
         except Exception as exc:
             logger.warning("Failed to read %s: %s", config_path, exc)
@@ -370,9 +450,7 @@ class TSResolver(ModuleResolver):
             config_dir = os.path.dirname(config_path)
             if not extends.endswith(".json"):
                 extends += ".json"
-            parent_path = os.path.normpath(
-                os.path.join(config_dir, extends)
-            )
+            parent_path = os.path.normpath(os.path.join(config_dir, extends))
             if os.path.isfile(parent_path):
                 parent = self._load_tsconfig_recursive(parent_path, _seen)
                 # Deep merge: child overrides parent
@@ -392,9 +470,7 @@ class TSResolver(ModuleResolver):
         # baseUrl
         base_url = compiler_opts.get("baseUrl")
         if base_url:
-            self._base_url = os.path.normpath(
-                os.path.join(config_dir, base_url)
-            )
+            self._base_url = os.path.normpath(os.path.join(config_dir, base_url))
             logger.info("tsconfig baseUrl: %s", self._base_url)
 
         # paths
@@ -413,9 +489,7 @@ class TSResolver(ModuleResolver):
                 target = targets[0]
                 if target.endswith("*"):
                     target = target[:-1]
-                self._exact_aliases[alias_pattern] = os.path.join(
-                    base, target
-                )
+                self._exact_aliases[alias_pattern] = os.path.join(base, target)
             else:
                 # Other wildcard patterns — treat as prefix
                 prefix = alias_pattern.split("*")[0].rstrip("/")
@@ -425,9 +499,7 @@ class TSResolver(ModuleResolver):
 
         total = len(self._aliases) + len(self._exact_aliases)
         if total:
-            logger.info(
-                "Loaded %d path aliases from tsconfig.json", total
-            )
+            logger.info("Loaded %d path aliases from tsconfig.json", total)
 
     def _read_package_main(self, package_dir: str) -> str | None:
         """Read the main entry point from a package's package.json.
@@ -438,16 +510,11 @@ class TSResolver(ModuleResolver):
         if not os.path.isfile(pkg_json):
             return None
         try:
-            with open(pkg_json, "r") as f:
+            with open(pkg_json) as f:
                 data = json.load(f)
             # For TS: prefer types/typings for type resolution,
             # but module/main for actual source
-            return (
-                data.get("module")
-                or data.get("main")
-                or data.get("types")
-                or data.get("typings")
-            )
+            return data.get("module") or data.get("main") or data.get("types") or data.get("typings")
         except Exception:
             return None
 

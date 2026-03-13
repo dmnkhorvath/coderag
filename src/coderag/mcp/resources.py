@@ -3,6 +3,7 @@
 Registers 3 resources on a FastMCP server instance that provide
 passive context about the knowledge graph to LLMs.
 """
+
 from __future__ import annotations
 
 import logging
@@ -11,8 +12,6 @@ from typing import Any
 
 from coderag.core.models import (
     Node,
-    NodeKind,
-    estimate_tokens,
 )
 
 logger = logging.getLogger(__name__)
@@ -99,9 +98,7 @@ def register_resources(mcp: Any, store: Any, analyzer: Any) -> None:
             # Top nodes
             if summary.top_nodes_by_pagerank:
                 lines.append("## Most Important Nodes (by PageRank)\n")
-                for i, (name, qn, score) in enumerate(
-                    summary.top_nodes_by_pagerank[:10], 1
-                ):
+                for i, (name, qn, score) in enumerate(summary.top_nodes_by_pagerank[:10], 1):
                     lines.append(f"{i}. `{qn}` (score: {score:.4f})")
                 lines.append("")
 
@@ -226,9 +223,7 @@ def register_resources(mcp: Any, store: Any, analyzer: Any) -> None:
                     current = current.setdefault(part, {})
                 current[parts[-1]] = None  # Leaf file
 
-            def _render_tree(
-                node: dict, prefix: str = "", path_parts: list[str] | None = None
-            ) -> None:
+            def _render_tree(node: dict, prefix: str = "", path_parts: list[str] | None = None) -> None:
                 if path_parts is None:
                     path_parts = []
                 items = sorted(node.items(), key=lambda x: (x[1] is None, x[0]))
@@ -244,9 +239,7 @@ def register_resources(mcp: Any, store: Any, analyzer: Any) -> None:
                         count = info.get("count", 0)
                         kinds = info.get("kinds", [])
                         # Summarize kinds
-                        kind_summary = ", ".join(
-                            sorted(set(k for k in kinds if k not in ("file", "import", "export")))
-                        )
+                        kind_summary = ", ".join(sorted(set(k for k in kinds if k not in ("file", "import", "export"))))
                         annotation = f"  ({count} symbols"
                         if kind_summary:
                             annotation += f": {kind_summary}"
@@ -256,9 +249,7 @@ def register_resources(mcp: Any, store: Any, analyzer: Any) -> None:
                         # Count total symbols in directory
                         dir_prefix = current_path + "/"
                         dir_count = sum(
-                            info.get("count", 0)
-                            for fp, info in file_info.items()
-                            if fp.startswith(dir_prefix)
+                            info.get("count", 0) for fp, info in file_info.items() if fp.startswith(dir_prefix)
                         )
                         dir_annotation = f"  [{dir_count} symbols]" if dir_count > 0 else ""
                         lines.append(f"{prefix}{connector}{name}/{dir_annotation}")

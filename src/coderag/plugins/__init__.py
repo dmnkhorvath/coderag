@@ -2,12 +2,13 @@
 
 Auto-registers built-in plugins when imported.
 """
-from coderag.plugins.php.plugin import PHPPlugin
-from coderag.plugins.javascript.plugin import JavaScriptPlugin
-from coderag.plugins.typescript.plugin import TypeScriptPlugin
-from coderag.plugins.python.plugin import PythonPlugin
+
 from coderag.plugins.css.plugin import CSSPlugin
+from coderag.plugins.javascript.plugin import JavaScriptPlugin
+from coderag.plugins.php.plugin import PHPPlugin
+from coderag.plugins.python.plugin import PythonPlugin
 from coderag.plugins.scss.plugin import SCSSPlugin
+from coderag.plugins.typescript.plugin import TypeScriptPlugin
 
 BUILTIN_PLUGINS = [
     PHPPlugin,
@@ -18,4 +19,12 @@ BUILTIN_PLUGINS = [
     SCSSPlugin,
 ]
 
-__all__ = ["BUILTIN_PLUGINS", "PHPPlugin", "JavaScriptPlugin", "TypeScriptPlugin", "PythonPlugin", "CSSPlugin", "SCSSPlugin"]
+__all__ = [
+    "BUILTIN_PLUGINS",
+    "PHPPlugin",
+    "JavaScriptPlugin",
+    "TypeScriptPlugin",
+    "PythonPlugin",
+    "CSSPlugin",
+    "SCSSPlugin",
+]

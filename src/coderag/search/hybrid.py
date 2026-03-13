@@ -3,10 +3,11 @@
 Uses Reciprocal Rank Fusion (RRF) to merge two ranked result lists
 into a single, unified ranking.
 """
+
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class SearchResult:
         vector_rank: Rank in vector results (1-based, 0 = not found).
         vector_similarity: Raw cosine similarity from vector search.
     """
+
     node_id: str
     name: str
     kind: str
@@ -102,7 +104,9 @@ class HybridSearcher:
         fts_results: dict[str, int] = {}  # node_id -> rank
         if alpha < 1.0:
             fts_nodes = self._store.search_nodes(
-                query, limit=fetch_k, kind=kind,
+                query,
+                limit=fetch_k,
+                kind=kind,
             )
             for rank, node in enumerate(fts_nodes, start=1):
                 fts_results[node.id] = rank
@@ -165,19 +169,21 @@ class HybridSearcher:
 
             node_kind_str = node.kind.value if hasattr(node.kind, "value") else str(node.kind)
 
-            results.append(SearchResult(
-                node_id=nid,
-                name=node.name,
-                kind=node_kind_str,
-                qualified_name=node.qualified_name or "",
-                file_path=node.file_path or "",
-                language=node.language or "",
-                score=scored[nid],
-                match_type=match_type,
-                fts_rank=fts_r,
-                vector_rank=vec_r,
-                vector_similarity=vec_sims.get(nid, 0.0),
-            ))
+            results.append(
+                SearchResult(
+                    node_id=nid,
+                    name=node.name,
+                    kind=node_kind_str,
+                    qualified_name=node.qualified_name or "",
+                    file_path=node.file_path or "",
+                    language=node.language or "",
+                    score=scored[nid],
+                    match_type=match_type,
+                    fts_rank=fts_r,
+                    vector_rank=vec_r,
+                    vector_similarity=vec_sims.get(nid, 0.0),
+                )
+            )
 
         return results
 

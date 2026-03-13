@@ -17,9 +17,10 @@ import json
 import logging
 import os
 import sqlite3
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Generator, Sequence
+from typing import Any
 
 from coderag.core.models import (
     Edge,
@@ -234,9 +235,7 @@ class SQLiteStore:
             RuntimeError: If the store has not been initialized.
         """
         if self._conn is None:
-            raise RuntimeError(
-                "SQLiteStore not initialized. Call initialize() first."
-            )
+            raise RuntimeError("SQLiteStore not initialized. Call initialize() first.")
         return self._conn
 
     # ── Node Operations ───────────────────────────────────────
@@ -310,9 +309,7 @@ class SQLiteStore:
 
     def get_node(self, node_id: str) -> Node | None:
         """Get a node by its ID."""
-        row = self.connection.execute(
-            "SELECT * FROM nodes WHERE id = ?", (node_id,)
-        ).fetchone()
+        row = self.connection.execute("SELECT * FROM nodes WHERE id = ?", (node_id,)).fetchone()
         return self._row_to_node(row) if row else None
 
     def get_node_by_qualified_name(self, qualified_name: str) -> Node | None:
@@ -445,12 +442,7 @@ class SQLiteStore:
         conn = self.connection
 
         # Get node IDs for this file
-        node_ids = [
-            row[0]
-            for row in conn.execute(
-                "SELECT id FROM nodes WHERE file_path = ?", (file_path,)
-            ).fetchall()
-        ]
+        node_ids = [row[0] for row in conn.execute("SELECT id FROM nodes WHERE file_path = ?", (file_path,)).fetchall()]
 
         if not node_ids:
             return 0
@@ -579,9 +571,7 @@ class SQLiteStore:
         if edge_kinds:
             placeholders = ",".join("?" * len(edge_kinds))
             kind_filter = f" AND e.kind IN ({placeholders})"
-            kind_params = [
-                ek.value if isinstance(ek, EdgeKind) else ek for ek in edge_kinds
-            ]
+            kind_params = [ek.value if isinstance(ek, EdgeKind) else ek for ek in edge_kinds]
 
         for depth in range(1, max_depth + 1):
             if not frontier:
@@ -662,7 +652,7 @@ class SQLiteStore:
                     JOIN nodes n ON n.id = e.source_id
                     WHERE e.target_id IN ({placeholders})
                       AND e.confidence >= ?
-                      AND e.source_id NOT IN ({','.join('?' * len(visited))})""",
+                      AND e.source_id NOT IN ({",".join("?" * len(visited))})""",
                 list(frontier) + [min_confidence] + list(visited),
             ).fetchall()
 
@@ -714,19 +704,13 @@ class SQLiteStore:
                 edge_count=excluded.edge_count,
                 parse_time_ms=excluded.parse_time_ms,
                 last_parsed=excluded.last_parsed""",
-            (file_path, content_hash, language, plugin_name,
-             node_count, edge_count, parse_time_ms),
+            (file_path, content_hash, language, plugin_name, node_count, edge_count, parse_time_ms),
         )
         self.connection.commit()
 
     def get_stale_files(self, current_files: set[str]) -> set[str]:
         """Find files that were previously parsed but no longer exist."""
-        stored = {
-            row[0]
-            for row in self.connection.execute(
-                "SELECT file_path FROM files"
-            ).fetchall()
-        }
+        stored = {row[0] for row in self.connection.execute("SELECT file_path FROM files").fetchall()}
         return stored - current_files
 
     # ── Graph Metadata ────────────────────────────────────────
@@ -739,29 +723,18 @@ class SQLiteStore:
         total_edges = conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
 
         nodes_by_kind = {
-            row[0]: row[1]
-            for row in conn.execute(
-                "SELECT kind, COUNT(*) FROM nodes GROUP BY kind"
-            ).fetchall()
+            row[0]: row[1] for row in conn.execute("SELECT kind, COUNT(*) FROM nodes GROUP BY kind").fetchall()
         }
 
         edges_by_kind = {
-            row[0]: row[1]
-            for row in conn.execute(
-                "SELECT kind, COUNT(*) FROM edges GROUP BY kind"
-            ).fetchall()
+            row[0]: row[1] for row in conn.execute("SELECT kind, COUNT(*) FROM edges GROUP BY kind").fetchall()
         }
 
         files_by_language = {
-            row[0]: row[1]
-            for row in conn.execute(
-                "SELECT language, COUNT(*) FROM files GROUP BY language"
-            ).fetchall()
+            row[0]: row[1] for row in conn.execute("SELECT language, COUNT(*) FROM files GROUP BY language").fetchall()
         }
 
-        avg_conf_row = conn.execute(
-            "SELECT AVG(confidence) FROM edges"
-        ).fetchone()
+        avg_conf_row = conn.execute("SELECT AVG(confidence) FROM edges").fetchone()
         avg_confidence = avg_conf_row[0] if avg_conf_row[0] is not None else 0.0
 
         communities = conn.execute(
@@ -797,9 +770,7 @@ class SQLiteStore:
             frameworks=frameworks,
             communities=communities,
             avg_confidence=avg_confidence,
-            top_nodes_by_pagerank=[
-                (row[0], row[1], row[2]) for row in top_nodes
-            ],
+            top_nodes_by_pagerank=[(row[0], row[1], row[2]) for row in top_nodes],
         )
 
     def set_metadata(self, key: str, value: str) -> None:
@@ -813,9 +784,7 @@ class SQLiteStore:
 
     def get_metadata(self, key: str) -> str | None:
         """Retrieve a metadata value."""
-        row = self.connection.execute(
-            "SELECT value FROM metadata WHERE key = ?", (key,)
-        ).fetchone()
+        row = self.connection.execute("SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
         return row[0] if row else None
 
     # ── Transactions ──────────────────────────────────────────
@@ -861,9 +830,7 @@ class SQLiteStore:
             "total_files": conn.execute("SELECT COUNT(*) FROM files").fetchone()[0],
             "db_path": self._db_path,
             "db_size_bytes": (
-                os.path.getsize(self._db_path)
-                if self._db_path != ":memory:" and os.path.exists(self._db_path)
-                else 0
+                os.path.getsize(self._db_path) if self._db_path != ":memory:" and os.path.exists(self._db_path) else 0
             ),
             "schema_version": self.get_metadata("schema_version"),
         }
@@ -952,9 +919,9 @@ class SQLiteStore:
             kind=EdgeKind(row["kind"] if isinstance(row, sqlite3.Row) else row[2]),
             confidence=row["confidence"] if isinstance(row, sqlite3.Row) else row[3],
             line_number=row["line_number"] if isinstance(row, sqlite3.Row) else row[4],
-            metadata=json.loads(
-                row["metadata"] if isinstance(row, sqlite3.Row) else row[5]
-            ) if (row["metadata"] if isinstance(row, sqlite3.Row) else row[5]) else {},
+            metadata=json.loads(row["metadata"] if isinstance(row, sqlite3.Row) else row[5])
+            if (row["metadata"] if isinstance(row, sqlite3.Row) else row[5])
+            else {},
         )
 
     @staticmethod
@@ -967,7 +934,7 @@ class SQLiteStore:
         import re as _re
 
         # Remove FTS5 special characters that could cause syntax errors
-        special = {'(', ')', '{', '}', '[', ']', '^', '~', '@', ':', ';', '!', '&', '|', '\\', '"', "'"}
+        special = {"(", ")", "{", "}", "[", "]", "^", "~", "@", ":", ";", "!", "&", "|", "\\", '"', "'"}
         cleaned = "".join(c for c in query if c not in special)
         cleaned = cleaned.strip()
 
@@ -979,9 +946,9 @@ class SQLiteStore:
         all_tokens = []
         for term in cleaned.split():
             # Split on underscores and camelCase boundaries
-            sub = _re.sub(r'([a-z])([A-Z])', r'\1 \2', term)
-            sub = _re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', sub)
-            sub = sub.replace('_', ' ')
+            sub = _re.sub(r"([a-z])([A-Z])", r"\1 \2", term)
+            sub = _re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", sub)
+            sub = sub.replace("_", " ")
             parts = [p.strip() for p in sub.split() if p.strip()]
             all_tokens.extend(parts)
             # Also keep the original term as-is for exact matching

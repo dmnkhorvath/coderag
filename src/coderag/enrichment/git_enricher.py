@@ -7,9 +7,9 @@ Analyzes git history to enrich the knowledge graph with:
 - Churn metrics (lines added/removed over time)
 - Recency scoring (recently changed files are more relevant)
 """
+
 from __future__ import annotations
 
-import hashlib
 import logging
 import math
 import os
@@ -17,8 +17,7 @@ import subprocess
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,38 +25,42 @@ logger = logging.getLogger(__name__)
 
 # ── Data Classes ──────────────────────────────────────────────────
 
+
 @dataclass
 class FileGitMetrics:
     """Git-derived metrics for a single file."""
+
     file_path: str
     commit_count: int = 0
     unique_authors: int = 0
     primary_author: str = ""
     primary_author_pct: float = 0.0
-    last_modified: str = ""          # ISO date of last commit
-    first_seen: str = ""             # ISO date of first commit
+    last_modified: str = ""  # ISO date of last commit
+    first_seen: str = ""  # ISO date of first commit
     age_days: int = 0
     lines_added: int = 0
     lines_deleted: int = 0
-    churn_ratio: float = 0.0         # deleted / (added + deleted)
-    change_frequency: float = 0.0    # commits per month
-    recency_score: float = 0.0       # 0.0-1.0, higher = more recent
-    is_hot_file: bool = False        # True if in top 10% by commits
+    churn_ratio: float = 0.0  # deleted / (added + deleted)
+    change_frequency: float = 0.0  # commits per month
+    recency_score: float = 0.0  # 0.0-1.0, higher = more recent
+    is_hot_file: bool = False  # True if in top 10% by commits
 
 
 @dataclass
 class CoChangeEntry:
     """Two files that frequently change together."""
+
     file_a: str
     file_b: str
     co_change_count: int = 0
-    confidence: float = 0.0          # co_changes / min(commits_a, commits_b)
-    jaccard_index: float = 0.0       # intersection / union of commit sets
+    confidence: float = 0.0  # co_changes / min(commits_a, commits_b)
+    jaccard_index: float = 0.0  # intersection / union of commit sets
 
 
 @dataclass
 class GitEnrichmentResult:
     """Complete result of git enrichment."""
+
     file_metrics: dict[str, FileGitMetrics] = field(default_factory=dict)
     co_changes: list[CoChangeEntry] = field(default_factory=list)
     total_commits_analyzed: int = 0
@@ -67,6 +70,7 @@ class GitEnrichmentResult:
 
 
 # ── Git Enricher ──────────────────────────────────────────────────
+
 
 class GitEnricher:
     """Analyze git history to produce enrichment metadata.
@@ -157,8 +161,7 @@ class GitEnricher:
 
         result.analysis_time_ms = (time.perf_counter() - t0) * 1000
         logger.info(
-            "Git enrichment complete: %d files, %d co-change pairs, "
-            "%d commits, %d authors in %.1fms",
+            "Git enrichment complete: %d files, %d co-change pairs, %d commits, %d authors in %.1fms",
             len(result.file_metrics),
             len(result.co_changes),
             result.total_commits_analyzed,
@@ -208,9 +211,7 @@ class GitEnricher:
                 "total_authors": result.total_authors,
                 "total_files": len(result.file_metrics),
                 "total_co_change_pairs": len(result.co_changes),
-                "hot_files": sum(
-                    1 for m in result.file_metrics.values() if m.is_hot_file
-                ),
+                "hot_files": sum(1 for m in result.file_metrics.values() if m.is_hot_file),
                 "analysis_time_ms": round(result.analysis_time_ms, 1),
             },
             "errors": result.errors,
@@ -229,9 +230,7 @@ class GitEnricher:
                 timeout=120,
             )
             if proc.returncode != 0:
-                logger.debug(
-                    "git command failed: %s\nstderr: %s", cmd, proc.stderr
-                )
+                logger.debug("git command failed: %s\nstderr: %s", cmd, proc.stderr)
                 return ""
             return proc.stdout
         except subprocess.TimeoutExpired:
@@ -297,11 +296,13 @@ class GitEnricher:
                     if self._file_filter and filepath not in self._file_filter:
                         continue
 
-                    current_commit["files"].append({
-                        "path": filepath,
-                        "added": added,
-                        "deleted": deleted,
-                    })
+                    current_commit["files"].append(
+                        {
+                            "path": filepath,
+                            "added": added,
+                            "deleted": deleted,
+                        }
+                    )
 
         return commits
 
@@ -331,7 +332,7 @@ class GitEnricher:
                 file_dates[path].append(date)
 
         # Compute metrics
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         metrics: dict[str, FileGitMetrics] = {}
 
         for path in file_commits:
@@ -343,9 +344,7 @@ class GitEnricher:
 
             # Primary author
             primary_author, primary_count = authors.most_common(1)[0]
-            primary_pct = (
-                primary_count / total_commits if total_commits > 0 else 0.0
-            )
+            primary_pct = primary_count / total_commits if total_commits > 0 else 0.0
 
             # Age and frequency
             first_date = dates[0] if dates else ""
@@ -374,9 +373,7 @@ class GitEnricher:
 
             # Churn ratio
             total_changes = total_added + total_deleted
-            churn_ratio = (
-                total_deleted / total_changes if total_changes > 0 else 0.0
-            )
+            churn_ratio = total_deleted / total_changes if total_changes > 0 else 0.0
 
             metrics[path] = FileGitMetrics(
                 file_path=path,
@@ -405,12 +402,8 @@ class GitEnricher:
             (m.commit_count for m in metrics.values()),
             reverse=True,
         )
-        threshold_idx = max(
-            1, int(len(commit_counts) * self.HOT_FILE_PERCENTILE)
-        )
-        threshold = commit_counts[
-            min(threshold_idx, len(commit_counts) - 1)
-        ]
+        threshold_idx = max(1, int(len(commit_counts) * self.HOT_FILE_PERCENTILE))
+        threshold = commit_counts[min(threshold_idx, len(commit_counts) - 1)]
 
         for m in metrics.values():
             m.is_hot_file = m.commit_count >= threshold
@@ -448,7 +441,7 @@ class GitEnricher:
 
             # Count pairs (sorted to avoid duplicates)
             for i, fa in enumerate(relevant):
-                for fb in relevant[i + 1:]:
+                for fb in relevant[i + 1 :]:
                     pair = (fa, fb) if fa < fb else (fb, fa)
                     pair_counts[pair] += 1
 
@@ -474,19 +467,22 @@ class GitEnricher:
             union = len(set_a | set_b)
             jaccard = len(set_a & set_b) / union if union > 0 else 0.0
 
-            co_changes.append(CoChangeEntry(
-                file_a=fa,
-                file_b=fb,
-                co_change_count=count,
-                confidence=round(confidence, 3),
-                jaccard_index=round(jaccard, 3),
-            ))
+            co_changes.append(
+                CoChangeEntry(
+                    file_a=fa,
+                    file_b=fb,
+                    co_change_count=count,
+                    confidence=round(confidence, 3),
+                    jaccard_index=round(jaccard, 3),
+                )
+            )
 
         # Sort by confidence descending
         co_changes.sort(key=lambda x: x.confidence, reverse=True)
 
         logger.info(
             "Co-change analysis: %d pairs from %d file combinations",
-            len(co_changes), len(pair_counts),
+            len(co_changes),
+            len(pair_counts),
         )
         return co_changes

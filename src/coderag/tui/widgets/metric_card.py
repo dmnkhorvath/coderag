@@ -1,4 +1,5 @@
 """MetricCard widget — displays a single KPI with big number + label."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult

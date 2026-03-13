@@ -3,25 +3,25 @@
 Provides commands for parsing codebases, querying the knowledge graph,
 and managing CodeRAG projects.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
-import sys
 import time
 from pathlib import Path
 from typing import Any
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.logging import RichHandler
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
 
 from coderag.core.config import CodeGraphConfig
-from coderag.core.models import DetailLevel, NodeKind
+from coderag.core.models import DetailLevel, Node, NodeKind
 from coderag.core.registry import PluginRegistry
 from coderag.output.markdown import MarkdownFormatter
 from coderag.storage.sqlite_store import SQLiteStore
@@ -31,6 +31,7 @@ formatter = MarkdownFormatter()
 
 
 # ── Helpers ───────────────────────────────────────────────────
+
 
 def _load_config(config_path: str | None, project_root: str | None = None) -> CodeGraphConfig:
     """Load config from YAML or create defaults."""
@@ -98,9 +99,11 @@ def _setup_logging(verbosity: int) -> None:
 
 # ── Main CLI Group ────────────────────────────────────────────
 
+
 @click.group()
 @click.option(
-    "--config", "-c",
+    "--config",
+    "-c",
     default=None,
     type=click.Path(),
     help="Config file path (default: codegraph.yaml in project root).",
@@ -112,7 +115,8 @@ def _setup_logging(verbosity: int) -> None:
     help="Override database path.",
 )
 @click.option(
-    "--verbose", "-v",
+    "--verbose",
+    "-v",
     count=True,
     help="Increase verbosity (-v=info, -vv=debug).",
 )
@@ -128,6 +132,7 @@ def cli(ctx: click.Context, config: str | None, db: str | None, verbose: int) ->
 
 
 # ── parse ─────────────────────────────────────────────────────
+
 
 @cli.command()
 @click.argument("path", type=click.Path(exists=True))
@@ -153,14 +158,16 @@ def parse(ctx: click.Context, path: str, incremental: bool) -> None:
     db_path = config.db_path_absolute
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-    console.print(Panel(
-        Text.assemble(
-            ("CodeRAG", "bold cyan"),
-            (" \u2014 Parsing ", "dim"),
-            (project_root, "bold white"),
-        ),
-        expand=False,
-    ))
+    console.print(
+        Panel(
+            Text.assemble(
+                ("CodeRAG", "bold cyan"),
+                (" \u2014 Parsing ", "dim"),
+                (project_root, "bold white"),
+            ),
+            expand=False,
+        )
+    )
     console.print(f"  Database: [dim]{db_path}[/dim]")
     mode_str = "incremental" if incremental else "full"
     console.print(f"  Mode:     [dim]{mode_str}[/dim]")
@@ -193,6 +200,7 @@ def parse(ctx: click.Context, path: str, incremental: bool) -> None:
 
 # ── info ──────────────────────────────────────────────────────
 
+
 @cli.command()
 @click.option("--json-output", "as_json", is_flag=True, help="Output as JSON.")
 @click.pass_context
@@ -223,8 +231,7 @@ def info(ctx: click.Context, as_json: bool) -> None:
                 "communities": summary.communities,
                 "avg_confidence": summary.avg_confidence,
                 "top_nodes_by_pagerank": [
-                    {"name": n, "qualified_name": q, "pagerank": p}
-                    for n, q, p in summary.top_nodes_by_pagerank
+                    {"name": n, "qualified_name": q, "pagerank": p} for n, q, p in summary.top_nodes_by_pagerank
                 ],
             }
             click.echo(json.dumps(data, indent=2, default=str))
@@ -236,54 +243,66 @@ def info(ctx: click.Context, as_json: bool) -> None:
 
 # ── query ─────────────────────────────────────────────────────
 
+
 @cli.command()
 @click.argument("search")
 @click.option(
-    "--kind", "-k",
+    "--kind",
+    "-k",
     default=None,
     help="Filter by node kind (class, function, method, etc.).",
 )
 @click.option(
-    "--depth", "-d",
+    "--depth",
+    "-d",
     default=1,
     type=int,
     help="Neighbor traversal depth (default: 1).",
 )
 @click.option(
-    "--format", "-f", "fmt",
+    "--format",
+    "-f",
+    "fmt",
     type=click.Choice(["markdown", "json"]),
     default="markdown",
     help="Output format.",
 )
 @click.option(
-    "--limit", "-l",
+    "--limit",
+    "-l",
     default=20,
     type=int,
     help="Maximum number of results.",
 )
 @click.option(
-    "--semantic", "mode",
+    "--semantic",
+    "mode",
     flag_value="semantic",
     help="Use pure semantic (vector) search.",
 )
 @click.option(
-    "--hybrid", "mode",
+    "--hybrid",
+    "mode",
     flag_value="hybrid",
     help="Use hybrid search (FTS5 + vector). Default when vector index exists.",
 )
 @click.option(
-    "--fts", "mode",
+    "--fts",
+    "mode",
     flag_value="fts",
     help="Use pure FTS5 (keyword) search.",
 )
 @click.option(
-    "--alpha", "-a",
+    "--alpha",
+    "-a",
     default=0.5,
     type=float,
     help="Hybrid search balance: 0.0=pure FTS, 1.0=pure vector (default: 0.5).",
 )
 @click.pass_context
-def query(ctx: click.Context, search: str, kind: str | None, depth: int, fmt: str, limit: int, mode: str | None, alpha: float) -> None:
+def query(
+    ctx: click.Context, search: str, kind: str | None, depth: int, fmt: str, limit: int, mode: str | None, alpha: float
+) -> None:
     """Query the knowledge graph by searching for symbols.
 
     Supports three search modes: FTS5 (keyword), semantic (vector), and hybrid.
@@ -309,8 +328,10 @@ def query(ctx: click.Context, search: str, kind: str | None, depth: int, fmt: st
             # Auto-detect: use hybrid if vector index exists
             try:
                 from coderag.search import SEMANTIC_AVAILABLE
+
                 if SEMANTIC_AVAILABLE:
                     from coderag.search.vector_store import VectorStore
+
                     if VectorStore.exists(vector_dir):
                         use_hybrid = True
             except ImportError:
@@ -320,15 +341,14 @@ def query(ctx: click.Context, search: str, kind: str | None, depth: int, fmt: st
         if use_semantic or use_hybrid:
             try:
                 from coderag.search import SEMANTIC_AVAILABLE, require_semantic
+
                 require_semantic()
                 from coderag.search.embedder import CodeEmbedder
+                from coderag.search.hybrid import HybridSearcher, SearchResult  # noqa: F401
                 from coderag.search.vector_store import VectorStore
-                from coderag.search.hybrid import HybridSearcher, SearchResult
 
                 if not VectorStore.exists(vector_dir):
-                    console.print(
-                        "[yellow]No vector index found. Run 'coderag embed' first.[/yellow]"
-                    )
+                    console.print("[yellow]No vector index found. Run 'coderag embed' first.[/yellow]")
                     console.print("Falling back to FTS5 search...\n")
                     use_semantic = False
                     use_hybrid = False
@@ -340,7 +360,9 @@ def query(ctx: click.Context, search: str, kind: str | None, depth: int, fmt: st
                     if use_semantic:
                         search_results = searcher.search_semantic(search, k=limit, kind=kind.lower() if kind else None)
                     else:
-                        search_results = searcher.search(search, k=limit, alpha=alpha, kind=kind.lower() if kind else None)
+                        search_results = searcher.search(
+                            search, k=limit, alpha=alpha, kind=kind.lower() if kind else None
+                        )
 
                     if fmt == "json":
                         data = []
@@ -483,14 +505,17 @@ def query(ctx: click.Context, search: str, kind: str | None, depth: int, fmt: st
 
 # ── init ──────────────────────────────────────────────────────
 
+
 @cli.command("init")
 @click.option(
-    "--languages", "-l",
+    "--languages",
+    "-l",
     default="php,javascript,typescript",
     help="Comma-separated list of languages to enable.",
 )
 @click.option(
-    "--name", "-n",
+    "--name",
+    "-n",
     default=None,
     help="Project name (default: directory name).",
 )
@@ -515,7 +540,7 @@ def init_cmd(ctx: click.Context, languages: str, name: str | None) -> None:
             "javascript": '[".js", ".jsx", ".mjs", ".cjs"]',
             "typescript": '[".ts", ".tsx"]',
         }
-        extensions = ext_map.get(lang, '[]')
+        extensions = ext_map.get(lang, "[]")
         lang_section += f"""  {lang}:
     enabled: true
     extensions: {extensions}
@@ -570,21 +595,30 @@ ignore_patterns:
     console.print("  4. Run [cyan]coderag query <search>[/cyan] to search the graph")
 
 
-
 # ── analyze ────────────────────────────────────────────────────
+
 
 @cli.command()
 @click.argument("symbol")
 @click.option(
-    "--depth", "-d", default=3, show_default=True,
+    "--depth",
+    "-d",
+    default=3,
+    show_default=True,
     help="Maximum blast radius depth.",
 )
 @click.option(
-    "--budget", "-b", default=4000, show_default=True,
+    "--budget",
+    "-b",
+    default=4000,
+    show_default=True,
     help="Token budget for context assembly.",
 )
 @click.option(
-    "--format", "fmt", type=click.Choice(["markdown", "json"]), default="markdown",
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
     help="Output format.",
 )
 @click.pass_context
@@ -639,20 +673,20 @@ def analyze(ctx: click.Context, symbol: str, depth: int, budget: int, fmt: str) 
                 for nid in node_ids:
                     n = store.get_node(nid)
                     if n:
-                        data["blast_radius"][str(d)].append({
-                            "id": n.id,
-                            "kind": n.kind.value if isinstance(n.kind, NodeKind) else n.kind,
-                            "name": n.qualified_name,
-                            "file": n.file_path,
-                        })
+                        data["blast_radius"][str(d)].append(
+                            {
+                                "id": n.id,
+                                "kind": n.kind.value if isinstance(n.kind, NodeKind) else n.kind,
+                                "name": n.qualified_name,
+                                "file": n.file_path,
+                            }
+                        )
 
             click.echo(json.dumps(data, indent=2, default=str))
         else:
             # Use ContextAssembler for rich output
             assembler = ContextAssembler()
-            result = assembler.assemble_impact_analysis(
-                symbol, store, analyzer, token_budget=budget
-            )
+            result = assembler.assemble_impact_analysis(symbol, store, analyzer, token_budget=budget)
             formatter.render_to_console(result.text, console)
 
             console.print()
@@ -666,13 +700,20 @@ def analyze(ctx: click.Context, symbol: str, depth: int, budget: int, fmt: str) 
 
 # ── architecture ──────────────────────────────────────────────
 
+
 @cli.command()
 @click.option(
-    "--top", "-t", default=20, show_default=True,
+    "--top",
+    "-t",
+    default=20,
+    show_default=True,
     help="Number of top nodes to show.",
 )
 @click.option(
-    "--format", "fmt", type=click.Choice(["markdown", "json"]), default="markdown",
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
     help="Output format.",
 )
 @click.pass_context
@@ -705,7 +746,7 @@ def architecture(ctx: click.Context, top: int, fmt: str) -> None:
 
         # Compute analyses
         with console.status("[bold cyan]Computing PageRank..."):
-            pr_scores = analyzer.pagerank()
+            analyzer.pagerank()
             top_nodes_raw = analyzer.get_top_nodes("pagerank", limit=top)
 
         with console.status("[bold cyan]Detecting communities..."):
@@ -745,19 +786,19 @@ def architecture(ctx: click.Context, top: int, fmt: str) -> None:
             click.echo(json.dumps(data, indent=2, default=str))
         else:
             # Resolve nodes for formatting
-            important_nodes: list[tuple["Node", float]] = []
+            important_nodes: list[tuple[Node, float]] = []
             for nid, score in top_nodes_raw:
                 node = store.get_node(nid)
                 if node:
                     important_nodes.append((node, score))
 
-            entry_points: list["Node"] = []
+            entry_points: list[Node] = []
             for nid in entry_point_ids:
                 node = store.get_node(nid)
                 if node:
                     entry_points.append(node)
 
-            communities: list[tuple[int, list["Node"]]] = []
+            communities: list[tuple[int, list[Node]]] = []
             for i, comm_set in enumerate(communities_raw[:10]):
                 comm_nodes = []
                 for nid in list(comm_set)[:50]:  # Cap per community
@@ -767,9 +808,7 @@ def architecture(ctx: click.Context, top: int, fmt: str) -> None:
                 communities.append((i, comm_nodes))
 
             # Format and display
-            md = MarkdownFormatter.format_architecture_overview(
-                communities, important_nodes, entry_points
-            )
+            md = MarkdownFormatter.format_architecture_overview(communities, important_nodes, entry_points)
             formatter.render_to_console(md, console)
 
             # Stats summary
@@ -785,12 +824,13 @@ def architecture(ctx: click.Context, top: int, fmt: str) -> None:
         store.close()
 
 
-
 # ── frameworks ────────────────────────────────────────────────
+
 
 @cli.command()
 @click.option(
-    "--format", "fmt",
+    "--format",
+    "fmt",
     type=click.Choice(["markdown", "json"]),
     default="markdown",
     help="Output format.",
@@ -823,16 +863,21 @@ def frameworks(ctx: click.Context, fmt: str) -> None:
                 fw_data: dict[str, Any] = {"nodes": {}, "edges": {}}
 
                 # Count framework-specific nodes
-                for kind_name in ("route", "component", "hook", "model",
-                                  "event", "listener", "middleware",
-                                  "provider", "controller"):
+                for kind_name in (
+                    "route",
+                    "component",
+                    "hook",
+                    "model",
+                    "event",
+                    "listener",
+                    "middleware",
+                    "provider",
+                    "controller",
+                ):
                     try:
                         kind = NodeKind(kind_name)
                         nodes = store.find_nodes(kind=kind, limit=10000)
-                        fw_nodes = [
-                            n for n in nodes
-                            if n.metadata.get("framework") == fw_name
-                        ]
+                        fw_nodes = [n for n in nodes if n.metadata.get("framework") == fw_name]
                         if fw_nodes:
                             fw_data["nodes"][kind_name] = [
                                 {
@@ -852,17 +897,18 @@ def frameworks(ctx: click.Context, fmt: str) -> None:
         else:
             if not detected:
                 console.print(
-                    "[yellow]No frameworks detected.[/yellow]\n"
-                    "Run [cyan]coderag parse <path> --full[/cyan] first."
+                    "[yellow]No frameworks detected.[/yellow]\nRun [cyan]coderag parse <path> --full[/cyan] first."
                 )
                 return
 
-            console.print(Panel(
-                Text.assemble(
-                    ("Detected Frameworks", "bold cyan"),
-                ),
-                expand=False,
-            ))
+            console.print(
+                Panel(
+                    Text.assemble(
+                        ("Detected Frameworks", "bold cyan"),
+                    ),
+                    expand=False,
+                )
+            )
 
             for fw_name in detected:
                 console.print(f"\n[bold green]✓ {fw_name.title()}[/bold green]")
@@ -882,10 +928,7 @@ def frameworks(ctx: click.Context, fmt: str) -> None:
                     try:
                         kind = NodeKind(kind_name)
                         nodes = store.find_nodes(kind=kind, limit=10000)
-                        fw_nodes = [
-                            n for n in nodes
-                            if n.metadata.get("framework") == fw_name
-                        ]
+                        fw_nodes = [n for n in nodes if n.metadata.get("framework") == fw_name]
                         if fw_nodes:
                             console.print(f"  [bold]{label}[/bold] ({len(fw_nodes)})")
                             for n in fw_nodes[:10]:
@@ -902,15 +945,18 @@ def frameworks(ctx: click.Context, fmt: str) -> None:
 
 # ── cross-language ────────────────────────────────────────────
 
+
 @cli.command("cross-language")
 @click.option(
-    "--format", "fmt",
+    "--format",
+    "fmt",
     type=click.Choice(["markdown", "json"]),
     default="markdown",
     help="Output format.",
 )
 @click.option(
-    "--min-confidence", "-c",
+    "--min-confidence",
+    "-c",
     default=0.0,
     type=float,
     help="Minimum confidence threshold for matches.",
@@ -932,6 +978,7 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
 
     # Infer project root from database path (db is at <root>/.codegraph/graph.db)
     import os as _os
+
     _project_root = None
     if config.db_path:
         _db_abs = _os.path.abspath(config.db_path)
@@ -965,30 +1012,34 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
             for edge in xl_edges:
                 source_node = store.get_node(edge.source_id)
                 target_node = store.get_node(edge.target_id)
-                data["connections"].append({
-                    "caller": {
-                        "name": source_node.qualified_name if source_node else edge.source_id,
-                        "file": source_node.file_path if source_node else None,
-                    },
-                    "endpoint": {
-                        "name": target_node.qualified_name if target_node else edge.target_id,
-                        "file": target_node.file_path if target_node else None,
-                    },
-                    "http_method": edge.metadata.get("http_method", "UNKNOWN"),
-                    "call_url": edge.metadata.get("call_url", ""),
-                    "endpoint_url": edge.metadata.get("endpoint_url", ""),
-                    "match_strategy": edge.metadata.get("match_strategy", ""),
-                    "confidence": edge.confidence,
-                })
+                data["connections"].append(
+                    {
+                        "caller": {
+                            "name": source_node.qualified_name if source_node else edge.source_id,
+                            "file": source_node.file_path if source_node else None,
+                        },
+                        "endpoint": {
+                            "name": target_node.qualified_name if target_node else edge.target_id,
+                            "file": target_node.file_path if target_node else None,
+                        },
+                        "http_method": edge.metadata.get("http_method", "UNKNOWN"),
+                        "call_url": edge.metadata.get("call_url", ""),
+                        "endpoint_url": edge.metadata.get("endpoint_url", ""),
+                        "match_strategy": edge.metadata.get("match_strategy", ""),
+                        "confidence": edge.confidence,
+                    }
+                )
 
             click.echo(json.dumps(data, indent=2, default=str))
         else:
-            console.print(Panel(
-                Text.assemble(
-                    ("Cross-Language Connections", "bold cyan"),
-                ),
-                expand=False,
-            ))
+            console.print(
+                Panel(
+                    Text.assemble(
+                        ("Cross-Language Connections", "bold cyan"),
+                    ),
+                    expand=False,
+                )
+            )
 
             console.print(f"  Endpoints found:  [bold]{n_endpoints}[/bold]")
             console.print(f"  API calls found:  [bold]{n_calls}[/bold]")
@@ -1044,19 +1095,21 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
                     # e.g. "/path/to/file.ts/storeName" → "storeName"
                     if caller_name != "?" and caller_file != "?":
                         if caller_name.startswith(caller_file):
-                            short = caller_name[len(caller_file):].lstrip("/")
+                            short = caller_name[len(caller_file) :].lstrip("/")
                             if short:
                                 caller_name = short
                     # Show relative paths if possible
                     _root = config.project_root or _project_root
                     if caller_file != "?" and _root:
                         import os as _os
+
                         try:
                             caller_file = _os.path.relpath(caller_file, _root)
                         except ValueError:
                             pass
                     if handler_file != "?" and _root:
                         import os as _os
+
                         try:
                             handler_file = _os.path.relpath(handler_file, _root)
                         except ValueError:
@@ -1070,13 +1123,10 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
                     )
 
                 if len(edges_for_strategy) > 20:
-                    console.print(
-                        f"    [dim]... and {len(edges_for_strategy) - 20} more[/dim]"
-                    )
+                    console.print(f"    [dim]... and {len(edges_for_strategy) - 20} more[/dim]")
 
     finally:
         store.close()
-
 
 
 # ── serve ─────────────────────────────────────────────────────
@@ -1084,13 +1134,15 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
 
 @cli.command()
 @click.option(
-    "--format", "-f",
+    "--format",
+    "-f",
     type=click.Choice(["markdown", "json", "tree"]),
     default="markdown",
     help="Output format (default: markdown).",
 )
 @click.option(
-    "--scope", "-s",
+    "--scope",
+    "-s",
     type=click.Choice(["full", "architecture", "file", "symbol"]),
     default="architecture",
     help="Export scope (default: architecture).",
@@ -1125,15 +1177,24 @@ def cross_language(ctx: click.Context, fmt: str, min_confidence: float) -> None:
     help="Traversal depth for symbol scope (default: 2).",
 )
 @click.option(
-    "--output", "-o",
+    "--output",
+    "-o",
     default=None,
     type=click.Path(),
     help="Output file path (default: stdout).",
 )
 @click.pass_context
-def export(ctx: click.Context, format: str, scope: str, symbol: str | None,
-           file_path: str | None, tokens: int, top: int, depth: int,
-           output: str | None) -> None:
+def export(
+    ctx: click.Context,
+    format: str,
+    scope: str,
+    symbol: str | None,
+    file_path: str | None,
+    tokens: int,
+    top: int,
+    depth: int,
+    output: str | None,
+) -> None:
     """Export knowledge graph in various formats for LLM consumption.
 
     Supports markdown, JSON, and tree formats with configurable scopes
@@ -1153,7 +1214,7 @@ def export(ctx: click.Context, format: str, scope: str, symbol: str | None,
 
       coderag export --tokens 16000 -o out.md # larger budget, save to file
     """
-    from coderag.export import GraphExporter, ExportOptions
+    from coderag.export import ExportOptions, GraphExporter
 
     config = ctx.obj["config"]
     store = _open_store(config)
@@ -1173,6 +1234,7 @@ def export(ctx: click.Context, format: str, scope: str, symbol: str | None,
 
         if output:
             import os
+
             os.makedirs(os.path.dirname(output) if os.path.dirname(output) else ".", exist_ok=True)
             with open(output, "w") as f:
                 f.write(result)
@@ -1181,6 +1243,7 @@ def export(ctx: click.Context, format: str, scope: str, symbol: str | None,
             click.echo(result)
     finally:
         store.close()
+
 
 @cli.command()
 @click.argument("project_dir", default=".", type=click.Path(exists=True))
@@ -1218,23 +1281,30 @@ def serve(ctx: click.Context, project_dir: str, db: str | None, no_reload: bool)
     db_override = db or ctx.obj.get("db_override")
 
     from coderag.mcp.server import run_stdio_server
-    run_stdio_server(resolved_dir, db_override, hot_reload=not no_reload)
 
+    run_stdio_server(resolved_dir, db_override, hot_reload=not no_reload)
 
 
 # ── Enrich Command ────────────────────────────────────────────────
 
+
 @cli.command()
 @click.option(
-    "--phpstan", is_flag=True, default=False,
+    "--phpstan",
+    is_flag=True,
+    default=False,
     help="Run PHPStan type enrichment on PHP files.",
 )
 @click.option(
-    "--level", type=int, default=5,
+    "--level",
+    type=int,
+    default=5,
     help="PHPStan analysis level (0-9, default: 5).",
 )
 @click.option(
-    "--phpstan-path", type=str, default="phpstan",
+    "--phpstan-path",
+    type=str,
+    default="phpstan",
     help="Path to PHPStan binary.",
 )
 @click.pass_context
@@ -1261,9 +1331,7 @@ def enrich(ctx: click.Context, phpstan: bool, level: int, phpstan_path: str) -> 
     console = Console()
 
     if not phpstan:
-        console.print(
-            "[yellow]No enrichment flags specified. Use --phpstan to run PHPStan enrichment.[/yellow]"
-        )
+        console.print("[yellow]No enrichment flags specified. Use --phpstan to run PHPStan enrichment.[/yellow]")
         return
 
     # Resolve database path
@@ -1271,9 +1339,7 @@ def enrich(ctx: click.Context, phpstan: bool, level: int, phpstan_path: str) -> 
         db_path = os.path.join(project_dir, ".codegraph", "graph.db")
 
     if not os.path.exists(db_path):
-        console.print(
-            f"[red]Database not found at {db_path}. Run 'codegraph parse' first.[/red]"
-        )
+        console.print(f"[red]Database not found at {db_path}. Run 'codegraph parse' first.[/red]")
         raise SystemExit(1)
 
     # PHPStan enrichment
@@ -1323,15 +1389,18 @@ def enrich(ctx: click.Context, phpstan: bool, level: int, phpstan_path: str) -> 
 
 # ── embed ─────────────────────────────────────────────────────
 
+
 @cli.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option(
-    "--model", "-m",
+    "--model",
+    "-m",
     default=None,
     help="Sentence-transformer model name (default: from config or all-MiniLM-L6-v2).",
 )
 @click.option(
-    "--batch-size", "-b",
+    "--batch-size",
+    "-b",
     default=None,
     type=int,
     help="Embedding batch size (default: from config or 128).",
@@ -1349,6 +1418,7 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
     """
     try:
         from coderag.search import require_semantic
+
         require_semantic()
     except ImportError:
         console.print(
@@ -1372,15 +1442,17 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
     bs = batch_size or config.semantic_batch_size
 
     try:
-        console.print(Panel(
-            f"[bold]Semantic Index Builder[/bold]\n\n"
-            f"Project: {os.path.abspath(path)}\n"
-            f"Database: {config.db_path_absolute}\n"
-            f"Model: {model_name}\n"
-            f"Batch size: {bs}",
-            title="CodeRAG Embed",
-            border_style="blue",
-        ))
+        console.print(
+            Panel(
+                f"[bold]Semantic Index Builder[/bold]\n\n"
+                f"Project: {os.path.abspath(path)}\n"
+                f"Database: {config.db_path_absolute}\n"
+                f"Model: {model_name}\n"
+                f"Batch size: {bs}",
+                title="CodeRAG Embed",
+                border_style="blue",
+            )
+        )
 
         # Get all nodes
         stats = store.get_stats()
@@ -1396,7 +1468,6 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
         console.print(f"Loaded {len(all_nodes)} nodes")
 
         # Build parent context map for methods
-        parent_map: dict[str, str] = {}
         for node in all_nodes:
             # Check edges for containment to find parent names
             pass  # We'll use qualified_name splitting instead
@@ -1427,16 +1498,12 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
 
         # Embed in batches with progress
         console.print(f"\n[bold]Embedding nodes...[/bold] (model: {model_name})")
-        import numpy as np
 
         t0 = time.time()
         all_embeddings = embedder.embed_batch(texts, batch_size=bs)
         embed_time = time.time() - t0
 
-        console.print(
-            f"Embedded {len(texts)} nodes in {embed_time:.1f}s "
-            f"({len(texts) / embed_time:.0f} nodes/sec)"
-        )
+        console.print(f"Embedded {len(texts)} nodes in {embed_time:.1f}s ({len(texts) / embed_time:.0f} nodes/sec)")
 
         # Build and save index
         console.print("\n[bold]Building FAISS index...[/bold]")
@@ -1474,14 +1541,14 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
         store.close()
 
 
-
-
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
+
 
 @cli.command()
 @click.argument("path", type=click.Path(exists=True))
-@click.option("--config", "-c", "config_path", type=click.Path(), default=None,
-              help="Path to codegraph.yaml config file.")
+@click.option(
+    "--config", "-c", "config_path", type=click.Path(), default=None, help="Path to codegraph.yaml config file."
+)
 def monitor(path: str, config_path: str | None) -> None:
     """Launch the TUI monitoring dashboard for a parse run.
 
@@ -1503,6 +1570,7 @@ def monitor(path: str, config_path: str | None) -> None:
     project_root = str(Path(path).resolve())
     app = CodeRAGApp(project_root=project_root, config_path=config_path)
     app.run()
+
 
 # ── Entry Point ───────────────────────────────────────────────
 

@@ -1,11 +1,12 @@
 """DetailsScreen — file detail view with nodes and edges DataTables."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import DataTable, Static
@@ -101,7 +102,7 @@ class DetailsScreen(Screen):
                     info.get("language", "?"),
                     str(info.get("nodes_count", 0)),
                     str(info.get("edges_count", 0)),
-                    f"{info.get("parse_time_ms", 0):.1f}",
+                    f"{info.get('parse_time_ms', 0):.1f}",
                     status,
                 )
         except Exception:
@@ -151,9 +152,7 @@ class DetailsScreen(Screen):
             else:
                 parts.append(f"[dim] {tab.upper()} [/dim]")
         try:
-            self.query_one("#details-tab-bar", Static).update(
-                "  ".join(parts) + "    [dim]h/l or Tab to switch[/dim]"
-            )
+            self.query_one("#details-tab-bar", Static).update("  ".join(parts) + "    [dim]h/l or Tab to switch[/dim]")
         except Exception:
             pass
 

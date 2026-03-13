@@ -3,6 +3,7 @@
 Detects Laravel-specific patterns including routes, Eloquent models,
 events/listeners, middleware, and service providers.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,9 +47,7 @@ _ROUTE_METHOD_RE = re.compile(
     re.VERBOSE | re.MULTILINE,
 )
 
-_ROUTE_NAME_RE = re.compile(
-    r"""->\s*name\s*\(\s*['"](?P<name>[^'"]+)['"]\s*\)"""
-)
+_ROUTE_NAME_RE = re.compile(r"""->\s*name\s*\(\s*['"](?P<name>[^'"]+)['"]\s*\)""")
 
 _ROUTE_MIDDLEWARE_RE = re.compile(
     r"""->\s*middleware\s*\(\s*(?:
@@ -60,15 +59,21 @@ _ROUTE_MIDDLEWARE_RE = re.compile(
 )
 
 _ELOQUENT_RELATIONS = {
-    "hasOne", "hasMany", "belongsTo", "belongsToMany",
-    "hasManyThrough", "hasOneThrough", "morphTo",
-    "morphOne", "morphMany", "morphToMany", "morphedByMany",
+    "hasOne",
+    "hasMany",
+    "belongsTo",
+    "belongsToMany",
+    "hasManyThrough",
+    "hasOneThrough",
+    "morphTo",
+    "morphOne",
+    "morphMany",
+    "morphToMany",
+    "morphedByMany",
 }
 
 _ELOQUENT_RELATION_RE = re.compile(
-    r"\$this\s*->\s*(?P<relation>"
-    + "|".join(_ELOQUENT_RELATIONS)
-    + r")\s*\(\s*(?P<related>[^)]*)",
+    r"\$this\s*->\s*(?P<relation>" + "|".join(_ELOQUENT_RELATIONS) + r")\s*\(\s*(?P<related>[^)]*)",
 )
 
 
@@ -88,7 +93,7 @@ class LaravelDetector(FrameworkDetector):
         composer_json = os.path.join(project_root, "composer.json")
         if os.path.isfile(composer_json):
             try:
-                with open(composer_json, "r", encoding="utf-8") as f:
+                with open(composer_json, encoding="utf-8") as f:
                     data = json.load(f)
                 require = data.get("require", {})
                 require_dev = data.get("require-dev", {})
@@ -178,7 +183,11 @@ class LaravelDetector(FrameworkDetector):
         return None
 
     def _detect_model(
-        self, cls: Node, source_text: str, file_path: str, nodes: list[Node],
+        self,
+        cls: Node,
+        source_text: str,
+        file_path: str,
+        nodes: list[Node],
     ) -> FrameworkPattern | None:
         """Detect Eloquent model and its relationships."""
         new_nodes: list[Node] = []
@@ -215,17 +224,19 @@ class LaravelDetector(FrameworkDetector):
 
             if related_name:
                 short_name = related_name.rsplit("\\", 1)[-1] if "\\" in related_name else related_name
-                new_edges.append(Edge(
-                    source_id=model_node.id,
-                    target_id=f"__unresolved__:model:{short_name}",
-                    kind=EdgeKind.DEPENDS_ON,
-                    confidence=0.75,
-                    metadata={
-                        "relationship_type": relation_type,
-                        "related_model": related_name,
-                        "framework": "laravel",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=model_node.id,
+                        target_id=f"__unresolved__:model:{short_name}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.75,
+                        metadata={
+                            "relationship_type": relation_type,
+                            "related_model": related_name,
+                            "framework": "laravel",
+                        },
+                    )
+                )
 
         return FrameworkPattern(
             framework_name="laravel",
@@ -336,7 +347,9 @@ class LaravelDetector(FrameworkDetector):
         )
 
     def _extract_routes(
-        self, store: Any, project_root: str,
+        self,
+        store: Any,
+        project_root: str,
     ) -> FrameworkPattern | None:
         """Parse Laravel route files and create ROUTE nodes + ROUTES_TO edges."""
         new_nodes: list[Node] = []
@@ -355,7 +368,7 @@ class LaravelDetector(FrameworkDetector):
             if not os.path.isfile(route_file):
                 continue
             try:
-                with open(route_file, "r", encoding="utf-8") as f:
+                with open(route_file, encoding="utf-8") as f:
                     content = f.read()
             except OSError as exc:
                 logger.warning("Failed to read route file %s: %s", route_file, exc)
@@ -382,18 +395,22 @@ class LaravelDetector(FrameworkDetector):
 
                 if http_method in ("RESOURCE", "APIRESOURCE"):
                     rn, re_ = self._expand_resource_routes(
-                        full_path, controller_ref, rel_path,
-                        match.start(), content, store,
+                        full_path,
+                        controller_ref,
+                        rel_path,
+                        match.start(),
+                        content,
+                        store,
                         is_api=(http_method == "APIRESOURCE"),
                     )
                     new_nodes.extend(rn)
                     new_edges.extend(re_)
                     continue
 
-                line_no = content[:match.start()].count("\n") + 1
+                line_no = content[: match.start()].count("\n") + 1
 
                 route_name = None
-                rest_of_line = content[match.end():match.end() + 200]
+                rest_of_line = content[match.end() : match.end() + 200]
                 name_match = _ROUTE_NAME_RE.search(rest_of_line)
                 if name_match:
                     route_name = name_match.group("name")
@@ -402,10 +419,7 @@ class LaravelDetector(FrameworkDetector):
                 mw_match = _ROUTE_MIDDLEWARE_RE.search(rest_of_line)
                 if mw_match:
                     if mw_match.group("list"):
-                        middleware = [
-                            m.strip().strip("'\"")
-                            for m in mw_match.group("list").split(",")
-                        ]
+                        middleware = [m.strip().strip("'\"") for m in mw_match.group("list").split(",")]
                     elif mw_match.group("single"):
                         middleware = [mw_match.group("single")]
 
@@ -432,18 +446,20 @@ class LaravelDetector(FrameworkDetector):
                 if controller_ref:
                     target_id = self._resolve_controller(controller_ref, store)
                     if target_id:
-                        new_edges.append(Edge(
-                            source_id=route_node.id,
-                            target_id=target_id,
-                            kind=EdgeKind.ROUTES_TO,
-                            confidence=0.85,
-                            line_number=line_no,
-                            metadata={
-                                "framework": "laravel",
-                                "http_method": http_method,
-                                "url_pattern": full_path,
-                            },
-                        ))
+                        new_edges.append(
+                            Edge(
+                                source_id=route_node.id,
+                                target_id=target_id,
+                                kind=EdgeKind.ROUTES_TO,
+                                confidence=0.85,
+                                line_number=line_no,
+                                metadata={
+                                    "framework": "laravel",
+                                    "http_method": http_method,
+                                    "url_pattern": full_path,
+                                },
+                            )
+                        )
 
         if not new_nodes:
             return None
@@ -457,8 +473,14 @@ class LaravelDetector(FrameworkDetector):
         )
 
     def _expand_resource_routes(
-        self, base_path: str, controller_ref: str, file_path: str,
-        offset: int, content: str, store: Any, is_api: bool = False,
+        self,
+        base_path: str,
+        controller_ref: str,
+        file_path: str,
+        offset: int,
+        content: str,
+        store: Any,
+        is_api: bool = False,
     ) -> tuple[list[Node], list[Edge]]:
         """Expand Route::resource into individual CRUD routes."""
         nodes: list[Node] = []
@@ -503,23 +525,28 @@ class LaravelDetector(FrameworkDetector):
             if controller_ref:
                 target_id = self._resolve_controller(controller_ref, store, action)
                 if target_id:
-                    edges.append(Edge(
-                        source_id=route_node.id,
-                        target_id=target_id,
-                        kind=EdgeKind.ROUTES_TO,
-                        confidence=0.80,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "laravel",
-                            "http_method": http_method,
-                            "resource_action": action,
-                        },
-                    ))
+                    edges.append(
+                        Edge(
+                            source_id=route_node.id,
+                            target_id=target_id,
+                            kind=EdgeKind.ROUTES_TO,
+                            confidence=0.80,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "laravel",
+                                "http_method": http_method,
+                                "resource_action": action,
+                            },
+                        )
+                    )
 
         return nodes, edges
 
     def _resolve_controller(
-        self, controller_ref: str, store: Any, method: str | None = None,
+        self,
+        controller_ref: str,
+        store: Any,
+        method: str | None = None,
     ) -> str | None:
         """Resolve a controller reference to a node ID."""
         controller_name = ""
@@ -545,14 +572,18 @@ class LaravelDetector(FrameworkDetector):
 
         if method_name:
             method_nodes = store.find_nodes(
-                kind=NodeKind.METHOD, name_pattern=method_name, limit=20,
+                kind=NodeKind.METHOD,
+                name_pattern=method_name,
+                limit=20,
             )
             for mn in method_nodes:
                 if short_name.lower() in mn.file_path.lower():
                     return mn.id
 
         class_nodes = store.find_nodes(
-            kind=NodeKind.CLASS, name_pattern=short_name, limit=10,
+            kind=NodeKind.CLASS,
+            name_pattern=short_name,
+            limit=10,
         )
         for cn in class_nodes:
             if cn.name == short_name:
@@ -561,7 +592,9 @@ class LaravelDetector(FrameworkDetector):
         return None
 
     def _extract_event_listener_mappings(
-        self, store: Any, project_root: str,
+        self,
+        store: Any,
+        project_root: str,
     ) -> FrameworkPattern | None:
         """Parse EventServiceProvider to connect events to listeners."""
         new_edges: list[Edge] = []
@@ -579,7 +612,7 @@ class LaravelDetector(FrameworkDetector):
             return None
 
         try:
-            with open(esp_path, "r", encoding="utf-8") as f:
+            with open(esp_path, encoding="utf-8") as f:
                 content = f.read()
         except OSError:
             return None
@@ -594,16 +627,18 @@ class LaravelDetector(FrameworkDetector):
             listeners_raw = match.group(2)
 
             event_nodes = store.find_nodes(
-                kind=NodeKind.EVENT, name_pattern=event_name, limit=5,
+                kind=NodeKind.EVENT,
+                name_pattern=event_name,
+                limit=5,
             )
             if not event_nodes:
                 event_nodes = store.find_nodes(
-                    kind=NodeKind.CLASS, name_pattern=event_name, limit=5,
+                    kind=NodeKind.CLASS,
+                    name_pattern=event_name,
+                    limit=5,
                 )
 
-            event_node = next(
-                (n for n in event_nodes if n.name == event_name), None
-            )
+            event_node = next((n for n in event_nodes if n.name == event_name), None)
             if not event_node:
                 continue
 
@@ -612,41 +647,50 @@ class LaravelDetector(FrameworkDetector):
                 listener_name = listener_ref.strip().rsplit("\\", 1)[-1]
 
                 listener_nodes = store.find_nodes(
-                    kind=NodeKind.LISTENER, name_pattern=listener_name, limit=5,
+                    kind=NodeKind.LISTENER,
+                    name_pattern=listener_name,
+                    limit=5,
                 )
                 if not listener_nodes:
                     listener_nodes = store.find_nodes(
-                        kind=NodeKind.CLASS, name_pattern=listener_name, limit=5,
+                        kind=NodeKind.CLASS,
+                        name_pattern=listener_name,
+                        limit=5,
                     )
 
                 listener_node = next(
-                    (n for n in listener_nodes if n.name == listener_name), None,
+                    (n for n in listener_nodes if n.name == listener_name),
+                    None,
                 )
                 if not listener_node:
                     continue
 
-                new_edges.append(Edge(
-                    source_id=event_node.id,
-                    target_id=listener_node.id,
-                    kind=EdgeKind.DISPATCHES_EVENT,
-                    confidence=0.90,
-                    metadata={
-                        "framework": "laravel",
-                        "event": event_name,
-                        "listener": listener_name,
-                    },
-                ))
-                new_edges.append(Edge(
-                    source_id=listener_node.id,
-                    target_id=event_node.id,
-                    kind=EdgeKind.LISTENS_TO,
-                    confidence=0.90,
-                    metadata={
-                        "framework": "laravel",
-                        "event": event_name,
-                        "listener": listener_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=event_node.id,
+                        target_id=listener_node.id,
+                        kind=EdgeKind.DISPATCHES_EVENT,
+                        confidence=0.90,
+                        metadata={
+                            "framework": "laravel",
+                            "event": event_name,
+                            "listener": listener_name,
+                        },
+                    )
+                )
+                new_edges.append(
+                    Edge(
+                        source_id=listener_node.id,
+                        target_id=event_node.id,
+                        kind=EdgeKind.LISTENS_TO,
+                        confidence=0.90,
+                        metadata={
+                            "framework": "laravel",
+                            "event": event_name,
+                            "listener": listener_name,
+                        },
+                    )
+                )
 
         if not new_edges:
             return None

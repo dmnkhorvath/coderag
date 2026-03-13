@@ -4,11 +4,11 @@ Extracts nodes and edges from PHP source files by walking the
 tree-sitter AST. Handles classes, interfaces, traits, enums,
 functions, methods, properties, constants, namespaces, and imports.
 """
+
 from __future__ import annotations
 
 import logging
 import time
-from typing import Any
 
 import tree_sitter
 import tree_sitter_php
@@ -21,8 +21,8 @@ from coderag.core.models import (
     Node,
     NodeKind,
     UnresolvedReference,
-    generate_node_id,
     compute_content_hash,
+    generate_node_id,
 )
 from coderag.core.registry import ASTExtractor
 
@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _child_by_field(node: tree_sitter.Node, field: str) -> tree_sitter.Node | None:
     """Return the first child with the given field name."""
@@ -46,7 +47,7 @@ def _node_text(node: tree_sitter.Node | None, source: bytes) -> str:
     """Extract UTF-8 text for a node."""
     if node is None:
         return ""
-    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _find_preceding_docblock(node: tree_sitter.Node, source: bytes) -> str | None:
@@ -102,8 +103,12 @@ def _extract_return_type(node: tree_sitter.Node, source: bytes) -> str | None:
             found_colon = True
             continue
         if found_colon and child.type in (
-            "named_type", "primitive_type", "nullable_type",
-            "union_type", "intersection_type", "optional_type",
+            "named_type",
+            "primitive_type",
+            "nullable_type",
+            "union_type",
+            "intersection_type",
+            "optional_type",
         ):
             return _node_text(child, source)
         if child.type in ("compound_statement", ";"):
@@ -124,13 +129,21 @@ def _extract_parameters(node: tree_sitter.Node, source: bytes) -> list[dict[str,
         return []
 
     result: list[dict[str, str]] = []
-    for param in _children_of_type(params_node, "simple_parameter", "variadic_parameter", "property_promotion_parameter"):
+    for param in _children_of_type(
+        params_node, "simple_parameter", "variadic_parameter", "property_promotion_parameter"
+    ):
         info: dict[str, str] = {}
         for child in param.children:
             if child.type == "variable_name":
                 info["name"] = _node_text(child, source).lstrip("$")
-            elif child.type in ("named_type", "primitive_type", "nullable_type",
-                                "union_type", "intersection_type", "optional_type"):
+            elif child.type in (
+                "named_type",
+                "primitive_type",
+                "nullable_type",
+                "union_type",
+                "intersection_type",
+                "optional_type",
+            ):
                 info["type"] = _node_text(child, source)
         result.append(info)
     return result
@@ -147,34 +160,39 @@ def _qualified_name(namespace: str, name: str) -> str:
 # PHPExtractor
 # ---------------------------------------------------------------------------
 
+
 class PHPExtractor(ASTExtractor):
     """Extract knowledge-graph nodes and edges from PHP source files."""
 
-    _SUPPORTED_NODE_KINDS = frozenset({
-        NodeKind.FILE,
-        NodeKind.NAMESPACE,
-        NodeKind.CLASS,
-        NodeKind.INTERFACE,
-        NodeKind.TRAIT,
-        NodeKind.ENUM,
-        NodeKind.METHOD,
-        NodeKind.FUNCTION,
-        NodeKind.PROPERTY,
-        NodeKind.CONSTANT,
-        NodeKind.IMPORT,
-    })
+    _SUPPORTED_NODE_KINDS = frozenset(
+        {
+            NodeKind.FILE,
+            NodeKind.NAMESPACE,
+            NodeKind.CLASS,
+            NodeKind.INTERFACE,
+            NodeKind.TRAIT,
+            NodeKind.ENUM,
+            NodeKind.METHOD,
+            NodeKind.FUNCTION,
+            NodeKind.PROPERTY,
+            NodeKind.CONSTANT,
+            NodeKind.IMPORT,
+        }
+    )
 
-    _SUPPORTED_EDGE_KINDS = frozenset({
-        EdgeKind.CONTAINS,
-        EdgeKind.EXTENDS,
-        EdgeKind.IMPLEMENTS,
-        EdgeKind.USES_TRAIT,
-        EdgeKind.CALLS,
-        EdgeKind.IMPORTS,
-        EdgeKind.INSTANTIATES,
-        EdgeKind.HAS_TYPE,
-        EdgeKind.RETURNS_TYPE,
-    })
+    _SUPPORTED_EDGE_KINDS = frozenset(
+        {
+            EdgeKind.CONTAINS,
+            EdgeKind.EXTENDS,
+            EdgeKind.IMPLEMENTS,
+            EdgeKind.USES_TRAIT,
+            EdgeKind.CALLS,
+            EdgeKind.IMPORTS,
+            EdgeKind.INSTANTIATES,
+            EdgeKind.HAS_TYPE,
+            EdgeKind.RETURNS_TYPE,
+        }
+    )
 
     def __init__(self) -> None:
         lang = tree_sitter.Language(tree_sitter_php.language_php())
@@ -199,12 +217,14 @@ class PHPExtractor(ASTExtractor):
         try:
             tree = self._parser.parse(source)
         except Exception as exc:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=None,
-                message=f"tree-sitter parse failed: {exc}",
-                severity="error",
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=None,
+                    message=f"tree-sitter parse failed: {exc}",
+                    severity="error",
+                )
+            )
             return ExtractionResult(
                 file_path=file_path,
                 language="php",
@@ -263,14 +283,16 @@ class PHPExtractor(ASTExtractor):
     ) -> None:
         """Recursively collect ERROR / MISSING nodes."""
         if node.type == "ERROR" or node.is_missing:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=node.start_point[0] + 1,
-                message=f"Parse {'missing' if node.is_missing else 'error'} near: "
-                        f"{_node_text(node, source)[:80]!r}",
-                severity="warning",
-                node_type=node.type,
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=node.start_point[0] + 1,
+                    message=f"Parse {'missing' if node.is_missing else 'error'} near: "
+                    f"{_node_text(node, source)[:80]!r}",
+                    severity="warning",
+                    node_type=node.type,
+                )
+            )
         for child in node.children:
             self._collect_errors(child, file_path, source, errors)
 
@@ -306,13 +328,15 @@ class PHPExtractor(ASTExtractor):
                 elif child.type == "const_declaration":
                     self._handle_const(child, ctx, parent_id, ctx.namespace)
             except Exception as exc:
-                ctx.errors.append(ExtractionError(
-                file_path=ctx.file_path,
-                line_number=child.start_point[0] + 1,
-                    message=f"Extraction error in {child.type}: {exc}",
-                    severity="warning",
-                    node_type=child.type,
-                ))
+                ctx.errors.append(
+                    ExtractionError(
+                        file_path=ctx.file_path,
+                        line_number=child.start_point[0] + 1,
+                        message=f"Extraction error in {child.type}: {exc}",
+                        severity="warning",
+                        node_type=child.type,
+                    )
+                )
 
     # -- Namespace ----------------------------------------------------------
 
@@ -336,13 +360,15 @@ class PHPExtractor(ASTExtractor):
             language="php",
         )
         ctx.nodes.append(ns_node)
-        ctx.edges.append(Edge(
-            source_id=ctx.file_node_id,
-            target_id=ns_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=node.start_point[0] + 1,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=ctx.file_node_id,
+                target_id=ns_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=node.start_point[0] + 1,
+            )
+        )
 
         # Walk namespace body
         body = _child_by_field(node, "body")
@@ -379,13 +405,15 @@ class PHPExtractor(ASTExtractor):
             elif child.type == "const_declaration":
                 self._handle_const(child, ctx, parent_id, namespace)
         except Exception as exc:
-            ctx.errors.append(ExtractionError(
-            file_path=ctx.file_path,
-            line_number=child.start_point[0] + 1,
-                message=f"Extraction error in {child.type}: {exc}",
-                severity="warning",
-                node_type=child.type,
-            ))
+            ctx.errors.append(
+                ExtractionError(
+                    file_path=ctx.file_path,
+                    line_number=child.start_point[0] + 1,
+                    message=f"Extraction error in {child.type}: {exc}",
+                    severity="warning",
+                    node_type=child.type,
+                )
+            )
 
     # -- Use declarations (imports) -----------------------------------------
 
@@ -432,22 +460,26 @@ class PHPExtractor(ASTExtractor):
                 metadata={"alias": alias, "fqn": fqn},
             )
             ctx.nodes.append(import_node)
-            ctx.edges.append(Edge(
-                source_id=parent_id,
-                target_id=import_node.id,
-                kind=EdgeKind.CONTAINS,
-                confidence=1.0,
-                line_number=node.start_point[0] + 1,
-            ))
+            ctx.edges.append(
+                Edge(
+                    source_id=parent_id,
+                    target_id=import_node.id,
+                    kind=EdgeKind.CONTAINS,
+                    confidence=1.0,
+                    line_number=node.start_point[0] + 1,
+                )
+            )
             # Store mapping for later resolution
             ctx.use_map[alias] = fqn
             # Create IMPORTS edge (unresolved — target is the FQN)
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=import_node.id,
-                reference_name=fqn,
-                reference_kind=EdgeKind.IMPORTS,
-                line_number=node.start_point[0] + 1,
-            ))
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=import_node.id,
+                    reference_name=fqn,
+                    reference_kind=EdgeKind.IMPORTS,
+                    line_number=node.start_point[0] + 1,
+                )
+            )
 
     # -- Class --------------------------------------------------------------
 
@@ -482,13 +514,15 @@ class PHPExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(class_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=class_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=class_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Extends
         base = _child_by_field(node, "base_clause")
@@ -502,12 +536,14 @@ class PHPExtractor(ASTExtractor):
                 if child.type == "name" or child.type == "qualified_name":
                     parent_name = _node_text(child, ctx.source)
                     resolved = ctx.resolve_name(parent_name)
-                    ctx.unresolved.append(UnresolvedReference(
-                        source_node_id=class_node.id,
-                        reference_name=resolved,
-                        reference_kind=EdgeKind.EXTENDS,
-                        line_number=base.start_point[0] + 1,
-                    ))
+                    ctx.unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=class_node.id,
+                            reference_name=resolved,
+                            reference_kind=EdgeKind.EXTENDS,
+                            line_number=base.start_point[0] + 1,
+                        )
+                    )
 
         # Implements
         impl_clause = None
@@ -520,12 +556,14 @@ class PHPExtractor(ASTExtractor):
                 if child.type == "name" or child.type == "qualified_name":
                     iface_name = _node_text(child, ctx.source)
                     resolved = ctx.resolve_name(iface_name)
-                    ctx.unresolved.append(UnresolvedReference(
-                        source_node_id=class_node.id,
-                        reference_name=resolved,
-                        reference_kind=EdgeKind.IMPLEMENTS,
-                        line_number=impl_clause.start_point[0] + 1,
-                    ))
+                    ctx.unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=class_node.id,
+                            reference_name=resolved,
+                            reference_kind=EdgeKind.IMPLEMENTS,
+                            line_number=impl_clause.start_point[0] + 1,
+                        )
+                    )
 
         # Walk class body
         body = _child_by_field(node, "body")
@@ -566,13 +604,15 @@ class PHPExtractor(ASTExtractor):
             source_text=_node_text(node, ctx.source),
         )
         ctx.nodes.append(iface_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=iface_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=iface_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Extends (interfaces can extend multiple interfaces)
         base = _child_by_field(node, "base_clause")
@@ -586,12 +626,14 @@ class PHPExtractor(ASTExtractor):
                 if child.type in ("name", "qualified_name"):
                     parent_name = _node_text(child, ctx.source)
                     resolved = ctx.resolve_name(parent_name)
-                    ctx.unresolved.append(UnresolvedReference(
-                        source_node_id=iface_node.id,
-                        reference_name=resolved,
-                        reference_kind=EdgeKind.EXTENDS,
-                        line_number=base.start_point[0] + 1,
-                    ))
+                    ctx.unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=iface_node.id,
+                            reference_name=resolved,
+                            reference_kind=EdgeKind.EXTENDS,
+                            line_number=base.start_point[0] + 1,
+                        )
+                    )
 
         # Walk interface body
         body = _child_by_field(node, "body")
@@ -632,13 +674,15 @@ class PHPExtractor(ASTExtractor):
             source_text=_node_text(node, ctx.source),
         )
         ctx.nodes.append(trait_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=trait_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=trait_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         body = _child_by_field(node, "body")
         if body is None:
@@ -678,13 +722,15 @@ class PHPExtractor(ASTExtractor):
             source_text=_node_text(node, ctx.source),
         )
         ctx.nodes.append(enum_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=enum_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=enum_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Implements
         for child in node.children:
@@ -693,12 +739,14 @@ class PHPExtractor(ASTExtractor):
                     if ic.type in ("name", "qualified_name"):
                         iface_name = _node_text(ic, ctx.source)
                         resolved = ctx.resolve_name(iface_name)
-                        ctx.unresolved.append(UnresolvedReference(
-                            source_node_id=enum_node.id,
-                            reference_name=resolved,
-                            reference_kind=EdgeKind.IMPLEMENTS,
-                            line_number=child.start_point[0] + 1,
-                        ))
+                        ctx.unresolved.append(
+                            UnresolvedReference(
+                                source_node_id=enum_node.id,
+                                reference_name=resolved,
+                                reference_kind=EdgeKind.IMPLEMENTS,
+                                line_number=child.start_point[0] + 1,
+                            )
+                        )
 
         body = _child_by_field(node, "body")
         if body is None:
@@ -745,13 +793,15 @@ class PHPExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(func_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=func_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=func_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Scan body for calls
         body = _child_by_field(node, "body")
@@ -787,23 +837,25 @@ class PHPExtractor(ASTExtractor):
                 line = child.start_point[0] + 1
 
                 const_node = Node(
-                id=generate_node_id(ctx.file_path, node.start_point[0] + 1, NodeKind.CONSTANT, name),
-                kind=NodeKind.CONSTANT,
-                name=name,
-                start_line=node.start_point[0] + 1,
+                    id=generate_node_id(ctx.file_path, node.start_point[0] + 1, NodeKind.CONSTANT, name),
+                    kind=NodeKind.CONSTANT,
+                    name=name,
+                    start_line=node.start_point[0] + 1,
                     qualified_name=qname,
                     file_path=ctx.file_path,
                     end_line=child.end_point[0] + 1,
                     language="php",
                 )
                 ctx.nodes.append(const_node)
-                ctx.edges.append(Edge(
-                    source_id=parent_id,
-                    target_id=const_node.id,
-                    kind=EdgeKind.CONTAINS,
-                    confidence=1.0,
-                    line_number=line,
-                ))
+                ctx.edges.append(
+                    Edge(
+                        source_id=parent_id,
+                        target_id=const_node.id,
+                        kind=EdgeKind.CONTAINS,
+                        confidence=1.0,
+                        line_number=line,
+                    )
+                )
 
     # -- Class body members -------------------------------------------------
 
@@ -826,13 +878,15 @@ class PHPExtractor(ASTExtractor):
                 elif child.type in ("const_declaration", "class_constant_declaration"):
                     self._handle_class_const(child, ctx, class_id, class_qname)
             except Exception as exc:
-                ctx.errors.append(ExtractionError(
-                file_path=ctx.file_path,
-                line_number=child.start_point[0] + 1,
-                    message=f"Error in class member {child.type}: {exc}",
-                    severity="warning",
-                    node_type=child.type,
-                ))
+                ctx.errors.append(
+                    ExtractionError(
+                        file_path=ctx.file_path,
+                        line_number=child.start_point[0] + 1,
+                        message=f"Error in class member {child.type}: {exc}",
+                        severity="warning",
+                        node_type=child.type,
+                    )
+                )
 
     def _handle_method(
         self,
@@ -871,13 +925,15 @@ class PHPExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(method_node)
-        ctx.edges.append(Edge(
-            source_id=class_id,
-            target_id=method_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=class_id,
+                target_id=method_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Scan body for calls
         body = _child_by_field(node, "body")
@@ -900,8 +956,14 @@ class PHPExtractor(ASTExtractor):
         static = _is_static(node, ctx.source)
         prop_type = None
         for child in node.children:
-            if child.type in ("named_type", "primitive_type", "nullable_type",
-                              "union_type", "intersection_type", "optional_type"):
+            if child.type in (
+                "named_type",
+                "primitive_type",
+                "nullable_type",
+                "union_type",
+                "intersection_type",
+                "optional_type",
+            ):
                 prop_type = _node_text(child, ctx.source)
                 break
 
@@ -920,9 +982,9 @@ class PHPExtractor(ASTExtractor):
 
                 prop_node_obj = Node(
                     id=generate_node_id(ctx.file_path, child.start_point[0] + 1, NodeKind.PROPERTY, name),
-            kind=NodeKind.PROPERTY,
-            name=name,
-            start_line=child.start_point[0] + 1,
+                    kind=NodeKind.PROPERTY,
+                    name=name,
+                    start_line=child.start_point[0] + 1,
                     qualified_name=qname,
                     file_path=ctx.file_path,
                     end_line=child.end_point[0] + 1,
@@ -934,13 +996,15 @@ class PHPExtractor(ASTExtractor):
                     },
                 )
                 ctx.nodes.append(prop_node_obj)
-                ctx.edges.append(Edge(
-                    source_id=class_id,
-                    target_id=prop_node_obj.id,
-                    kind=EdgeKind.CONTAINS,
-                    confidence=1.0,
-                    line_number=line,
-                ))
+                ctx.edges.append(
+                    Edge(
+                        source_id=class_id,
+                        target_id=prop_node_obj.id,
+                        kind=EdgeKind.CONTAINS,
+                        confidence=1.0,
+                        line_number=line,
+                    )
+                )
 
     def _handle_trait_use(
         self,
@@ -953,12 +1017,14 @@ class PHPExtractor(ASTExtractor):
             if child.type in ("name", "qualified_name"):
                 trait_name = _node_text(child, ctx.source)
                 resolved = ctx.resolve_name(trait_name)
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=class_id,
-                    reference_name=resolved,
-                    reference_kind=EdgeKind.USES_TRAIT,
-                    line_number=node.start_point[0] + 1,
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=class_id,
+                        reference_name=resolved,
+                        reference_kind=EdgeKind.USES_TRAIT,
+                        line_number=node.start_point[0] + 1,
+                    )
+                )
 
     def _handle_class_const(
         self,
@@ -982,10 +1048,10 @@ class PHPExtractor(ASTExtractor):
                 line = child.start_point[0] + 1
 
                 const_node = Node(
-                id=generate_node_id(ctx.file_path, node.start_point[0] + 1, NodeKind.CONSTANT, name),
-                kind=NodeKind.CONSTANT,
-                name=name,
-                start_line=node.start_point[0] + 1,
+                    id=generate_node_id(ctx.file_path, node.start_point[0] + 1, NodeKind.CONSTANT, name),
+                    kind=NodeKind.CONSTANT,
+                    name=name,
+                    start_line=node.start_point[0] + 1,
                     qualified_name=qname,
                     file_path=ctx.file_path,
                     end_line=child.end_point[0] + 1,
@@ -993,13 +1059,15 @@ class PHPExtractor(ASTExtractor):
                     metadata={"visibility": _visibility(node, ctx.source)},
                 )
                 ctx.nodes.append(const_node)
-                ctx.edges.append(Edge(
-                    source_id=class_id,
-                    target_id=const_node.id,
-                    kind=EdgeKind.CONTAINS,
-                    confidence=1.0,
-                    line_number=line,
-                ))
+                ctx.edges.append(
+                    Edge(
+                        source_id=class_id,
+                        target_id=const_node.id,
+                        kind=EdgeKind.CONTAINS,
+                        confidence=1.0,
+                        line_number=line,
+                    )
+                )
 
     # -- Call scanning ------------------------------------------------------
 
@@ -1017,25 +1085,29 @@ class PHPExtractor(ASTExtractor):
             if func_node is not None:
                 call_name = _node_text(func_node, ctx.source)
                 resolved = ctx.resolve_name(call_name)
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=caller_id,
-                    reference_name=resolved,
-                    reference_kind=EdgeKind.CALLS,
-                    line_number=node.start_point[0] + 1,
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=caller_id,
+                        reference_name=resolved,
+                        reference_kind=EdgeKind.CALLS,
+                        line_number=node.start_point[0] + 1,
+                    )
+                )
 
         elif node.type == "member_call_expression":
             name_node = _child_by_field(node, "name")
             if name_node is not None:
                 method_name = _node_text(name_node, ctx.source)
                 # We record the method name; resolution happens later
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=caller_id,
-                    reference_name=method_name,
-                    reference_kind=EdgeKind.CALLS,
-                    line_number=node.start_point[0] + 1,
-                    context={"call_type": "member"},
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=caller_id,
+                        reference_name=method_name,
+                        reference_kind=EdgeKind.CALLS,
+                        line_number=node.start_point[0] + 1,
+                        context={"call_type": "member"},
+                    )
+                )
 
         elif node.type == "scoped_call_expression":
             scope_node = _child_by_field(node, "scope")
@@ -1044,25 +1116,29 @@ class PHPExtractor(ASTExtractor):
                 scope_name = _node_text(scope_node, ctx.source)
                 method_name = _node_text(name_node, ctx.source)
                 resolved = ctx.resolve_name(scope_name)
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=caller_id,
-                    reference_name=f"{resolved}::{method_name}",
-                    reference_kind=EdgeKind.CALLS,
-                    line_number=node.start_point[0] + 1,
-                    context={"call_type": "static"},
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=caller_id,
+                        reference_name=f"{resolved}::{method_name}",
+                        reference_kind=EdgeKind.CALLS,
+                        line_number=node.start_point[0] + 1,
+                        context={"call_type": "static"},
+                    )
+                )
 
         elif node.type == "object_creation_expression":
             for child in node.children:
                 if child.type in ("name", "qualified_name"):
                     class_name = _node_text(child, ctx.source)
                     resolved = ctx.resolve_name(class_name)
-                    ctx.unresolved.append(UnresolvedReference(
-                        source_node_id=caller_id,
-                        reference_name=resolved,
-                        reference_kind=EdgeKind.INSTANTIATES,
-                        line_number=node.start_point[0] + 1,
-                    ))
+                    ctx.unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=caller_id,
+                            reference_name=resolved,
+                            reference_kind=EdgeKind.INSTANTIATES,
+                            line_number=node.start_point[0] + 1,
+                        )
+                    )
                     break
 
         # Recurse into children
@@ -1074,13 +1150,20 @@ class PHPExtractor(ASTExtractor):
 # Extraction context (mutable state bag)
 # ---------------------------------------------------------------------------
 
+
 class _ExtractionContext:
     """Mutable state passed through the extraction walk."""
 
     __slots__ = (
-        "file_path", "source", "file_node_id",
-        "nodes", "edges", "errors", "unresolved",
-        "namespace", "use_map",
+        "file_path",
+        "source",
+        "file_node_id",
+        "nodes",
+        "edges",
+        "errors",
+        "unresolved",
+        "namespace",
+        "use_map",
     )
 
     def __init__(
@@ -1111,7 +1194,7 @@ class _ExtractionContext:
         # Check use map
         first_part = name.split("\\")[0]
         if first_part in self.use_map:
-            rest = name[len(first_part):]
+            rest = name[len(first_part) :]
             return self.use_map[first_part] + rest
         # Relative to current namespace
         if self.namespace:

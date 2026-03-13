@@ -1,4 +1,5 @@
 """CodeRAG Monitor — main Textual application."""
+
 from __future__ import annotations
 
 import time
@@ -7,12 +8,10 @@ from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
 from textual.events import Key
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Input, Static
-from textual.worker import Worker, WorkerState
 
 from coderag.pipeline.events import (
     EventEmitter,
@@ -22,11 +21,12 @@ from coderag.pipeline.events import (
     PhaseCompleted,
     PhaseProgress,
     PhaseStarted,
-    PipelineCompleted as PipelineCompletedEvent,
     PipelinePhase,
     PipelineStarted,
 )
-from coderag.tui.events import FileProcessed, LogMessage, PipelineFinished
+from coderag.pipeline.events import (
+    PipelineCompleted as PipelineCompletedEvent,
+)
 from coderag.tui.screens.dashboard import DashboardScreen
 from coderag.tui.screens.details import DetailsScreen
 from coderag.tui.screens.graph import GraphScreen
@@ -40,7 +40,6 @@ from coderag.tui.widgets import (
     ResourceMonitor,
     ThroughputChart,
 )
-
 
 # ── Header & Footer Widgets ──────────────────────────────────
 
@@ -482,8 +481,8 @@ class CodeRAGApp(App):
         """Run the pipeline in a background thread."""
         from coderag.core.config import CodeGraphConfig
         from coderag.core.registry import PluginRegistry
-        from coderag.storage.sqlite_store import SQLiteStore
         from coderag.pipeline.orchestrator import PipelineOrchestrator
+        from coderag.storage.sqlite_store import SQLiteStore
 
         emitter = EventEmitter()
         emitter.on_any(self._on_pipeline_event)
@@ -510,17 +509,13 @@ class CodeRAGApp(App):
                     store=store,
                     emitter=emitter,
                 )
-                summary = orchestrator.run(str(project_root))
+                orchestrator.run(str(project_root))
 
-            self.call_from_thread(
-                self._post_log, "Pipeline completed successfully!", "SUCCESS"
-            )
+            self.call_from_thread(self._post_log, "Pipeline completed successfully!", "SUCCESS")
             self.call_from_thread(self._on_finished, True, "")
 
         except Exception as exc:
-            self.call_from_thread(
-                self._post_log, f"Pipeline error: {exc}", "ERROR"
-            )
+            self.call_from_thread(self._post_log, f"Pipeline error: {exc}", "ERROR")
             self.call_from_thread(self._on_finished, False, str(exc))
 
     def _on_pipeline_event(self, event: Any) -> None:
@@ -530,9 +525,7 @@ class CodeRAGApp(App):
     def _handle_event(self, event: Any) -> None:
         """Process a pipeline event on the main thread."""
         if isinstance(event, PipelineStarted):
-            self._post_log(
-                f"Pipeline started: {event.project_root}", "INFO"
-            )
+            self._post_log(f"Pipeline started: {event.project_root}", "INFO")
             self._update_header_state("▶ Running")
 
         elif isinstance(event, PhaseStarted):
@@ -560,9 +553,7 @@ class CodeRAGApp(App):
 
         elif isinstance(event, PhaseCompleted):
             phase_label = event.phase.value.replace("_", " ").title()
-            summary_str = ", ".join(
-                f"{k}: {v}" for k, v in event.summary.items()
-            ) if event.summary else ""
+            summary_str = ", ".join(f"{k}: {v}" for k, v in event.summary.items()) if event.summary else ""
             duration_str = f" ({event.duration_ms:.0f}ms)" if event.duration_ms else ""
             self._post_log(
                 f"Phase complete: {phase_label}{duration_str} — {summary_str}",
@@ -575,9 +566,7 @@ class CodeRAGApp(App):
                 pass
 
         elif isinstance(event, FileStarted):
-            self._post_log(
-                f"Parsing: {event.file_path}", "DEBUG"
-            )
+            self._post_log(f"Parsing: {event.file_path}", "DEBUG")
 
         elif isinstance(event, FileCompleted):
             self._files_processed += 1
@@ -607,9 +596,7 @@ class CodeRAGApp(App):
 
         elif isinstance(event, FileError):
             self._total_errors += 1
-            self._post_log(
-                f"{event.file_path}: {event.error}", "ERROR"
-            )
+            self._post_log(f"{event.file_path}: {event.error}", "ERROR")
             self._shared_file_details[event.file_path] = {
                 "language": "?",
                 "nodes_count": 0,
@@ -695,11 +682,7 @@ class CodeRAGApp(App):
         elapsed = time.time() - self._start_time if self._start_time else 0
         h, m, s = int(elapsed // 3600), int((elapsed % 3600) // 60), int(elapsed % 60)
         time_str = f"{h:02d}:{m:02d}:{s:02d}"
-        phase_str = (
-            self._current_phase.value.replace("_", " ").title()
-            if self._current_phase
-            else "—"
-        )
+        phase_str = self._current_phase.value.replace("_", " ").title() if self._current_phase else "—"
         try:
             header = self.query_one(CodeRAGHeader)
             header.elapsed_text = time_str
@@ -713,9 +696,7 @@ class CodeRAGApp(App):
             else:
                 status = "✓ Complete" if self._total_errors == 0 else "✗ Errors"
             header_bar = self.screen.query_one("#header-bar", Static)
-            header_bar.update(
-                f"CodeRAG Monitor │ {status} │ Phase: {phase_str} │ {time_str}"
-            )
+            header_bar.update(f"CodeRAG Monitor │ {status} │ Phase: {phase_str} │ {time_str}")
         except Exception:
             pass
 

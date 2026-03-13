@@ -3,12 +3,13 @@
 Registers 8 tools on a FastMCP server instance that expose
 the knowledge graph to LLMs via the Model Context Protocol.
 """
+
 from __future__ import annotations
 
 import fnmatch
-import os
 import logging
-from enum import Enum
+import os
+from enum import StrEnum
 from typing import Any
 
 from coderag.core.models import (
@@ -23,16 +24,19 @@ logger = logging.getLogger(__name__)
 
 # ── Enums for tool parameters ─────────────────────────────────
 
-class DetailLevel(str, Enum):
+
+class DetailLevel(StrEnum):
     """Detail level for symbol lookup."""
+
     signature = "signature"
     summary = "summary"
     detailed = "detailed"
     comprehensive = "comprehensive"
 
 
-class UsageType(str, Enum):
+class UsageType(StrEnum):
     """Types of symbol usage to search for."""
+
     calls = "calls"
     imports = "imports"
     extends = "extends"
@@ -42,8 +46,9 @@ class UsageType(str, Enum):
     all = "all"
 
 
-class HttpMethod(str, Enum):
+class HttpMethod(StrEnum):
     """HTTP methods for route filtering."""
+
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -52,8 +57,9 @@ class HttpMethod(str, Enum):
     ANY = "ANY"
 
 
-class ArchitectureFocus(str, Enum):
+class ArchitectureFocus(StrEnum):
     """Focus area for architecture overview."""
+
     full = "full"
     backend = "backend"
     frontend = "frontend"
@@ -61,8 +67,9 @@ class ArchitectureFocus(str, Enum):
     data_layer = "data_layer"
 
 
-class DependencyDirection(str, Enum):
+class DependencyDirection(StrEnum):
     """Direction for dependency graph traversal."""
+
     dependencies = "dependencies"
     dependents = "dependents"
     both = "both"
@@ -121,7 +128,7 @@ def _format_candidates(candidates: list[Node], symbol: str) -> str:
     lines = [f"Symbol `{symbol}` not found. Did you mean one of these?\n"]
     for c in candidates[:10]:
         kind = c.kind.value if isinstance(c.kind, NodeKind) else c.kind
-        lines.append(f"- `{c.qualified_name}` ({kind}, `{c.file_path}:{c.start_line}`)") 
+        lines.append(f"- `{c.qualified_name}` ({kind}, `{c.file_path}:{c.start_line}`)")
     return "\n".join(lines)
 
 
@@ -175,7 +182,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
         description=(
             "Look up a code symbol (class, function, method, etc.) and return "
             "its definition, relationships, and context from the knowledge graph. "
-            "Use this to understand what a symbol is, where it\'s defined, and "
+            "Use this to understand what a symbol is, where it's defined, and "
             "how it relates to other code."
         ),
     )
@@ -209,7 +216,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
     @mcp.tool(
         name="coderag_find_usages",
         description=(
-            "Find all usages of a symbol — where it\'s called, imported, extended, "
+            "Find all usages of a symbol — where it's called, imported, extended, "
             "implemented, or instantiated. Useful for understanding how widely "
             "a symbol is used and by whom."
         ),
@@ -234,8 +241,10 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
 
             node, candidates = _resolve_symbol(symbol, store)
             if node is None:
-                return _format_candidates(candidates, symbol) if candidates else (
-                    f"Symbol `{symbol}` not found in the knowledge graph."
+                return (
+                    _format_candidates(candidates, symbol)
+                    if candidates
+                    else (f"Symbol `{symbol}` not found in the knowledge graph.")
                 )
 
             # Determine which edge kinds to filter
@@ -244,9 +253,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
             else:
                 edge_kind_filter: list[EdgeKind] = []
                 for ut in usage_types:
-                    edge_kind_filter.extend(
-                        _USAGE_TYPE_TO_EDGE_KINDS.get(ut.value, [])
-                    )
+                    edge_kind_filter.extend(_USAGE_TYPE_TO_EDGE_KINDS.get(ut.value, []))
 
             # Get incoming edges (usages OF this symbol)
             neighbors = store.get_neighbors(
@@ -291,10 +298,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                     lines.append(f"**{ek}** ({len(nodes_list)}):\n")
                     for n in nodes_list:
                         nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
-                        lines.append(
-                            f"- `{n.qualified_name}` ({nk}, "
-                            f"`{n.file_path}:{n.start_line}`)"
-                        )
+                        lines.append(f"- `{n.qualified_name}` ({nk}, `{n.file_path}:{n.start_line}`)")
                     lines.append("")
 
             text = "\n".join(lines)
@@ -379,10 +383,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                 ).fetchall()
                 if rows:
                     suggestions = "\n".join(f"- `{r[0]}`" for r in rows)
-                    return (
-                        f"File `{file_path}` not found. Similar files:\n\n"
-                        f"{suggestions}"
-                    )
+                    return f"File `{file_path}` not found. Similar files:\n\n{suggestions}"
                 return f"File `{file_path}` not found in the knowledge graph."
 
             result = assembler.assemble_for_file(
@@ -447,7 +448,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                     f"No routes matching `{pattern}` found.\n\n"
                     f"Total routes in graph: {len(route_nodes)}.\n"
                     f"Try a broader pattern or check available routes with "
-                    f"`coderag_search` using node_types=[\"route\"]."
+                    f'`coderag_search` using node_types=["route"].'
                 )
 
             lines = [
@@ -478,16 +479,15 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                     target = store.get_node(edge.target_id)
                     if target:
                         lines.append(
-                            f"- **{ek}** → `{target.qualified_name}` "
-                            f"(`{target.file_path}:{target.start_line}`)"
+                            f"- **{ek}** → `{target.qualified_name}` (`{target.file_path}:{target.start_line}`)"
                         )
 
                 # Show frontend callers if requested
                 if include_frontend:
                     api_callers = [
-                        e for e in incoming
-                        if (e.kind == EdgeKind.API_CALLS
-                            or (isinstance(e.kind, str) and e.kind == "api_calls"))
+                        e
+                        for e in incoming
+                        if (e.kind == EdgeKind.API_CALLS or (isinstance(e.kind, str) and e.kind == "api_calls"))
                     ]
                     if api_callers:
                         lines.append(f"\n  **Frontend callers** ({len(api_callers)}):")
@@ -550,8 +550,10 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
             if effective_mode in ("semantic", "hybrid", "auto"):
                 try:
                     from coderag.search import SEMANTIC_AVAILABLE
+
                     if SEMANTIC_AVAILABLE:
                         from coderag.search.vector_store import VectorStore
+
                         if VectorStore.exists(vector_dir):
                             use_semantic = True
                 except ImportError:
@@ -559,8 +561,8 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
 
             if use_semantic and effective_mode != "fts":
                 from coderag.search.embedder import CodeEmbedder
-                from coderag.search.vector_store import VectorStore
                 from coderag.search.hybrid import HybridSearcher
+                from coderag.search.vector_store import VectorStore
 
                 embedder = CodeEmbedder("all-MiniLM-L6-v2")
                 vs = VectorStore.load(vector_dir)
@@ -683,7 +685,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
 
             # Compute analyses
             communities_raw = analyzer.community_detection()
-            pr_scores = analyzer.pagerank()
+            analyzer.pagerank()
 
             # Determine kind/language filters based on focus
             language_filter = None
@@ -699,9 +701,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
 
             # Get top nodes
             if kind_filter:
-                top_nodes_raw = analyzer.get_top_nodes(
-                    "pagerank", limit=20, kind_filter=kind_filter
-                )
+                top_nodes_raw = analyzer.get_top_nodes("pagerank", limit=20, kind_filter=kind_filter)
             else:
                 top_nodes_raw = analyzer.get_top_nodes("pagerank", limit=20)
 
@@ -829,7 +829,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                 )
                 lines.append(f"### Dependencies ({len(deps)} nodes)\n")
                 if deps:
-                    lines.append("What `{}` depends on:\n".format(node.name))
+                    lines.append(f"What `{node.name}` depends on:\n")
                     by_depth: dict[int, list] = {}
                     for n, edge, depth in deps:
                         by_depth.setdefault(depth, []).append((n, edge))
@@ -839,8 +839,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                             ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
                             nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
                             lines.append(
-                                f"{indent}- **{ek}** → `{n.qualified_name}` "
-                                f"({nk}, `{n.file_path}:{n.start_line}`)"
+                                f"{indent}- **{ek}** → `{n.qualified_name}` ({nk}, `{n.file_path}:{n.start_line}`)"
                             )
                 else:
                     lines.append("No dependencies found.\n")
@@ -855,7 +854,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                 )
                 lines.append(f"### Dependents ({len(dependents)} nodes)\n")
                 if dependents:
-                    lines.append("What depends on `{}`:\n".format(node.name))
+                    lines.append(f"What depends on `{node.name}`:\n")
                     by_depth = {}
                     for n, edge, depth in dependents:
                         by_depth.setdefault(depth, []).append((n, edge))
@@ -865,8 +864,7 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
                             ek = edge.kind.value if isinstance(edge.kind, EdgeKind) else edge.kind
                             nk = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
                             lines.append(
-                                f"{indent}- **{ek}** ← `{n.qualified_name}` "
-                                f"({nk}, `{n.file_path}:{n.start_line}`)"
+                                f"{indent}- **{ek}** ← `{n.qualified_name}` ({nk}, `{n.file_path}:{n.start_line}`)"
                             )
                 else:
                     lines.append("No dependents found.\n")

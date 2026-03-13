@@ -6,12 +6,12 @@ Search (FAISS).  The index is persisted as two files:
 - ``vectors.faiss`` — the raw FAISS index
 - ``vectors_meta.json`` — mapping between node IDs and index positions
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
-from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -87,15 +87,9 @@ class VectorStore:
         import faiss
 
         if len(embeddings) != len(node_ids):
-            raise ValueError(
-                f"embeddings ({len(embeddings)}) and node_ids "
-                f"({len(node_ids)}) must have the same length"
-            )
+            raise ValueError(f"embeddings ({len(embeddings)}) and node_ids ({len(node_ids)}) must have the same length")
         if embeddings.ndim != 2 or embeddings.shape[1] != self._dimension:
-            raise ValueError(
-                f"Expected embeddings of shape (n, {self._dimension}), "
-                f"got {embeddings.shape}"
-            )
+            raise ValueError(f"Expected embeddings of shape (n, {self._dimension}), got {embeddings.shape}")
 
         # Rebuild from scratch
         self._index = faiss.IndexFlatIP(self._dimension)
@@ -221,7 +215,8 @@ class VectorStore:
 
         logger.debug(
             "Removed %d vectors (remaining: %d)",
-            len(remove_set), self.size,
+            len(remove_set),
+            self.size,
         )
 
     def get_content_hash(self, node_id: str) -> str | None:
@@ -257,7 +252,8 @@ class VectorStore:
         index_size = os.path.getsize(index_path)
         logger.info(
             "Saved vector index: %d vectors, %.1f KB",
-            self.size, index_size / 1024,
+            self.size,
+            index_size / 1024,
         )
 
     @classmethod
@@ -274,12 +270,9 @@ class VectorStore:
         meta_path = os.path.join(directory, _META_FILE)
 
         if not os.path.exists(index_path) or not os.path.exists(meta_path):
-            raise FileNotFoundError(
-                f"Vector index not found in {directory}. "
-                "Run \"coderag embed\" first."
-            )
+            raise FileNotFoundError(f'Vector index not found in {directory}. Run "coderag embed" first.')
 
-        with open(meta_path, "r", encoding="utf-8") as fh:
+        with open(meta_path, encoding="utf-8") as fh:
             meta = json.load(fh)
 
         dimension = meta["dimension"]
@@ -292,14 +285,14 @@ class VectorStore:
 
         logger.info(
             "Loaded vector index: %d vectors (dim=%d)",
-            store.size, dimension,
+            store.size,
+            dimension,
         )
         return store
 
     @staticmethod
     def exists(directory: str) -> bool:
         """Return *True* if a saved index exists in *directory*."""
-        return (
-            os.path.exists(os.path.join(directory, _INDEX_FILE))
-            and os.path.exists(os.path.join(directory, _META_FILE))
+        return os.path.exists(os.path.join(directory, _INDEX_FILE)) and os.path.exists(
+            os.path.join(directory, _META_FILE)
         )

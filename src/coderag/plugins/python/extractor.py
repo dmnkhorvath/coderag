@@ -54,7 +54,7 @@ _TRIPLE_QUOTES = ('"""', "'''")
 
 def _node_text(node: tree_sitter.Node, source: bytes) -> str:
     """Return the UTF-8 text of a tree-sitter node."""
-    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _child_by_field(node: tree_sitter.Node, field: str) -> tree_sitter.Node | None:
@@ -63,7 +63,8 @@ def _child_by_field(node: tree_sitter.Node, field: str) -> tree_sitter.Node | No
 
 
 def _children_of_type(
-    node: tree_sitter.Node, *types: str,
+    node: tree_sitter.Node,
+    *types: str,
 ) -> list[tree_sitter.Node]:
     """Return all direct children whose type is in *types*."""
     return [c for c in node.children if c.type in types]
@@ -92,7 +93,8 @@ def _find_docstring(body_node: tree_sitter.Node, source: bytes) -> str | None:
 
 
 def _get_decorators(
-    node: tree_sitter.Node, source: bytes,
+    node: tree_sitter.Node,
+    source: bytes,
 ) -> list[dict[str, str]]:
     """Extract decorator info from a decorated_definition parent."""
     decorators: list[dict[str, str]] = []
@@ -107,7 +109,8 @@ def _get_decorators(
 
 
 def _extract_type_annotation(
-    node: tree_sitter.Node | None, source: bytes,
+    node: tree_sitter.Node | None,
+    source: bytes,
 ) -> str | None:
     """Extract a type annotation string from a type node."""
     if node is None:
@@ -116,7 +119,8 @@ def _extract_type_annotation(
 
 
 def _extract_parameters(
-    params_node: tree_sitter.Node | None, source: bytes,
+    params_node: tree_sitter.Node | None,
+    source: bytes,
 ) -> list[dict[str, str | None]]:
     """Extract function parameters with names, types, and defaults."""
     if params_node is None:
@@ -178,7 +182,8 @@ def _extract_parameters(
 
 
 def _get_base_classes(
-    node: tree_sitter.Node, source: bytes,
+    node: tree_sitter.Node,
+    source: bytes,
 ) -> list[str]:
     """Extract base class names from a class_definition argument_list."""
     bases: list[str] = []
@@ -227,8 +232,13 @@ class _ExtractionContext:
     """Mutable state passed through the extraction walk."""
 
     __slots__ = (
-        "file_path", "source", "file_node_id",
-        "nodes", "edges", "errors", "unresolved",
+        "file_path",
+        "source",
+        "file_node_id",
+        "nodes",
+        "edges",
+        "errors",
+        "unresolved",
         "import_map",
     )
 
@@ -255,7 +265,7 @@ class _ExtractionContext:
         """Resolve a short name via the import map."""
         top = name.split(".")[0]
         if top in self.import_map:
-            return self.import_map[top] + name[len(top):]
+            return self.import_map[top] + name[len(top) :]
         return name
 
 
@@ -267,32 +277,36 @@ class _ExtractionContext:
 class PythonExtractor(ASTExtractor):
     """Extract knowledge-graph nodes and edges from Python source files."""
 
-    _SUPPORTED_NODE_KINDS = frozenset({
-        NodeKind.FILE,
-        NodeKind.CLASS,
-        NodeKind.INTERFACE,
-        NodeKind.ENUM,
-        NodeKind.FUNCTION,
-        NodeKind.METHOD,
-        NodeKind.PROPERTY,
-        NodeKind.VARIABLE,
-        NodeKind.CONSTANT,
-        NodeKind.IMPORT,
-        NodeKind.DECORATOR,
-        NodeKind.TYPE_ALIAS,
-    })
+    _SUPPORTED_NODE_KINDS = frozenset(
+        {
+            NodeKind.FILE,
+            NodeKind.CLASS,
+            NodeKind.INTERFACE,
+            NodeKind.ENUM,
+            NodeKind.FUNCTION,
+            NodeKind.METHOD,
+            NodeKind.PROPERTY,
+            NodeKind.VARIABLE,
+            NodeKind.CONSTANT,
+            NodeKind.IMPORT,
+            NodeKind.DECORATOR,
+            NodeKind.TYPE_ALIAS,
+        }
+    )
 
-    _SUPPORTED_EDGE_KINDS = frozenset({
-        EdgeKind.CONTAINS,
-        EdgeKind.EXTENDS,
-        EdgeKind.IMPLEMENTS,
-        EdgeKind.CALLS,
-        EdgeKind.IMPORTS,
-        EdgeKind.INSTANTIATES,
-        EdgeKind.HAS_TYPE,
-        EdgeKind.RETURNS_TYPE,
-        EdgeKind.DEPENDS_ON,
-    })
+    _SUPPORTED_EDGE_KINDS = frozenset(
+        {
+            EdgeKind.CONTAINS,
+            EdgeKind.EXTENDS,
+            EdgeKind.IMPLEMENTS,
+            EdgeKind.CALLS,
+            EdgeKind.IMPORTS,
+            EdgeKind.INSTANTIATES,
+            EdgeKind.HAS_TYPE,
+            EdgeKind.RETURNS_TYPE,
+            EdgeKind.DEPENDS_ON,
+        }
+    )
 
     def __init__(self) -> None:
         lang = tree_sitter.Language(tspython.language())
@@ -317,12 +331,14 @@ class PythonExtractor(ASTExtractor):
         try:
             tree = self._parser.parse(source)
         except Exception as exc:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=0,
-                message=f"tree-sitter parse failed: {exc}",
-                node_type="module",
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=0,
+                    message=f"tree-sitter parse failed: {exc}",
+                    node_type="module",
+                )
+            )
             return ExtractionResult(
                 nodes=nodes,
                 edges=edges,
@@ -379,12 +395,14 @@ class PythonExtractor(ASTExtractor):
         errors: list[ExtractionError],
     ) -> None:
         if node.type == "ERROR" or node.is_missing:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=node.start_point[0] + 1,
-                message=f"Parse error at line {node.start_point[0] + 1}",
-                node_type=node.type,
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=node.start_point[0] + 1,
+                    message=f"Parse error at line {node.start_point[0] + 1}",
+                    node_type=node.type,
+                )
+            )
         for child in node.children:
             self._collect_errors(child, file_path, errors)
 
@@ -436,8 +454,13 @@ class PythonExtractor(ASTExtractor):
                 name = _node_text(child, ctx.source)
                 alias = name.rsplit(".", 1)[-1]
                 self._create_import_node(
-                    ctx, parent_id, node, name, alias,
-                    is_relative=False, level=0,
+                    ctx,
+                    parent_id,
+                    node,
+                    name,
+                    alias,
+                    is_relative=False,
+                    level=0,
                 )
             elif child.type == "aliased_import":
                 orig = None
@@ -450,8 +473,13 @@ class PythonExtractor(ASTExtractor):
                 if orig:
                     alias = _node_text(alias_node, ctx.source) if alias_node else orig.rsplit(".", 1)[-1]
                     self._create_import_node(
-                        ctx, parent_id, node, orig, alias,
-                        is_relative=False, level=0,
+                        ctx,
+                        parent_id,
+                        node,
+                        orig,
+                        alias,
+                        is_relative=False,
+                        level=0,
                     )
 
     def _handle_import_from(
@@ -508,8 +536,13 @@ class PythonExtractor(ASTExtractor):
             prefix = "." * level if is_relative else ""
             import_path = f"{prefix}{fqn}"
             self._create_import_node(
-                ctx, parent_id, node, import_path, alias,
-                is_relative=is_relative, level=level,
+                ctx,
+                parent_id,
+                node,
+                import_path,
+                alias,
+                is_relative=is_relative,
+                level=level,
             )
 
     def _create_import_node(
@@ -540,21 +573,25 @@ class PythonExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(import_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=import_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=import_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
         ctx.import_map[alias] = fqn
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=import_node.id,
-            reference_name=fqn,
-            reference_kind=EdgeKind.IMPORTS,
-            line_number=line,
-            context={"is_relative": is_relative, "level": level},
-        ))
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=import_node.id,
+                reference_name=fqn,
+                reference_kind=EdgeKind.IMPORTS,
+                line_number=line,
+                context={"is_relative": is_relative, "level": level},
+            )
+        )
 
     # -- Class handling -----------------------------------------------------
 
@@ -608,13 +645,15 @@ class PythonExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(class_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=class_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=class_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         for dec in decorators:
             self._create_decorator_node(ctx, class_node.id, node, dec, line)
@@ -623,12 +662,14 @@ class PythonExtractor(ASTExtractor):
             resolved = ctx.resolve_name(base_name)
             short = base_name.rsplit(".", 1)[-1]
             edge_kind = EdgeKind.IMPLEMENTS if short in _ABC_BASES else EdgeKind.EXTENDS
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=class_node.id,
-                reference_name=resolved,
-                reference_kind=edge_kind,
-                line_number=line,
-            ))
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=class_node.id,
+                    reference_name=resolved,
+                    reference_kind=edge_kind,
+                    line_number=line,
+                )
+            )
 
         if body is not None:
             self._walk_class_body(body, ctx, class_node.id, qname, bases)
@@ -645,15 +686,27 @@ class PythonExtractor(ASTExtractor):
             ntype = child.type
             if ntype == "function_definition":
                 self._handle_function(
-                    child, ctx, class_id, class_qname, is_method=True,
+                    child,
+                    ctx,
+                    class_id,
+                    class_qname,
+                    is_method=True,
                 )
             elif ntype == "decorated_definition":
                 self._handle_decorated(
-                    child, ctx, class_id, class_qname, in_class=True,
+                    child,
+                    ctx,
+                    class_id,
+                    class_qname,
+                    in_class=True,
                 )
             elif ntype == "expression_statement":
                 self._handle_class_assignment(
-                    child, ctx, class_id, class_qname, bases,
+                    child,
+                    ctx,
+                    class_id,
+                    class_qname,
+                    bases,
                 )
             elif ntype == "class_definition":
                 self._handle_class(child, ctx, class_id, class_qname)
@@ -669,8 +722,12 @@ class PythonExtractor(ASTExtractor):
         for child in node.children:
             if child.type == "assignment":
                 self._process_assignment(
-                    child, ctx, class_id, class_qname,
-                    is_class_level=True, is_enum=_is_enum_class(bases),
+                    child,
+                    ctx,
+                    class_id,
+                    class_qname,
+                    is_class_level=True,
+                    is_enum=_is_enum_class(bases),
                 )
 
     # -- Function / Method handling ------------------------------------------
@@ -757,34 +814,40 @@ class PythonExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(func_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=func_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=func_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         for dec in decorators:
             self._create_decorator_node(ctx, func_node.id, node, dec, line)
 
         if return_type:
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=func_node.id,
-                reference_name=ctx.resolve_name(return_type),
-                reference_kind=EdgeKind.RETURNS_TYPE,
-                line_number=line,
-            ))
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=func_node.id,
+                    reference_name=ctx.resolve_name(return_type),
+                    reference_kind=EdgeKind.RETURNS_TYPE,
+                    line_number=line,
+                )
+            )
 
         for p in params:
             if p["type"]:
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=func_node.id,
-                    reference_name=ctx.resolve_name(p["type"]),
-                    reference_kind=EdgeKind.HAS_TYPE,
-                    line_number=line,
-                    context={"parameter": p["name"]},
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=func_node.id,
+                        reference_name=ctx.resolve_name(p["type"]),
+                        reference_kind=EdgeKind.HAS_TYPE,
+                        line_number=line,
+                        context={"parameter": p["name"]},
+                    )
+                )
 
         if body is not None:
             self._scan_calls(body, ctx, func_node.id)
@@ -802,7 +865,10 @@ class PythonExtractor(ASTExtractor):
         for child in node.children:
             if child.type == "function_definition":
                 self._handle_function(
-                    child, ctx, parent_id, scope,
+                    child,
+                    ctx,
+                    parent_id,
+                    scope,
                     is_method=in_class,
                 )
             elif child.type == "class_definition":
@@ -820,8 +886,12 @@ class PythonExtractor(ASTExtractor):
         for child in node.children:
             if child.type == "assignment":
                 self._process_assignment(
-                    child, ctx, parent_id, scope,
-                    is_class_level=False, is_enum=False,
+                    child,
+                    ctx,
+                    parent_id,
+                    scope,
+                    is_class_level=False,
+                    is_enum=False,
                 )
 
     def _process_assignment(
@@ -852,16 +922,30 @@ class PythonExtractor(ASTExtractor):
         if left.type == "identifier":
             name = _node_text(left, ctx.source)
             self._create_variable_node(
-                ctx, parent_id, node, name, scope, type_ann, right,
-                is_class_level, is_enum,
+                ctx,
+                parent_id,
+                node,
+                name,
+                scope,
+                type_ann,
+                right,
+                is_class_level,
+                is_enum,
             )
         elif left.type == "pattern_list":
             for sub in left.children:
                 if sub.type == "identifier":
                     name = _node_text(sub, ctx.source)
                     self._create_variable_node(
-                        ctx, parent_id, node, name, scope, None, None,
-                        is_class_level, is_enum,
+                        ctx,
+                        parent_id,
+                        node,
+                        name,
+                        scope,
+                        None,
+                        None,
+                        is_class_level,
+                        is_enum,
                     )
 
     def _create_variable_node(
@@ -911,21 +995,25 @@ class PythonExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(var_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=var_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=var_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         if type_ann:
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=var_node.id,
-                reference_name=ctx.resolve_name(type_ann),
-                reference_kind=EdgeKind.HAS_TYPE,
-                line_number=line,
-            ))
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=var_node.id,
+                    reference_name=ctx.resolve_name(type_ann),
+                    reference_kind=EdgeKind.HAS_TYPE,
+                    line_number=line,
+                )
+            )
 
     # -- Type alias handling ------------------------------------------------
 
@@ -958,13 +1046,15 @@ class PythonExtractor(ASTExtractor):
             metadata={"value": value_text},
         )
         ctx.nodes.append(alias_node)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=alias_node.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=alias_node.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
     # -- Decorator node creation --------------------------------------------
 
@@ -988,13 +1078,15 @@ class PythonExtractor(ASTExtractor):
             metadata={"text": dec["text"]},
         )
         ctx.nodes.append(dec_node)
-        ctx.edges.append(Edge(
-            source_id=dec_node.id,
-            target_id=target_id,
-            kind=EdgeKind.DEPENDS_ON,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=dec_node.id,
+                target_id=target_id,
+                kind=EdgeKind.DEPENDS_ON,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
     # -- if TYPE_CHECKING handling ------------------------------------------
 
@@ -1032,23 +1124,27 @@ class PythonExtractor(ASTExtractor):
                 base_name = call_text.rsplit(".", 1)[-1]
                 if base_name and base_name[0].isupper() and not base_name.isupper():
                     resolved = ctx.resolve_name(call_text)
-                    ctx.unresolved.append(UnresolvedReference(
-                        source_node_id=caller_id,
-                        reference_name=resolved,
-                        reference_kind=EdgeKind.INSTANTIATES,
-                        line_number=node.start_point[0] + 1,
-                    ))
+                    ctx.unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=caller_id,
+                            reference_name=resolved,
+                            reference_kind=EdgeKind.INSTANTIATES,
+                            line_number=node.start_point[0] + 1,
+                        )
+                    )
                 else:
                     resolved = ctx.resolve_name(call_text)
-                    ctx.unresolved.append(UnresolvedReference(
-                        source_node_id=caller_id,
-                        reference_name=resolved,
-                        reference_kind=EdgeKind.CALLS,
-                        line_number=node.start_point[0] + 1,
-                        context={
-                            "call_type": "member" if "." in call_text else "function",
-                        },
-                    ))
+                    ctx.unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=caller_id,
+                            reference_name=resolved,
+                            reference_kind=EdgeKind.CALLS,
+                            line_number=node.start_point[0] + 1,
+                            context={
+                                "call_type": "member" if "." in call_text else "function",
+                            },
+                        )
+                    )
 
         for child in node.children:
             self._scan_calls(child, ctx, caller_id)

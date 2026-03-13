@@ -1,4 +1,5 @@
 """PHP language plugin for CodeRAG."""
+
 from __future__ import annotations
 
 import logging
@@ -60,6 +61,7 @@ class PHPPlugin(LanguagePlugin):
     def get_framework_detectors(self) -> list[FrameworkDetector]:
         from coderag.plugins.php.frameworks.laravel import LaravelDetector
         from coderag.plugins.php.frameworks.symfony import SymfonyDetector
+
         return [LaravelDetector(), SymfonyDetector()]
 
     def cleanup(self) -> None:

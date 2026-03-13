@@ -1,22 +1,22 @@
 """Tests for PHPStan enrichment module."""
+
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from coderag.enrichment.phpstan import (
+    EnrichmentReport,
     PHPStanEnricher,
     PHPStanResult,
-    EnrichmentReport,
     _extract_type_from_message,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def project_root(tmp_path):
@@ -24,14 +24,10 @@ def project_root(tmp_path):
     php_dir = tmp_path / "app"
     php_dir.mkdir()
     (php_dir / "User.php").write_text(
-        "<?php\nnamespace App;\nclass User {\n"
-        "    public function getName() { return 1; }\n"
-        "}\n"
+        "<?php\nnamespace App;\nclass User {\n    public function getName() { return 1; }\n}\n"
     )
     (php_dir / "Controller.php").write_text(
-        "<?php\nnamespace App;\nclass Controller {\n"
-        "    public function index() { return 1; }\n"
-        "}\n"
+        "<?php\nnamespace App;\nclass Controller {\n    public function index() { return 1; }\n}\n"
     )
     return str(tmp_path)
 
@@ -45,43 +41,45 @@ def enricher(project_root):
 @pytest.fixture
 def sample_phpstan_output():
     """Sample PHPStan JSON output."""
-    return json.dumps({
-        "totals": {"errors": 0, "file_errors": 3},
-        "files": {
-            "/tmp/project/app/User.php": {
-                "errors": 2,
-                "messages": [
-                    {
-                        "message": "Method App\\User::getName() has no return type specified.",
-                        "line": 4,
-                        "ignorable": True,
-                        "identifier": "missingType.return",
-                        "tip": "Add a return type to the method.",
-                    },
-                    {
-                        "message": "Property App\\User::$name has no type specified.",
-                        "line": 3,
-                        "ignorable": True,
-                        "identifier": "missingType.property",
-                        "tip": None,
-                    },
-                ],
+    return json.dumps(
+        {
+            "totals": {"errors": 0, "file_errors": 3},
+            "files": {
+                "/tmp/project/app/User.php": {
+                    "errors": 2,
+                    "messages": [
+                        {
+                            "message": "Method App\\User::getName() has no return type specified.",
+                            "line": 4,
+                            "ignorable": True,
+                            "identifier": "missingType.return",
+                            "tip": "Add a return type to the method.",
+                        },
+                        {
+                            "message": "Property App\\User::$name has no type specified.",
+                            "line": 3,
+                            "ignorable": True,
+                            "identifier": "missingType.property",
+                            "tip": None,
+                        },
+                    ],
+                },
+                "/tmp/project/app/Controller.php": {
+                    "errors": 1,
+                    "messages": [
+                        {
+                            "message": "Method App\\Controller::index() should return string but returns Illuminate\\View\\View.",
+                            "line": 4,
+                            "ignorable": False,
+                            "identifier": "return.type",
+                            "tip": None,
+                        },
+                    ],
+                },
             },
-            "/tmp/project/app/Controller.php": {
-                "errors": 1,
-                "messages": [
-                    {
-                        "message": "Method App\\Controller::index() should return string but returns Illuminate\\View\\View.",
-                        "line": 4,
-                        "ignorable": False,
-                        "identifier": "return.type",
-                        "tip": None,
-                    },
-                ],
-            },
-        },
-        "errors": [],
-    })
+            "errors": [],
+        }
+    )
 
 
 @pytest.fixture
@@ -92,6 +90,7 @@ def mock_store():
 
 
 # ── PHPStanResult Tests ───────────────────────────────────────────
+
 
 class TestPHPStanResult:
     """Tests for the PHPStanResult dataclass."""
@@ -112,22 +111,19 @@ class TestPHPStanResult:
         assert result.ignorable is True
 
     def test_result_is_frozen(self):
-        result = PHPStanResult(
-            file_path="test.php", line=1, message="test"
-        )
+        result = PHPStanResult(file_path="test.php", line=1, message="test")
         with pytest.raises(AttributeError):
             result.line = 5  # type: ignore
 
     def test_result_defaults(self):
-        result = PHPStanResult(
-            file_path="test.php", line=1, message="test"
-        )
+        result = PHPStanResult(file_path="test.php", line=1, message="test")
         assert result.identifier is None
         assert result.tip is None
         assert result.ignorable is True
 
 
 # ── EnrichmentReport Tests ────────────────────────────────────────
+
 
 class TestEnrichmentReport:
     """Tests for the EnrichmentReport dataclass."""
@@ -164,6 +160,7 @@ class TestEnrichmentReport:
 
 
 # ── Type Extraction Tests ─────────────────────────────────────────
+
 
 class TestTypeExtraction:
     """Tests for _extract_type_from_message."""
@@ -217,6 +214,7 @@ class TestTypeExtraction:
 
 
 # ── PHPStanEnricher Availability Tests ────────────────────────────
+
 
 class TestPHPStanAvailability:
     """Tests for PHPStan availability checking."""
@@ -276,6 +274,7 @@ class TestPHPStanAvailability:
 
 # ── PHPStan JSON Parsing Tests ────────────────────────────────────
 
+
 class TestPHPStanParsing:
     """Tests for PHPStan JSON output parsing."""
 
@@ -302,7 +301,7 @@ class TestPHPStanParsing:
         assert ctrl_results[0].ignorable is False
 
     def test_parse_empty_output(self, enricher):
-        results = enricher._parse_json_output("{}")  
+        results = enricher._parse_json_output("{}")
         assert results == {}
 
     def test_parse_invalid_json(self, enricher):
@@ -317,11 +316,13 @@ class TestPHPStanParsing:
             "files": {
                 "/tmp/project/app/Test.php": {
                     "errors": 1,
-                    "messages": [{
-                        "message": "Test error.",
-                        "line": 1,
-                        "ignorable": True,
-                    }],
+                    "messages": [
+                        {
+                            "message": "Test error.",
+                            "line": 1,
+                            "ignorable": True,
+                        }
+                    ],
                 },
             },
             "errors": [],
@@ -331,16 +332,19 @@ class TestPHPStanParsing:
         assert len(results) == 1
 
     def test_parse_no_files(self, enricher):
-        output = json.dumps({
-            "totals": {"errors": 0, "file_errors": 0},
-            "files": {},
-            "errors": [],
-        })
+        output = json.dumps(
+            {
+                "totals": {"errors": 0, "file_errors": 0},
+                "files": {},
+                "errors": [],
+            }
+        )
         results = enricher._parse_json_output(output)
         assert results == {}
 
 
 # ── PHPStan Analysis Tests ────────────────────────────────────────
+
 
 class TestPHPStanAnalysis:
     """Tests for running PHPStan analysis."""
@@ -383,10 +387,13 @@ class TestPHPStanAnalysis:
         version_result.returncode = 0
         version_result.stdout = "PHPStan 1.10.0"
 
-        with patch("subprocess.run", side_effect=[
-            version_result,
-            subprocess.TimeoutExpired("phpstan", 300),
-        ]):
+        with patch(
+            "subprocess.run",
+            side_effect=[
+                version_result,
+                subprocess.TimeoutExpired("phpstan", 300),
+            ],
+        ):
             results = enricher.analyze()
             assert results == {}
 
@@ -405,6 +412,7 @@ class TestPHPStanAnalysis:
 
 
 # ── Node Enrichment Tests ─────────────────────────────────────────
+
 
 class TestNodeEnrichment:
     """Tests for enriching nodes with PHPStan data."""
@@ -542,6 +550,7 @@ class TestNodeEnrichment:
 
 # ── Constructor Tests ─────────────────────────────────────────────
 
+
 class TestPHPStanEnricherInit:
     """Tests for PHPStanEnricher initialization."""
 
@@ -572,20 +581,21 @@ class TestPHPStanEnricherInit:
 
 # ── CLI Command Registration Test ────────────────────────────────
 
+
 class TestCLIEnrichCommand:
     """Tests for the enrich CLI command registration."""
 
     def test_enrich_command_exists(self):
         """Verify the enrich command is registered in the CLI."""
         from coderag.cli.main import cli
+
         commands = cli.commands if hasattr(cli, "commands") else {}
-        assert "enrich" in commands, (
-            f"enrich command not found. Available: {list(commands.keys())}"
-        )
+        assert "enrich" in commands, f"enrich command not found. Available: {list(commands.keys())}"
 
     def test_enrich_command_has_phpstan_option(self):
         """Verify the --phpstan flag exists."""
         from coderag.cli.main import cli
+
         enrich_cmd = cli.commands["enrich"]
         param_names = [p.name for p in enrich_cmd.params]
         assert "phpstan" in param_names
@@ -595,6 +605,7 @@ class TestCLIEnrichCommand:
     def test_enrich_no_flags_shows_message(self):
         """Running enrich without flags should show a message."""
         from click.testing import CliRunner
+
         from coderag.cli.main import cli
 
         runner = CliRunner()

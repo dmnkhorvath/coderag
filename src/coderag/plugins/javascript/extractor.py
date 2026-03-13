@@ -5,13 +5,12 @@ tree-sitter AST. Handles classes, functions, arrow functions, methods,
 properties, variables, constants, imports (ESM + CJS), exports,
 and JSX components.
 """
+
 from __future__ import annotations
 
 import logging
-import re
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 import tree_sitter
 import tree_sitter_javascript as tsjs
@@ -24,8 +23,8 @@ from coderag.core.models import (
     Node,
     NodeKind,
     UnresolvedReference,
-    generate_node_id,
     compute_content_hash,
+    generate_node_id,
 )
 from coderag.core.registry import ASTExtractor
 
@@ -50,7 +49,7 @@ def _node_text(node: tree_sitter.Node | None, source: bytes) -> str:
     """Extract UTF-8 text for a node."""
     if node is None:
         return ""
-    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _find_preceding_docblock(node: tree_sitter.Node, source: bytes) -> str | None:
@@ -167,6 +166,7 @@ def _get_method_kind(node: tree_sitter.Node, source: bytes) -> str:
 @dataclass
 class _ExtractionContext:
     """Mutable state passed through the extraction walk."""
+
     file_path: str
     source: bytes
     file_node_id: str
@@ -186,30 +186,34 @@ class _ExtractionContext:
 class JavaScriptExtractor(ASTExtractor):
     """Extract knowledge-graph nodes and edges from JavaScript source files."""
 
-    _SUPPORTED_NODE_KINDS = frozenset({
-        NodeKind.FILE,
-        NodeKind.MODULE,
-        NodeKind.CLASS,
-        NodeKind.METHOD,
-        NodeKind.PROPERTY,
-        NodeKind.FUNCTION,
-        NodeKind.VARIABLE,
-        NodeKind.CONSTANT,
-        NodeKind.IMPORT,
-        NodeKind.EXPORT,
-        NodeKind.COMPONENT,
-    })
+    _SUPPORTED_NODE_KINDS = frozenset(
+        {
+            NodeKind.FILE,
+            NodeKind.MODULE,
+            NodeKind.CLASS,
+            NodeKind.METHOD,
+            NodeKind.PROPERTY,
+            NodeKind.FUNCTION,
+            NodeKind.VARIABLE,
+            NodeKind.CONSTANT,
+            NodeKind.IMPORT,
+            NodeKind.EXPORT,
+            NodeKind.COMPONENT,
+        }
+    )
 
-    _SUPPORTED_EDGE_KINDS = frozenset({
-        EdgeKind.CONTAINS,
-        EdgeKind.EXTENDS,
-        EdgeKind.IMPORTS,
-        EdgeKind.EXPORTS,
-        EdgeKind.RE_EXPORTS,
-        EdgeKind.CALLS,
-        EdgeKind.INSTANTIATES,
-        EdgeKind.DYNAMIC_IMPORTS,
-    })
+    _SUPPORTED_EDGE_KINDS = frozenset(
+        {
+            EdgeKind.CONTAINS,
+            EdgeKind.EXTENDS,
+            EdgeKind.IMPORTS,
+            EdgeKind.EXPORTS,
+            EdgeKind.RE_EXPORTS,
+            EdgeKind.CALLS,
+            EdgeKind.INSTANTIATES,
+            EdgeKind.DYNAMIC_IMPORTS,
+        }
+    )
 
     def __init__(self) -> None:
         lang = tree_sitter.Language(tsjs.language())
@@ -234,12 +238,14 @@ class JavaScriptExtractor(ASTExtractor):
         try:
             tree = self._parser.parse(source)
         except Exception as exc:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=None,
-                message=f"tree-sitter parse failed: {exc}",
-                severity="error",
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=None,
+                    message=f"tree-sitter parse failed: {exc}",
+                    severity="error",
+                )
+            )
             return ExtractionResult(
                 file_path=file_path,
                 language="javascript",
@@ -298,14 +304,16 @@ class JavaScriptExtractor(ASTExtractor):
     ) -> None:
         """Recursively collect ERROR / MISSING nodes."""
         if node.type == "ERROR" or node.is_missing:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=node.start_point[0] + 1,
-                message=f"Parse {'missing' if node.is_missing else 'error'} near: "
-                        f"{_node_text(node, source)[:80]!r}",
-                severity="warning",
-                node_type=node.type,
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=node.start_point[0] + 1,
+                    message=f"Parse {'missing' if node.is_missing else 'error'} near: "
+                    f"{_node_text(node, source)[:80]!r}",
+                    severity="warning",
+                    node_type=node.type,
+                )
+            )
         for child in node.children:
             self._collect_errors(child, file_path, source, errors)
 
@@ -315,13 +323,15 @@ class JavaScriptExtractor(ASTExtractor):
             try:
                 self._dispatch_top_level(child, ctx, ctx.file_node_id)
             except Exception as exc:
-                ctx.errors.append(ExtractionError(
-                    file_path=ctx.file_path,
-                    line_number=child.start_point[0] + 1,
-                    message=f"Extraction error in {child.type}: {exc}",
-                    severity="warning",
-                    node_type=child.type,
-                ))
+                ctx.errors.append(
+                    ExtractionError(
+                        file_path=ctx.file_path,
+                        line_number=child.start_point[0] + 1,
+                        message=f"Extraction error in {child.type}: {exc}",
+                        severity="warning",
+                        node_type=child.type,
+                    )
+                )
 
     def _dispatch_top_level(
         self,
@@ -394,20 +404,24 @@ class JavaScriptExtractor(ASTExtractor):
                 metadata={"source": import_source, "kind": "side-effect"},
             )
             ctx.nodes.append(import_nd)
-            ctx.edges.append(Edge(
-                source_id=parent_id,
-                target_id=import_nd.id,
-                kind=EdgeKind.CONTAINS,
-                confidence=1.0,
-                line_number=line,
-            ))
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=ctx.file_node_id,
-                reference_name=import_source,
-                reference_kind=EdgeKind.IMPORTS,
-                line_number=line,
-                context={"import_kind": "side-effect"},
-            ))
+            ctx.edges.append(
+                Edge(
+                    source_id=parent_id,
+                    target_id=import_nd.id,
+                    kind=EdgeKind.CONTAINS,
+                    confidence=1.0,
+                    line_number=line,
+                )
+            )
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=ctx.file_node_id,
+                    reference_name=import_source,
+                    reference_kind=EdgeKind.IMPORTS,
+                    line_number=line,
+                    context={"import_kind": "side-effect"},
+                )
+            )
             return
 
         # Create import nodes for each specifier
@@ -434,24 +448,28 @@ class JavaScriptExtractor(ASTExtractor):
                 },
             )
             ctx.nodes.append(import_nd)
-            ctx.edges.append(Edge(
-                source_id=parent_id,
-                target_id=import_nd.id,
-                kind=EdgeKind.CONTAINS,
-                confidence=1.0,
-                line_number=line,
-            ))
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=ctx.file_node_id,
-                reference_name=import_source,
-                reference_kind=EdgeKind.IMPORTS,
-                line_number=line,
-                context={
-                    "import_kind": import_kind,
-                    "imported_name": imported_name,
-                    "local_name": local_name,
-                },
-            ))
+            ctx.edges.append(
+                Edge(
+                    source_id=parent_id,
+                    target_id=import_nd.id,
+                    kind=EdgeKind.CONTAINS,
+                    confidence=1.0,
+                    line_number=line,
+                )
+            )
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=ctx.file_node_id,
+                    reference_name=import_source,
+                    reference_kind=EdgeKind.IMPORTS,
+                    line_number=line,
+                    context={
+                        "import_kind": import_kind,
+                        "imported_name": imported_name,
+                        "local_name": local_name,
+                    },
+                )
+            )
             ctx.import_map[local_name] = import_source
 
     def _extract_import_specifiers(
@@ -465,11 +483,13 @@ class JavaScriptExtractor(ASTExtractor):
             if child.type == "identifier":
                 # Default import: import Foo from '...'
                 name = _node_text(child, ctx.source)
-                specifiers.append({
-                    "local": name,
-                    "imported": "default",
-                    "kind": "default",
-                })
+                specifiers.append(
+                    {
+                        "local": name,
+                        "imported": "default",
+                        "kind": "default",
+                    }
+                )
             elif child.type == "named_imports":
                 for spec in child.children:
                     if spec.type == "import_specifier":
@@ -483,20 +503,24 @@ class JavaScriptExtractor(ASTExtractor):
                         if imported_node is not None:
                             imported = _node_text(imported_node, ctx.source)
                             local = _node_text(alias_node, ctx.source) if alias_node else imported
-                            specifiers.append({
-                                "local": local,
-                                "imported": imported,
-                                "kind": "named",
-                            })
+                            specifiers.append(
+                                {
+                                    "local": local,
+                                    "imported": imported,
+                                    "kind": "named",
+                                }
+                            )
             elif child.type == "namespace_import":
                 for gc in child.children:
                     if gc.type == "identifier":
                         name = _node_text(gc, ctx.source)
-                        specifiers.append({
-                            "local": name,
-                            "imported": "*",
-                            "kind": "namespace",
-                        })
+                        specifiers.append(
+                            {
+                                "local": name,
+                                "imported": "*",
+                                "kind": "namespace",
+                            }
+                        )
                         break
 
     # -- Exports ------------------------------------------------------------
@@ -509,9 +533,7 @@ class JavaScriptExtractor(ASTExtractor):
     ) -> None:
         """Handle export statements (default, named, re-export)."""
         line = node.start_point[0] + 1
-        is_default = any(
-            _node_text(c, ctx.source) == "default" for c in node.children
-        )
+        is_default = any(_node_text(c, ctx.source) == "default" for c in node.children)
 
         # Check for re-export: export { ... } from '...';
         source_node = _child_by_field(node, "source")
@@ -533,32 +555,20 @@ class JavaScriptExtractor(ASTExtractor):
             if child.type == "class_declaration":
                 exported_node_id = self._handle_class(child, ctx, parent_id)
             elif child.type == "class":
-                exported_node_id = self._handle_class(
-                    child, ctx, parent_id, default_name="default"
-                )
+                exported_node_id = self._handle_class(child, ctx, parent_id, default_name="default")
             elif child.type == "function_declaration":
-                exported_node_id = self._handle_function_declaration(
-                    child, ctx, parent_id
-                )
+                exported_node_id = self._handle_function_declaration(child, ctx, parent_id)
             elif child.type == "function":
-                exported_node_id = self._handle_function_declaration(
-                    child, ctx, parent_id, default_name="default"
-                )
+                exported_node_id = self._handle_function_declaration(child, ctx, parent_id, default_name="default")
             elif child.type == "lexical_declaration":
-                exported_node_id = self._handle_lexical_declaration(
-                    child, ctx, parent_id
-                )
+                exported_node_id = self._handle_lexical_declaration(child, ctx, parent_id)
             elif child.type == "variable_declaration":
-                exported_node_id = self._handle_variable_declaration(
-                    child, ctx, parent_id
-                )
+                exported_node_id = self._handle_variable_declaration(child, ctx, parent_id)
             elif child.type == "export_clause":
                 self._handle_export_clause(child, ctx, is_default)
                 continue
             elif is_default and child.type == "arrow_function":
-                exported_node_id = self._handle_arrow_function(
-                    child, ctx, parent_id, var_name="default"
-                )
+                exported_node_id = self._handle_arrow_function(child, ctx, parent_id, var_name="default")
             elif is_default and child.type == "identifier":
                 # export default someVar;
                 name = _node_text(child, ctx.source)
@@ -575,14 +585,16 @@ class JavaScriptExtractor(ASTExtractor):
                     metadata={"is_default": True, "local_name": name},
                 )
                 ctx.nodes.append(export_nd)
-                ctx.edges.append(Edge(
-                    source_id=ctx.file_node_id,
-                    target_id=export_nd.id,
-                    kind=EdgeKind.EXPORTS,
-                    confidence=1.0,
-                    line_number=line,
-                    metadata={"is_default": True},
-                ))
+                ctx.edges.append(
+                    Edge(
+                        source_id=ctx.file_node_id,
+                        target_id=export_nd.id,
+                        kind=EdgeKind.EXPORTS,
+                        confidence=1.0,
+                        line_number=line,
+                        metadata={"is_default": True},
+                    )
+                )
                 continue
             elif is_default and child.type not in ("default", "export", ";"):
                 # export default <expression>;
@@ -599,28 +611,32 @@ class JavaScriptExtractor(ASTExtractor):
                     metadata={"is_default": True, "expression_type": child.type},
                 )
                 ctx.nodes.append(export_nd)
-                ctx.edges.append(Edge(
-                    source_id=ctx.file_node_id,
-                    target_id=export_nd.id,
-                    kind=EdgeKind.EXPORTS,
-                    confidence=1.0,
-                    line_number=line,
-                    metadata={"is_default": True},
-                ))
+                ctx.edges.append(
+                    Edge(
+                        source_id=ctx.file_node_id,
+                        target_id=export_nd.id,
+                        kind=EdgeKind.EXPORTS,
+                        confidence=1.0,
+                        line_number=line,
+                        metadata={"is_default": True},
+                    )
+                )
                 continue
             else:
                 continue
 
             # Create EXPORTS edge for exported declarations
             if exported_node_id is not None:
-                ctx.edges.append(Edge(
-                    source_id=ctx.file_node_id,
-                    target_id=exported_node_id,
-                    kind=EdgeKind.EXPORTS,
-                    confidence=1.0,
-                    line_number=line,
-                    metadata={"is_default": is_default},
-                ))
+                ctx.edges.append(
+                    Edge(
+                        source_id=ctx.file_node_id,
+                        target_id=exported_node_id,
+                        kind=EdgeKind.EXPORTS,
+                        confidence=1.0,
+                        line_number=line,
+                        metadata={"is_default": is_default},
+                    )
+                )
 
     def _handle_export_clause(
         self,
@@ -641,14 +657,9 @@ class JavaScriptExtractor(ASTExtractor):
                             break
                 if name_node is not None:
                     local_name = _node_text(name_node, ctx.source)
-                    exported_name = (
-                        _node_text(alias_node, ctx.source)
-                        if alias_node else local_name
-                    )
+                    exported_name = _node_text(alias_node, ctx.source) if alias_node else local_name
                     export_nd = Node(
-                        id=generate_node_id(
-                            ctx.file_path, line, NodeKind.EXPORT, exported_name
-                        ),
+                        id=generate_node_id(ctx.file_path, line, NodeKind.EXPORT, exported_name),
                         kind=NodeKind.EXPORT,
                         name=exported_name,
                         qualified_name=f"{ctx.file_path}/{exported_name}",
@@ -662,13 +673,15 @@ class JavaScriptExtractor(ASTExtractor):
                         },
                     )
                     ctx.nodes.append(export_nd)
-                    ctx.edges.append(Edge(
-                        source_id=ctx.file_node_id,
-                        target_id=export_nd.id,
-                        kind=EdgeKind.EXPORTS,
-                        confidence=1.0,
-                        line_number=line,
-                    ))
+                    ctx.edges.append(
+                        Edge(
+                            source_id=ctx.file_node_id,
+                            target_id=export_nd.id,
+                            kind=EdgeKind.EXPORTS,
+                            confidence=1.0,
+                            line_number=line,
+                        )
+                    )
 
     def _handle_reexport(
         self,
@@ -693,9 +706,7 @@ class JavaScriptExtractor(ASTExtractor):
 
             export_name = ns_name or "*"
             export_nd = Node(
-                id=generate_node_id(
-                    ctx.file_path, line, NodeKind.EXPORT, f"re:{source_path}"
-                ),
+                id=generate_node_id(ctx.file_path, line, NodeKind.EXPORT, f"re:{source_path}"),
                 kind=NodeKind.EXPORT,
                 name=export_name,
                 qualified_name=f"{ctx.file_path}/re:{source_path}",
@@ -707,21 +718,25 @@ class JavaScriptExtractor(ASTExtractor):
                 metadata={"source": source_path, "kind": "namespace-reexport"},
             )
             ctx.nodes.append(export_nd)
-            ctx.edges.append(Edge(
-                source_id=ctx.file_node_id,
-                target_id=export_nd.id,
-                kind=EdgeKind.RE_EXPORTS,
-                confidence=1.0,
-                line_number=line,
-                metadata={"source": source_path},
-            ))
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=ctx.file_node_id,
-                reference_name=source_path,
-                reference_kind=EdgeKind.IMPORTS,
-                line_number=line,
-                context={"import_kind": "reexport"},
-            ))
+            ctx.edges.append(
+                Edge(
+                    source_id=ctx.file_node_id,
+                    target_id=export_nd.id,
+                    kind=EdgeKind.RE_EXPORTS,
+                    confidence=1.0,
+                    line_number=line,
+                    metadata={"source": source_path},
+                )
+            )
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=ctx.file_node_id,
+                    reference_name=source_path,
+                    reference_kind=EdgeKind.IMPORTS,
+                    line_number=line,
+                    context={"import_kind": "reexport"},
+                )
+            )
             return
 
         # Named re-exports: export { foo, bar } from '...';
@@ -738,14 +753,9 @@ class JavaScriptExtractor(ASTExtractor):
                                     break
                         if name_node is not None:
                             imported = _node_text(name_node, ctx.source)
-                            exported = (
-                                _node_text(alias_node, ctx.source)
-                                if alias_node else imported
-                            )
+                            exported = _node_text(alias_node, ctx.source) if alias_node else imported
                             export_nd = Node(
-                                id=generate_node_id(
-                                    ctx.file_path, line, NodeKind.EXPORT, exported
-                                ),
+                                id=generate_node_id(ctx.file_path, line, NodeKind.EXPORT, exported),
                                 kind=NodeKind.EXPORT,
                                 name=exported,
                                 qualified_name=f"{ctx.file_path}/{exported}",
@@ -760,22 +770,26 @@ class JavaScriptExtractor(ASTExtractor):
                                 },
                             )
                             ctx.nodes.append(export_nd)
-                            ctx.edges.append(Edge(
-                                source_id=ctx.file_node_id,
-                                target_id=export_nd.id,
-                                kind=EdgeKind.RE_EXPORTS,
-                                confidence=1.0,
-                                line_number=line,
-                                metadata={"source": source_path},
-                            ))
+                            ctx.edges.append(
+                                Edge(
+                                    source_id=ctx.file_node_id,
+                                    target_id=export_nd.id,
+                                    kind=EdgeKind.RE_EXPORTS,
+                                    confidence=1.0,
+                                    line_number=line,
+                                    metadata={"source": source_path},
+                                )
+                            )
 
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=ctx.file_node_id,
-            reference_name=source_path,
-            reference_kind=EdgeKind.IMPORTS,
-            line_number=line,
-            context={"import_kind": "reexport"},
-        ))
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=ctx.file_node_id,
+                reference_name=source_path,
+                reference_kind=EdgeKind.IMPORTS,
+                line_number=line,
+                context={"import_kind": "reexport"},
+            )
+        )
 
     # -- Classes ------------------------------------------------------------
 
@@ -806,18 +820,18 @@ class JavaScriptExtractor(ASTExtractor):
             end_line=node.end_point[0] + 1,
             language="javascript",
             docblock=docstring,
-            content_hash=compute_content_hash(
-                ctx.source[node.start_byte:node.end_byte]
-            ),
+            content_hash=compute_content_hash(ctx.source[node.start_byte : node.end_byte]),
         )
         ctx.nodes.append(class_nd)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=class_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=class_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Superclass (extends)
         heritage_node = _child_by_field(node, "superclass")
@@ -833,13 +847,15 @@ class JavaScriptExtractor(ASTExtractor):
 
         if heritage_node is not None:
             superclass = _node_text(heritage_node, ctx.source)
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=class_nd.id,
-                reference_name=superclass,
-                reference_kind=EdgeKind.EXTENDS,
-                line_number=line,
-                context={"superclass": superclass},
-            ))
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=class_nd.id,
+                    reference_name=superclass,
+                    reference_kind=EdgeKind.EXTENDS,
+                    line_number=line,
+                    context={"superclass": superclass},
+                )
+            )
             class_nd.metadata["superclass"] = superclass
 
         # Walk class body
@@ -861,13 +877,15 @@ class JavaScriptExtractor(ASTExtractor):
                     ):
                         self._handle_property(member, ctx, class_nd.id, qname)
                 except Exception as exc:
-                    ctx.errors.append(ExtractionError(
-                        file_path=ctx.file_path,
-                        line_number=member.start_point[0] + 1,
-                        message=f"Error in class member {member.type}: {exc}",
-                        severity="warning",
-                        node_type=member.type,
-                    ))
+                    ctx.errors.append(
+                        ExtractionError(
+                            file_path=ctx.file_path,
+                            line_number=member.start_point[0] + 1,
+                            message=f"Error in class member {member.type}: {exc}",
+                            severity="warning",
+                            node_type=member.type,
+                        )
+                    )
 
         # Scan class body for calls/instantiations
         if body is not None:
@@ -934,9 +952,7 @@ class JavaScriptExtractor(ASTExtractor):
             end_line=node.end_point[0] + 1,
             language="javascript",
             docblock=docstring,
-            content_hash=compute_content_hash(
-                ctx.source[node.start_byte:node.end_byte]
-            ),
+            content_hash=compute_content_hash(ctx.source[node.start_byte : node.end_byte]),
             metadata={
                 "is_static": is_static,
                 "is_async": is_async,
@@ -946,13 +962,15 @@ class JavaScriptExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(method_nd)
-        ctx.edges.append(Edge(
-            source_id=class_id,
-            target_id=method_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=class_id,
+                target_id=method_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Scan method body for calls
         body = _child_by_field(node, "body")
@@ -989,9 +1007,7 @@ class JavaScriptExtractor(ASTExtractor):
         line = node.start_point[0] + 1
         qname = f"{class_qname}.{name}"
 
-        is_static = any(
-            _node_text(c, ctx.source) == "static" for c in node.children
-        )
+        is_static = any(_node_text(c, ctx.source) == "static" for c in node.children)
 
         prop_nd = Node(
             id=generate_node_id(ctx.file_path, line, NodeKind.PROPERTY, qname),
@@ -1005,13 +1021,15 @@ class JavaScriptExtractor(ASTExtractor):
             metadata={"is_static": is_static},
         )
         ctx.nodes.append(prop_nd)
-        ctx.edges.append(Edge(
-            source_id=class_id,
-            target_id=prop_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=class_id,
+                target_id=prop_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
         return prop_nd.id
 
     # -- Functions ---------------------------------------------------------
@@ -1033,12 +1051,8 @@ class JavaScriptExtractor(ASTExtractor):
         qname = f"{ctx.file_path}/{name}"
         docstring = _find_preceding_docblock(node, ctx.source)
 
-        is_async = any(
-            _node_text(c, ctx.source) == "async" for c in node.children
-        )
-        is_generator = any(
-            _node_text(c, ctx.source) == "*" for c in node.children
-        )
+        is_async = any(_node_text(c, ctx.source) == "async" for c in node.children)
+        is_generator = any(_node_text(c, ctx.source) == "*" for c in node.children)
 
         # Extract parameters
         params_node = _child_by_field(node, "parameters")
@@ -1050,10 +1064,7 @@ class JavaScriptExtractor(ASTExtractor):
         parameters = _extract_parameters(params_node, ctx.source) if params_node else []
 
         # Detect JSX component (PascalCase + returns JSX)
-        is_component = (
-            name[0:1].isupper()
-            and self._body_contains_jsx(node)
-        )
+        is_component = name[0:1].isupper() and self._body_contains_jsx(node)
         kind = NodeKind.COMPONENT if is_component else NodeKind.FUNCTION
 
         func_nd = Node(
@@ -1066,9 +1077,7 @@ class JavaScriptExtractor(ASTExtractor):
             end_line=node.end_point[0] + 1,
             language="javascript",
             docblock=docstring,
-            content_hash=compute_content_hash(
-                ctx.source[node.start_byte:node.end_byte]
-            ),
+            content_hash=compute_content_hash(ctx.source[node.start_byte : node.end_byte]),
             metadata={
                 "is_async": is_async,
                 "is_generator": is_generator,
@@ -1076,13 +1085,15 @@ class JavaScriptExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(func_nd)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=func_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=func_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Scan body for calls
         body = _child_by_field(node, "body")
@@ -1109,9 +1120,7 @@ class JavaScriptExtractor(ASTExtractor):
         line = node.start_point[0] + 1
         qname = f"{ctx.file_path}/{var_name}"
 
-        is_async = any(
-            _node_text(c, ctx.source) == "async" for c in node.children
-        )
+        is_async = any(_node_text(c, ctx.source) == "async" for c in node.children)
 
         # Extract parameters
         params_node = _child_by_field(node, "parameters")
@@ -1127,10 +1136,7 @@ class JavaScriptExtractor(ASTExtractor):
         parameters = _extract_parameters(params_node, ctx.source) if params_node else []
 
         # Detect JSX component
-        is_component = (
-            var_name[0:1].isupper()
-            and self._body_contains_jsx(node)
-        )
+        is_component = var_name[0:1].isupper() and self._body_contains_jsx(node)
         kind = NodeKind.COMPONENT if is_component else NodeKind.FUNCTION
 
         func_nd = Node(
@@ -1142,9 +1148,7 @@ class JavaScriptExtractor(ASTExtractor):
             start_line=line,
             end_line=node.end_point[0] + 1,
             language="javascript",
-            content_hash=compute_content_hash(
-                ctx.source[node.start_byte:node.end_byte]
-            ),
+            content_hash=compute_content_hash(ctx.source[node.start_byte : node.end_byte]),
             metadata={
                 "is_async": is_async,
                 "is_arrow": True,
@@ -1152,13 +1156,15 @@ class JavaScriptExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(func_nd)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=func_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=func_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Scan body for calls
         body = _child_by_field(node, "body")
@@ -1177,16 +1183,12 @@ class JavaScriptExtractor(ASTExtractor):
     ) -> str | None:
         """Handle const/let declarations at module scope."""
         # Determine if const or let
-        is_const = any(
-            _node_text(c, ctx.source) == "const" for c in node.children
-        )
+        is_const = any(_node_text(c, ctx.source) == "const" for c in node.children)
         last_id: str | None = None
 
         for child in node.children:
             if child.type == "variable_declarator":
-                last_id = self._handle_variable_declarator(
-                    child, ctx, parent_id, is_const=is_const
-                )
+                last_id = self._handle_variable_declarator(child, ctx, parent_id, is_const=is_const)
         return last_id
 
     def _handle_variable_declaration(
@@ -1199,9 +1201,7 @@ class JavaScriptExtractor(ASTExtractor):
         last_id: str | None = None
         for child in node.children:
             if child.type == "variable_declarator":
-                last_id = self._handle_variable_declarator(
-                    child, ctx, parent_id, is_const=False
-                )
+                last_id = self._handle_variable_declarator(child, ctx, parent_id, is_const=False)
         return last_id
 
     def _handle_variable_declarator(
@@ -1235,24 +1235,16 @@ class JavaScriptExtractor(ASTExtractor):
 
         if value_node is not None:
             if value_node.type == "arrow_function":
-                return self._handle_arrow_function(
-                    value_node, ctx, parent_id, var_name=name
-                )
+                return self._handle_arrow_function(value_node, ctx, parent_id, var_name=name)
             elif value_node.type == "function":
-                return self._handle_function_declaration(
-                    value_node, ctx, parent_id, default_name=name
-                )
+                return self._handle_function_declaration(value_node, ctx, parent_id, default_name=name)
             elif value_node.type == "class":
-                return self._handle_class(
-                    value_node, ctx, parent_id, default_name=name
-                )
+                return self._handle_class(value_node, ctx, parent_id, default_name=name)
             elif value_node.type == "call_expression":
                 # Check for require() calls
                 req_source = self._extract_require_source(value_node, ctx)
                 if req_source is not None:
-                    return self._handle_require(
-                        node, ctx, parent_id, name, req_source
-                    )
+                    return self._handle_require(node, ctx, parent_id, name, req_source)
 
         # Plain variable or constant
         kind = NodeKind.CONSTANT if is_const else NodeKind.VARIABLE
@@ -1271,13 +1263,15 @@ class JavaScriptExtractor(ASTExtractor):
             metadata={"is_const": is_const},
         )
         ctx.nodes.append(var_nd)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=var_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=var_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
         return var_nd.id
 
     # -- CommonJS require() ------------------------------------------------
@@ -1339,20 +1333,24 @@ class JavaScriptExtractor(ASTExtractor):
             },
         )
         ctx.nodes.append(import_nd)
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=import_nd.id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=ctx.file_node_id,
-            reference_name=source_path,
-            reference_kind=EdgeKind.IMPORTS,
-            line_number=line,
-            context={"import_kind": "require", "local_name": local_name},
-        ))
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=import_nd.id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=ctx.file_node_id,
+                reference_name=source_path,
+                reference_kind=EdgeKind.IMPORTS,
+                line_number=line,
+                context={"import_kind": "require", "local_name": local_name},
+            )
+        )
         ctx.import_map[local_name] = source_path
         return import_nd.id
 
@@ -1392,9 +1390,7 @@ class JavaScriptExtractor(ASTExtractor):
                         export_name = left_text.split(".", 2)[-1]
 
                     export_nd = Node(
-                        id=generate_node_id(
-                            ctx.file_path, line, NodeKind.EXPORT, export_name
-                        ),
+                        id=generate_node_id(ctx.file_path, line, NodeKind.EXPORT, export_name),
                         kind=NodeKind.EXPORT,
                         name=export_name,
                         qualified_name=f"{ctx.file_path}/{export_name}",
@@ -1409,24 +1405,30 @@ class JavaScriptExtractor(ASTExtractor):
                         },
                     )
                     ctx.nodes.append(export_nd)
-                    ctx.edges.append(Edge(
-                        source_id=ctx.file_node_id,
-                        target_id=export_nd.id,
-                        kind=EdgeKind.EXPORTS,
-                        confidence=1.0,
-                        line_number=line,
-                    ))
+                    ctx.edges.append(
+                        Edge(
+                            source_id=ctx.file_node_id,
+                            target_id=export_nd.id,
+                            kind=EdgeKind.EXPORTS,
+                            confidence=1.0,
+                            line_number=line,
+                        )
+                    )
 
                     # If right side is a class/function, extract it too
                     if right is not None:
                         if right.type == "class":
                             self._handle_class(
-                                right, ctx, parent_id,
+                                right,
+                                ctx,
+                                parent_id,
                                 default_name=export_name,
                             )
                         elif right.type == "function":
                             self._handle_function_declaration(
-                                right, ctx, parent_id,
+                                right,
+                                ctx,
+                                parent_id,
                                 default_name=export_name,
                             )
 
@@ -1435,7 +1437,9 @@ class JavaScriptExtractor(ASTExtractor):
             req_source = self._extract_require_source(expr, ctx)
             if req_source is not None:
                 self._handle_require(
-                    node, ctx, parent_id,
+                    node,
+                    ctx,
+                    parent_id,
                     local_name=req_source.rsplit("/", 1)[-1],
                     source_path=req_source,
                 )
@@ -1498,13 +1502,15 @@ class JavaScriptExtractor(ASTExtractor):
                 for child in args_node.children:
                     if child.type == "string":
                         mod_path = _node_text(child, ctx.source).strip("''\"")
-                        ctx.unresolved.append(UnresolvedReference(
-                            source_node_id=owner_id,
-                            reference_name=mod_path,
-                            reference_kind=EdgeKind.DYNAMIC_IMPORTS,
-                            line_number=line,
-                            context={"kind": "dynamic_import"},
-                        ))
+                        ctx.unresolved.append(
+                            UnresolvedReference(
+                                source_node_id=owner_id,
+                                reference_name=mod_path,
+                                reference_kind=EdgeKind.DYNAMIC_IMPORTS,
+                                line_number=line,
+                                context={"kind": "dynamic_import"},
+                            )
+                        )
                         break
             # Also recurse into arguments
             if args_node is not None:
@@ -1516,13 +1522,15 @@ class JavaScriptExtractor(ASTExtractor):
             return
 
         # Regular function call
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=owner_id,
-            reference_name=callee,
-            reference_kind=EdgeKind.CALLS,
-            line_number=line,
-            context={"callee": callee},
-        ))
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=owner_id,
+                reference_name=callee,
+                reference_kind=EdgeKind.CALLS,
+                line_number=line,
+                context={"callee": callee},
+            )
+        )
 
         # Recurse into arguments
         args_node = _child_by_field(node, "arguments")
@@ -1553,23 +1561,27 @@ class JavaScriptExtractor(ASTExtractor):
         class_name = _node_text(constructor_node, ctx.source)
         line = node.start_point[0] + 1
 
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=owner_id,
-            reference_name=class_name,
-            reference_kind=EdgeKind.INSTANTIATES,
-            line_number=line,
-            context={"class_name": class_name},
-        ))
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=owner_id,
+                reference_name=class_name,
+                reference_kind=EdgeKind.INSTANTIATES,
+                line_number=line,
+                context={"class_name": class_name},
+            )
+        )
 
     # -- JSX detection -----------------------------------------------------
 
     def _body_contains_jsx(self, node: tree_sitter.Node) -> bool:
         """Return True if *node* (or its body) contains JSX elements."""
-        _JSX_TYPES = frozenset({
-            "jsx_element",
-            "jsx_self_closing_element",
-            "jsx_fragment",
-        })
+        _JSX_TYPES = frozenset(
+            {
+                "jsx_element",
+                "jsx_self_closing_element",
+                "jsx_fragment",
+            }
+        )
         stack: list[tree_sitter.Node] = [node]
         while stack:
             current = stack.pop()
@@ -1586,4 +1598,3 @@ class JavaScriptExtractor(ASTExtractor):
                 continue
             stack.extend(current.children)
         return False
-

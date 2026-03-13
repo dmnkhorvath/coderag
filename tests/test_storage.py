@@ -1,8 +1,11 @@
 """Tests for coderag.storage.sqlite_store."""
+
 import os
 import tempfile
+
 import pytest
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 from coderag.storage.sqlite_store import SQLiteStore
 
 
@@ -22,27 +25,76 @@ def store():
 def populated_store(store):
     """Store with sample nodes and edges."""
     nodes = [
-        Node(id="file1", kind=NodeKind.FILE, name="User.php",
-             qualified_name="app/User.php", file_path="/tmp/app/User.php",
-             start_line=1, end_line=20, language="php"),
-        Node(id="class1", kind=NodeKind.CLASS, name="User",
-             qualified_name="App\\User", file_path="/tmp/app/User.php",
-             start_line=3, end_line=18, language="php"),
-        Node(id="method1", kind=NodeKind.METHOD, name="getName",
-             qualified_name="App\\User::getName", file_path="/tmp/app/User.php",
-             start_line=5, end_line=7, language="php"),
-        Node(id="method2", kind=NodeKind.METHOD, name="getEmail",
-             qualified_name="App\\User::getEmail", file_path="/tmp/app/User.php",
-             start_line=9, end_line=11, language="php"),
-        Node(id="file2", kind=NodeKind.FILE, name="UserService.php",
-             qualified_name="app/UserService.php", file_path="/tmp/app/UserService.php",
-             start_line=1, end_line=15, language="php"),
-        Node(id="class2", kind=NodeKind.CLASS, name="UserService",
-             qualified_name="App\\UserService", file_path="/tmp/app/UserService.php",
-             start_line=3, end_line=13, language="php"),
-        Node(id="method3", kind=NodeKind.METHOD, name="getUser",
-             qualified_name="App\\UserService::getUser", file_path="/tmp/app/UserService.php",
-             start_line=5, end_line=7, language="php"),
+        Node(
+            id="file1",
+            kind=NodeKind.FILE,
+            name="User.php",
+            qualified_name="app/User.php",
+            file_path="/tmp/app/User.php",
+            start_line=1,
+            end_line=20,
+            language="php",
+        ),
+        Node(
+            id="class1",
+            kind=NodeKind.CLASS,
+            name="User",
+            qualified_name="App\\User",
+            file_path="/tmp/app/User.php",
+            start_line=3,
+            end_line=18,
+            language="php",
+        ),
+        Node(
+            id="method1",
+            kind=NodeKind.METHOD,
+            name="getName",
+            qualified_name="App\\User::getName",
+            file_path="/tmp/app/User.php",
+            start_line=5,
+            end_line=7,
+            language="php",
+        ),
+        Node(
+            id="method2",
+            kind=NodeKind.METHOD,
+            name="getEmail",
+            qualified_name="App\\User::getEmail",
+            file_path="/tmp/app/User.php",
+            start_line=9,
+            end_line=11,
+            language="php",
+        ),
+        Node(
+            id="file2",
+            kind=NodeKind.FILE,
+            name="UserService.php",
+            qualified_name="app/UserService.php",
+            file_path="/tmp/app/UserService.php",
+            start_line=1,
+            end_line=15,
+            language="php",
+        ),
+        Node(
+            id="class2",
+            kind=NodeKind.CLASS,
+            name="UserService",
+            qualified_name="App\\UserService",
+            file_path="/tmp/app/UserService.php",
+            start_line=3,
+            end_line=13,
+            language="php",
+        ),
+        Node(
+            id="method3",
+            kind=NodeKind.METHOD,
+            name="getUser",
+            qualified_name="App\\UserService::getUser",
+            file_path="/tmp/app/UserService.php",
+            start_line=5,
+            end_line=7,
+            language="php",
+        ),
     ]
     edges = [
         Edge(source_id="file1", target_id="class1", kind=EdgeKind.CONTAINS),
@@ -61,9 +113,7 @@ def populated_store(store):
 class TestSQLiteStoreInit:
     def test_initialize_creates_tables(self, store):
         conn = store.connection
-        tables = [r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()]
+        tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
         assert "nodes" in tables
         assert "edges" in tables
 
@@ -75,9 +125,14 @@ class TestSQLiteStoreInit:
 class TestNodeOperations:
     def test_upsert_and_get_node(self, store):
         node = Node(
-            id="n1", kind=NodeKind.CLASS, name="Foo",
-            qualified_name="App\\Foo", file_path="/tmp/Foo.php",
-            start_line=1, end_line=10, language="php",
+            id="n1",
+            kind=NodeKind.CLASS,
+            name="Foo",
+            qualified_name="App\\Foo",
+            file_path="/tmp/Foo.php",
+            start_line=1,
+            end_line=10,
+            language="php",
         )
         store.upsert_nodes([node])
         result = store.get_node("n1")
@@ -91,15 +146,25 @@ class TestNodeOperations:
 
     def test_upsert_updates_existing(self, store):
         node1 = Node(
-            id="n1", kind=NodeKind.CLASS, name="Foo",
-            qualified_name="App\\Foo", file_path="/tmp/Foo.php",
-            start_line=1, end_line=10, language="php",
+            id="n1",
+            kind=NodeKind.CLASS,
+            name="Foo",
+            qualified_name="App\\Foo",
+            file_path="/tmp/Foo.php",
+            start_line=1,
+            end_line=10,
+            language="php",
         )
         store.upsert_nodes([node1])
         node2 = Node(
-            id="n1", kind=NodeKind.CLASS, name="FooUpdated",
-            qualified_name="App\\FooUpdated", file_path="/tmp/Foo.php",
-            start_line=1, end_line=20, language="php",
+            id="n1",
+            kind=NodeKind.CLASS,
+            name="FooUpdated",
+            qualified_name="App\\FooUpdated",
+            file_path="/tmp/Foo.php",
+            start_line=1,
+            end_line=20,
+            language="php",
         )
         store.upsert_nodes([node2])
         result = store.get_node("n1")
@@ -165,9 +230,7 @@ class TestNeighborTraversal:
         assert len(neighbors_d2) >= len(neighbors_d1)
 
     def test_get_neighbors_with_edge_filter(self, populated_store):
-        neighbors = populated_store.get_neighbors(
-            "class1", direction="outgoing", edge_kinds=[EdgeKind.CONTAINS]
-        )
+        neighbors = populated_store.get_neighbors("class1", direction="outgoing", edge_kinds=[EdgeKind.CONTAINS])
         assert len(neighbors) >= 2
         assert all(edge.kind == EdgeKind.CONTAINS for _, edge, _ in neighbors)
 
@@ -190,8 +253,8 @@ class TestSummary:
         assert summary.total_edges == 7
         # files_by_language comes from the 'files' table (populated by pipeline)
         # In unit tests we only insert nodes, so check nodes_by_kind instead
-        assert 'file' in summary.nodes_by_kind
-        assert summary.nodes_by_kind['file'] == 2
+        assert "file" in summary.nodes_by_kind
+        assert summary.nodes_by_kind["file"] == 2
 
 
 class TestBlastRadius:

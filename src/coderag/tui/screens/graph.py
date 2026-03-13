@@ -1,4 +1,5 @@
 """GraphScreen — graph statistics from SQLite database."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -7,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import DataTable, Static
@@ -101,21 +102,15 @@ class GraphScreen(Screen):
             # Overview stats
             total_nodes = cur.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
             total_edges = cur.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
-            total_files = cur.execute(
-                "SELECT COUNT(DISTINCT file_path) FROM nodes"
-            ).fetchone()[0]
-            total_languages = cur.execute(
-                "SELECT COUNT(DISTINCT language) FROM nodes"
-            ).fetchone()[0]
+            total_files = cur.execute("SELECT COUNT(DISTINCT file_path) FROM nodes").fetchone()[0]
+            total_languages = cur.execute("SELECT COUNT(DISTINCT language) FROM nodes").fetchone()[0]
 
             avg_confidence = 0.0
             row = cur.execute("SELECT AVG(confidence) FROM edges").fetchone()
             if row and row[0]:
                 avg_confidence = row[0]
 
-            low_conf = cur.execute(
-                "SELECT COUNT(*) FROM edges WHERE confidence < 0.5"
-            ).fetchone()[0]
+            low_conf = cur.execute("SELECT COUNT(*) FROM edges WHERE confidence < 0.5").fetchone()[0]
 
             try:
                 self.query_one("#graph-summary", Static).update(
@@ -141,12 +136,8 @@ class GraphScreen(Screen):
 
                 # File hashes info if available
                 try:
-                    fh_count = cur.execute(
-                        "SELECT COUNT(*) FROM file_hashes"
-                    ).fetchone()[0]
-                    total_parse_time = cur.execute(
-                        "SELECT SUM(parse_time_ms) FROM file_hashes"
-                    ).fetchone()[0] or 0
+                    fh_count = cur.execute("SELECT COUNT(*) FROM file_hashes").fetchone()[0]
+                    total_parse_time = cur.execute("SELECT SUM(parse_time_ms) FROM file_hashes").fetchone()[0] or 0
                     ot.add_row("Tracked Files", f"{fh_count:,}")
                     ot.add_row("Total Parse Time", f"{total_parse_time:,.0f} ms")
                 except Exception:
@@ -158,10 +149,7 @@ class GraphScreen(Screen):
             try:
                 nt = self.query_one("#graph-nodes-table", DataTable)
                 nt.clear()
-                rows = cur.execute(
-                    "SELECT kind, COUNT(*) as cnt FROM nodes "
-                    "GROUP BY kind ORDER BY cnt DESC"
-                ).fetchall()
+                rows = cur.execute("SELECT kind, COUNT(*) as cnt FROM nodes GROUP BY kind ORDER BY cnt DESC").fetchall()
                 for row in rows:
                     pct = (row[1] / total_nodes * 100) if total_nodes else 0
                     nt.add_row(row[0], f"{row[1]:,}", f"{pct:.1f}%")
@@ -172,10 +160,7 @@ class GraphScreen(Screen):
             try:
                 et = self.query_one("#graph-edges-table", DataTable)
                 et.clear()
-                rows = cur.execute(
-                    "SELECT kind, COUNT(*) as cnt FROM edges "
-                    "GROUP BY kind ORDER BY cnt DESC"
-                ).fetchall()
+                rows = cur.execute("SELECT kind, COUNT(*) as cnt FROM edges GROUP BY kind ORDER BY cnt DESC").fetchall()
                 for row in rows:
                     pct = (row[1] / total_edges * 100) if total_edges else 0
                     et.add_row(row[0], f"{row[1]:,}", f"{pct:.1f}%")
@@ -195,14 +180,10 @@ class GraphScreen(Screen):
                 for row in rows:
                     # Count edges for this language
                     edge_count = cur.execute(
-                        "SELECT COUNT(*) FROM edges e "
-                        "JOIN nodes n ON e.source_id = n.id "
-                        "WHERE n.language = ?",
+                        "SELECT COUNT(*) FROM edges e JOIN nodes n ON e.source_id = n.id WHERE n.language = ?",
                         (row[0],),
                     ).fetchone()[0]
-                    lt.add_row(
-                        row[0], f"{row[1]:,}", f"{row[2]:,}", f"{edge_count:,}"
-                    )
+                    lt.add_row(row[0], f"{row[1]:,}", f"{row[2]:,}", f"{edge_count:,}")
             except Exception:
                 pass
 
@@ -210,9 +191,7 @@ class GraphScreen(Screen):
 
         except Exception as exc:
             try:
-                self.query_one("#graph-summary", Static).update(
-                    f"  [red]Error loading stats: {exc}[/red]"
-                )
+                self.query_one("#graph-summary", Static).update(f"  [red]Error loading stats: {exc}[/red]")
             except Exception:
                 pass
 

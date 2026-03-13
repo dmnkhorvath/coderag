@@ -1,4 +1,5 @@
 """SummaryScreen — post-parse summary overlay."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult

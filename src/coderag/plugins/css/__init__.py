@@ -1,4 +1,5 @@
 """CSS language plugin for CodeRAG."""
+
 from coderag.plugins.css.extractor import CSSExtractor
 from coderag.plugins.css.plugin import CSSPlugin
 from coderag.plugins.css.resolver import CSSResolver

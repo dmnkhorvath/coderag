@@ -4,6 +4,7 @@ Detects Django-specific patterns including models, views, URL patterns,
 middleware, signals, admin registrations, serializers (DRF), and
 management commands from already-parsed AST nodes and source code.
 """
+
 from __future__ import annotations
 
 import logging
@@ -66,37 +67,71 @@ _URL_INCLUDE_RE = re.compile(
 
 # Django class-based view base classes
 _CBV_BASES = {
-    "View", "TemplateView", "RedirectView", "ListView", "DetailView",
-    "CreateView", "UpdateView", "DeleteView", "FormView", "ArchiveIndexView",
-    "YearArchiveView", "MonthArchiveView", "DayArchiveView", "DateDetailView",
+    "View",
+    "TemplateView",
+    "RedirectView",
+    "ListView",
+    "DetailView",
+    "CreateView",
+    "UpdateView",
+    "DeleteView",
+    "FormView",
+    "ArchiveIndexView",
+    "YearArchiveView",
+    "MonthArchiveView",
+    "DayArchiveView",
+    "DateDetailView",
     # DRF views
-    "APIView", "GenericAPIView", "ViewSet", "ModelViewSet",
-    "ReadOnlyModelViewSet", "ViewSetMixin", "GenericViewSet",
-    "ListAPIView", "RetrieveAPIView", "CreateAPIView", "UpdateAPIView",
-    "DestroyAPIView", "ListCreateAPIView", "RetrieveUpdateAPIView",
-    "RetrieveDestroyAPIView", "RetrieveUpdateDestroyAPIView",
+    "APIView",
+    "GenericAPIView",
+    "ViewSet",
+    "ModelViewSet",
+    "ReadOnlyModelViewSet",
+    "ViewSetMixin",
+    "GenericViewSet",
+    "ListAPIView",
+    "RetrieveAPIView",
+    "CreateAPIView",
+    "UpdateAPIView",
+    "DestroyAPIView",
+    "ListCreateAPIView",
+    "RetrieveUpdateAPIView",
+    "RetrieveDestroyAPIView",
+    "RetrieveUpdateDestroyAPIView",
 }
 
 # Django model base classes
 _MODEL_BASES = {
-    "Model", "AbstractUser", "AbstractBaseUser", "PermissionsMixin",
+    "Model",
+    "AbstractUser",
+    "AbstractBaseUser",
+    "PermissionsMixin",
 }
 
 # DRF serializer base classes
 _SERIALIZER_BASES = {
-    "Serializer", "ModelSerializer", "HyperlinkedModelSerializer",
-    "ListSerializer", "BaseSerializer",
+    "Serializer",
+    "ModelSerializer",
+    "HyperlinkedModelSerializer",
+    "ListSerializer",
+    "BaseSerializer",
 }
 
 # Django admin base classes
 _ADMIN_BASES = {
-    "ModelAdmin", "TabularInline", "StackedInline", "AdminSite",
+    "ModelAdmin",
+    "TabularInline",
+    "StackedInline",
+    "AdminSite",
 }
 
 # Django middleware detection: classes with specific methods
 _MIDDLEWARE_METHODS = {
-    "__call__", "process_request", "process_response",
-    "process_view", "process_exception",
+    "__call__",
+    "process_request",
+    "process_response",
+    "process_view",
+    "process_exception",
     "process_template_response",
 }
 
@@ -120,11 +155,20 @@ _ADMIN_REGISTER_RE = re.compile(
 
 # FBV decorators that indicate a view
 _VIEW_DECORATORS = {
-    "api_view", "login_required", "permission_required",
-    "require_http_methods", "require_GET", "require_POST",
-    "csrf_exempt", "csrf_protect", "never_cache",
-    "cache_page", "vary_on_headers", "vary_on_cookie",
-    "condition", "require_safe",
+    "api_view",
+    "login_required",
+    "permission_required",
+    "require_http_methods",
+    "require_GET",
+    "require_POST",
+    "csrf_exempt",
+    "csrf_protect",
+    "never_cache",
+    "cache_page",
+    "vary_on_headers",
+    "vary_on_cookie",
+    "condition",
+    "require_safe",
 }
 
 # Management command base class
@@ -175,10 +219,20 @@ class DjangoDetector(FrameworkDetector):
             if "manage.py" in files:
                 return True
             dirs[:] = [
-                d for d in dirs
-                if not d.startswith(".") and d not in (
-                    "node_modules", "venv", ".venv", "__pycache__",
-                    "env", ".env", ".tox", "dist", "build",
+                d
+                for d in dirs
+                if not d.startswith(".")
+                and d
+                not in (
+                    "node_modules",
+                    "venv",
+                    ".venv",
+                    "__pycache__",
+                    "env",
+                    ".env",
+                    ".tox",
+                    "dist",
+                    "build",
                 )
             ]
 
@@ -191,17 +245,27 @@ class DjangoDetector(FrameworkDetector):
             if "settings.py" in files:
                 settings_path = os.path.join(root, "settings.py")
                 try:
-                    with open(settings_path, "r", encoding="utf-8") as fh:
+                    with open(settings_path, encoding="utf-8") as fh:
                         settings_content = fh.read()
                     if "INSTALLED_APPS" in settings_content:
                         return True
                 except OSError:
                     pass
             dirs[:] = [
-                d for d in dirs
-                if not d.startswith(".") and d not in (
-                    "node_modules", "venv", ".venv", "__pycache__",
-                    "env", ".env", ".tox", "dist", "build",
+                d
+                for d in dirs
+                if not d.startswith(".")
+                and d
+                not in (
+                    "node_modules",
+                    "venv",
+                    ".venv",
+                    "__pycache__",
+                    "env",
+                    ".env",
+                    ".tox",
+                    "dist",
+                    "build",
                 )
             ]
 
@@ -215,17 +279,27 @@ class DjangoDetector(FrameworkDetector):
                 if entry in files:
                     fpath = os.path.join(root, entry)
                     try:
-                        with open(fpath, "r", encoding="utf-8") as fh:
+                        with open(fpath, encoding="utf-8") as fh:
                             wsgi_content = fh.read()
                         if "django" in wsgi_content.lower():
                             return True
                     except OSError:
                         pass
                 dirs[:] = [
-                    d for d in dirs
-                    if not d.startswith(".") and d not in (
-                        "node_modules", "venv", ".venv", "__pycache__",
-                        "env", ".env", ".tox", "dist", "build",
+                    d
+                    for d in dirs
+                    if not d.startswith(".")
+                    and d
+                    not in (
+                        "node_modules",
+                        "venv",
+                        ".venv",
+                        "__pycache__",
+                        "env",
+                        ".env",
+                        ".tox",
+                        "dist",
+                        "build",
                     )
                 ]
 
@@ -234,15 +308,19 @@ class DjangoDetector(FrameworkDetector):
     def _check_django_dependency(self, project_root: str) -> bool:
         """Check if django is listed as a dependency."""
         dep_files = [
-            "requirements.txt", "requirements/base.txt",
-            "requirements/production.txt", "setup.py",
-            "setup.cfg", "pyproject.toml", "Pipfile",
+            "requirements.txt",
+            "requirements/base.txt",
+            "requirements/production.txt",
+            "setup.py",
+            "setup.cfg",
+            "pyproject.toml",
+            "Pipfile",
         ]
         for dep_file in dep_files:
             fpath = os.path.join(project_root, dep_file)
             if os.path.isfile(fpath):
                 try:
-                    with open(fpath, "r", encoding="utf-8") as fh:
+                    with open(fpath, encoding="utf-8") as fh:
                         dep_content = fh.read().lower()
                     if "django" in dep_content:
                         return True
@@ -280,21 +358,34 @@ class DjangoDetector(FrameworkDetector):
 
             # ── Class-Based Views ─────────────────────────────
             elif base_shorts & _CBV_BASES:
-                patterns.append(self._make_controller_pattern(
-                    cls, file_path, bases, source_text,
-                ))
+                patterns.append(
+                    self._make_controller_pattern(
+                        cls,
+                        file_path,
+                        bases,
+                        source_text,
+                    )
+                )
 
             # ── Serializers (DRF) ─────────────────────────────
             elif base_shorts & _SERIALIZER_BASES:
-                patterns.append(self._make_serializer_pattern(
-                    cls, file_path, source_text,
-                ))
+                patterns.append(
+                    self._make_serializer_pattern(
+                        cls,
+                        file_path,
+                        source_text,
+                    )
+                )
 
             # ── Admin ─────────────────────────────────────────
             elif base_shorts & _ADMIN_BASES:
-                patterns.append(self._make_admin_pattern(
-                    cls, file_path, source_text,
-                ))
+                patterns.append(
+                    self._make_admin_pattern(
+                        cls,
+                        file_path,
+                        source_text,
+                    )
+                )
 
             # ── Middleware ────────────────────────────────────
             elif self._is_middleware_class(cls, method_nodes, source_text):
@@ -309,9 +400,13 @@ class DjangoDetector(FrameworkDetector):
             if func.kind != NodeKind.FUNCTION:
                 continue
             if self._is_fbv(func, nodes, source_text):
-                patterns.append(self._make_fbv_pattern(
-                    func, file_path, source_text,
-                ))
+                patterns.append(
+                    self._make_fbv_pattern(
+                        func,
+                        file_path,
+                        source_text,
+                    )
+                )
 
         # ── Signal receivers ──────────────────────────────────
         signal_patterns = self._detect_signals(source_text, file_path, func_nodes)
@@ -394,7 +489,10 @@ class DjangoDetector(FrameworkDetector):
     # ── Model detection ───────────────────────────────────────
 
     def _detect_model(
-        self, cls: Node, source_text: str, file_path: str,
+        self,
+        cls: Node,
+        source_text: str,
+        file_path: str,
     ) -> FrameworkPattern | None:
         """Detect Django model and its fields/relationships."""
         new_nodes: list[Node] = []
@@ -423,7 +521,7 @@ class DjangoDetector(FrameworkDetector):
         for match in _DJANGO_FIELD_RE.finditer(class_source):
             field_name = match.group("field_name")
             field_type = match.group("field_type")
-            line_no = cls.start_line + class_source[:match.start()].count("\n")
+            line_no = cls.start_line + class_source[: match.start()].count("\n")
 
             prop_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.PROPERTY, f"{cls.name}.{field_name}"),
@@ -441,24 +539,26 @@ class DjangoDetector(FrameworkDetector):
                 },
             )
             new_nodes.append(prop_node)
-            new_edges.append(Edge(
-                source_id=model_node.id,
-                target_id=prop_node.id,
-                kind=EdgeKind.CONTAINS,
-                confidence=1.0,
-                line_number=line_no,
-                metadata={"framework": "django"},
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=model_node.id,
+                    target_id=prop_node.id,
+                    kind=EdgeKind.CONTAINS,
+                    confidence=1.0,
+                    line_number=line_no,
+                    metadata={"framework": "django"},
+                )
+            )
 
         # Detect relationship fields
         for match in _DJANGO_RELATION_RE.finditer(class_source):
             field_name = match.group("field_name")
             rel_type = match.group("rel_type")
             related = match.group("related")
-            line_no = cls.start_line + class_source[:match.start()].count("\n")
+            line_no = cls.start_line + class_source[: match.start()].count("\n")
 
             # Clean up related model name
-            related_name = related.strip("\'\"").rsplit(".", 1)[-1]
+            related_name = related.strip("'\"").rsplit(".", 1)[-1]
             if related_name == "self":
                 related_name = cls.name
 
@@ -479,28 +579,32 @@ class DjangoDetector(FrameworkDetector):
                 },
             )
             new_nodes.append(prop_node)
-            new_edges.append(Edge(
-                source_id=model_node.id,
-                target_id=prop_node.id,
-                kind=EdgeKind.CONTAINS,
-                confidence=1.0,
-                line_number=line_no,
-                metadata={"framework": "django"},
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=model_node.id,
+                    target_id=prop_node.id,
+                    kind=EdgeKind.CONTAINS,
+                    confidence=1.0,
+                    line_number=line_no,
+                    metadata={"framework": "django"},
+                )
+            )
 
             # Add DEPENDS_ON edge to related model (unresolved)
-            new_edges.append(Edge(
-                source_id=model_node.id,
-                target_id=f"__unresolved__:model:{related_name}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.75,
-                line_number=line_no,
-                metadata={
-                    "framework": "django",
-                    "relationship_type": rel_type,
-                    "related_model": related_name,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=model_node.id,
+                    target_id=f"__unresolved__:model:{related_name}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.75,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "django",
+                        "relationship_type": rel_type,
+                        "related_model": related_name,
+                    },
+                )
+            )
 
         return FrameworkPattern(
             framework_name="django",
@@ -513,22 +617,37 @@ class DjangoDetector(FrameworkDetector):
     # ── View detection ────────────────────────────────────────
 
     def _make_controller_pattern(
-        self, cls: Node, file_path: str, bases: list[str], source_text: str,
+        self,
+        cls: Node,
+        file_path: str,
+        bases: list[str],
+        source_text: str,
     ) -> FrameworkPattern:
         """Create a controller pattern for a class-based view."""
         base_shorts = {b.rsplit(".", 1)[-1] for b in bases}
-        is_drf = bool(base_shorts & {
-            "APIView", "GenericAPIView", "ViewSet", "ModelViewSet",
-            "ReadOnlyModelViewSet", "ViewSetMixin", "GenericViewSet",
-            "ListAPIView", "RetrieveAPIView", "CreateAPIView",
-            "UpdateAPIView", "DestroyAPIView", "ListCreateAPIView",
-            "RetrieveUpdateAPIView", "RetrieveDestroyAPIView",
-            "RetrieveUpdateDestroyAPIView",
-        })
-
-        view_type = "drf_viewset" if "ViewSet" in str(base_shorts) else (
-            "drf_apiview" if is_drf else "cbv"
+        is_drf = bool(
+            base_shorts
+            & {
+                "APIView",
+                "GenericAPIView",
+                "ViewSet",
+                "ModelViewSet",
+                "ReadOnlyModelViewSet",
+                "ViewSetMixin",
+                "GenericViewSet",
+                "ListAPIView",
+                "RetrieveAPIView",
+                "CreateAPIView",
+                "UpdateAPIView",
+                "DestroyAPIView",
+                "ListCreateAPIView",
+                "RetrieveUpdateAPIView",
+                "RetrieveDestroyAPIView",
+                "RetrieveUpdateDestroyAPIView",
+            }
         )
+
+        view_type = "drf_viewset" if "ViewSet" in str(base_shorts) else ("drf_apiview" if is_drf else "cbv")
 
         ctrl_node = Node(
             id=generate_node_id(file_path, cls.start_line, NodeKind.CONTROLLER, cls.name),
@@ -555,15 +674,17 @@ class DjangoDetector(FrameworkDetector):
         )
 
     def _is_fbv(
-        self, func: Node, all_nodes: list[Node], source_text: str,
+        self,
+        func: Node,
+        all_nodes: list[Node],
+        source_text: str,
     ) -> bool:
         """Check if a function is a Django function-based view."""
         # Check for view-related decorators
         decorators = [
-            n for n in all_nodes
-            if n.kind == NodeKind.DECORATOR
-            and n.start_line < func.start_line
-            and n.start_line >= func.start_line - 5
+            n
+            for n in all_nodes
+            if n.kind == NodeKind.DECORATOR and n.start_line < func.start_line and n.start_line >= func.start_line - 5
         ]
         for dec in decorators:
             dec_name = dec.name.rsplit(".", 1)[-1]
@@ -581,7 +702,10 @@ class DjangoDetector(FrameworkDetector):
         return False
 
     def _make_fbv_pattern(
-        self, func: Node, file_path: str, source_text: str,
+        self,
+        func: Node,
+        file_path: str,
+        source_text: str,
     ) -> FrameworkPattern:
         """Create a controller pattern for a function-based view."""
         # Try to extract HTTP methods from @api_view decorator
@@ -593,9 +717,7 @@ class DjangoDetector(FrameworkDetector):
         api_match = _API_VIEW_RE.search(context)
         if api_match:
             methods_str = api_match.group("methods")
-            http_methods = [
-                m.strip().strip("\'\"") for m in methods_str.split(",")
-            ]
+            http_methods = [m.strip().strip("'\"") for m in methods_str.split(",")]
 
         ctrl_node = Node(
             id=generate_node_id(file_path, func.start_line, NodeKind.CONTROLLER, func.name),
@@ -624,7 +746,10 @@ class DjangoDetector(FrameworkDetector):
     # ── Serializer detection ──────────────────────────────────
 
     def _make_serializer_pattern(
-        self, cls: Node, file_path: str, source_text: str,
+        self,
+        cls: Node,
+        file_path: str,
+        source_text: str,
     ) -> FrameworkPattern:
         """Create a pattern for a DRF serializer."""
         new_nodes: list[Node] = []
@@ -653,17 +778,19 @@ class DjangoDetector(FrameworkDetector):
         meta_match = _SERIALIZER_META_MODEL_RE.search(class_source)
         if meta_match:
             model_name = meta_match.group("model").rsplit(".", 1)[-1]
-            new_edges.append(Edge(
-                source_id=ser_node.id,
-                target_id=f"__unresolved__:model:{model_name}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.80,
-                metadata={
-                    "framework": "django",
-                    "relationship": "serializes",
-                    "model_name": model_name,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=ser_node.id,
+                    target_id=f"__unresolved__:model:{model_name}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.80,
+                    metadata={
+                        "framework": "django",
+                        "relationship": "serializes",
+                        "model_name": model_name,
+                    },
+                )
+            )
 
         return FrameworkPattern(
             framework_name="django",
@@ -676,7 +803,10 @@ class DjangoDetector(FrameworkDetector):
     # ── Admin detection ───────────────────────────────────────
 
     def _make_admin_pattern(
-        self, cls: Node, file_path: str, source_text: str,
+        self,
+        cls: Node,
+        file_path: str,
+        source_text: str,
     ) -> FrameworkPattern:
         """Create a pattern for a Django admin class."""
         new_nodes: list[Node] = []
@@ -711,17 +841,19 @@ class DjangoDetector(FrameworkDetector):
             for model_ref in models_str.split(","):
                 model_name = model_ref.strip().rsplit(".", 1)[-1]
                 if model_name:
-                    new_edges.append(Edge(
-                        source_id=admin_node.id,
-                        target_id=f"__unresolved__:model:{model_name}",
-                        kind=EdgeKind.DEPENDS_ON,
-                        confidence=0.85,
-                        metadata={
-                            "framework": "django",
-                            "relationship": "registers_admin",
-                            "model_name": model_name,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=admin_node.id,
+                            target_id=f"__unresolved__:model:{model_name}",
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.85,
+                            metadata={
+                                "framework": "django",
+                                "relationship": "registers_admin",
+                                "model_name": model_name,
+                            },
+                        )
+                    )
 
         return FrameworkPattern(
             framework_name="django",
@@ -734,14 +866,17 @@ class DjangoDetector(FrameworkDetector):
     # ── Middleware detection ───────────────────────────────────
 
     def _is_middleware_class(
-        self, cls: Node, method_nodes: list[Node], source_text: str,
+        self,
+        cls: Node,
+        method_nodes: list[Node],
+        source_text: str,
     ) -> bool:
         """Check if a class is a Django middleware."""
         # Check if class has middleware-specific methods
         cls_methods = {
-            m.name for m in method_nodes
-            if m.file_path == cls.file_path
-            and cls.start_line <= m.start_line <= cls.end_line
+            m.name
+            for m in method_nodes
+            if m.file_path == cls.file_path and cls.start_line <= m.start_line <= cls.end_line
         }
         if cls_methods & _MIDDLEWARE_METHODS:
             return True
@@ -803,7 +938,10 @@ class DjangoDetector(FrameworkDetector):
     # ── Signal detection ──────────────────────────────────────
 
     def _detect_signals(
-        self, source_text: str, file_path: str, func_nodes: list[Node],
+        self,
+        source_text: str,
+        file_path: str,
+        func_nodes: list[Node],
     ) -> list[FrameworkPattern]:
         """Detect signal receivers and connections."""
         patterns: list[FrameworkPattern] = []
@@ -811,7 +949,7 @@ class DjangoDetector(FrameworkDetector):
         # @receiver(signal) decorators
         for match in _SIGNAL_RECEIVER_RE.finditer(source_text):
             signal_name = match.group("signal").rsplit(".", 1)[-1]
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Find the function below this decorator
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
@@ -855,19 +993,21 @@ class DjangoDetector(FrameworkDetector):
                 metadata={"framework": "django", "signal": signal_name},
             )
 
-            patterns.append(FrameworkPattern(
-                framework_name="django",
-                pattern_type="signal",
-                nodes=[event_node, listener_node],
-                edges=[edge],
-                metadata={"signal_name": signal_name, "handler": handler.name},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="django",
+                    pattern_type="signal",
+                    nodes=[event_node, listener_node],
+                    edges=[edge],
+                    metadata={"signal_name": signal_name, "handler": handler.name},
+                )
+            )
 
         # signal.connect(handler) calls
         for match in _SIGNAL_CONNECT_RE.finditer(source_text):
             signal_name = match.group("signal").rsplit(".", 1)[-1]
             handler_name = match.group("handler").rsplit(".", 1)[-1]
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             event_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.EVENT, signal_name),
@@ -890,18 +1030,23 @@ class DjangoDetector(FrameworkDetector):
                 metadata={"framework": "django", "signal": signal_name},
             )
 
-            patterns.append(FrameworkPattern(
-                framework_name="django",
-                pattern_type="signal",
-                nodes=[event_node],
-                edges=[edge],
-                metadata={"signal_name": signal_name, "handler": handler_name},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="django",
+                    pattern_type="signal",
+                    nodes=[event_node],
+                    edges=[edge],
+                    metadata={"signal_name": signal_name, "handler": handler_name},
+                )
+            )
 
         return patterns
 
     def _find_func_near_line(
-        self, line_no: int, func_nodes: list[Node], file_path: str,
+        self,
+        line_no: int,
+        func_nodes: list[Node],
+        file_path: str,
     ) -> Node | None:
         """Find the function defined closest after the given line."""
         closest = None
@@ -917,7 +1062,9 @@ class DjangoDetector(FrameworkDetector):
     # ── URL pattern detection ─────────────────────────────────
 
     def _detect_url_patterns(
-        self, source_text: str, file_path: str,
+        self,
+        source_text: str,
+        file_path: str,
     ) -> FrameworkPattern | None:
         """Detect URL patterns in a single file."""
         if "urlpatterns" not in source_text:
@@ -929,7 +1076,7 @@ class DjangoDetector(FrameworkDetector):
         for match in _URL_PATTERN_RE.finditer(source_text):
             pattern = match.group("pattern")
             view_ref = match.group("view").strip()
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Determine HTTP method (Django URLs are method-agnostic by default)
             route_node = Node(
@@ -953,18 +1100,20 @@ class DjangoDetector(FrameworkDetector):
             # Try to resolve view reference
             view_name = self._extract_view_name(view_ref)
             if view_name:
-                new_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=f"__unresolved__:view:{view_name}",
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.80,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "django",
-                        "url_pattern": pattern,
-                        "view_ref": view_ref,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=f"__unresolved__:view:{view_name}",
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.80,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "django",
+                            "url_pattern": pattern,
+                            "view_ref": view_ref,
+                        },
+                    )
+                )
 
         if not new_nodes:
             return None
@@ -993,7 +1142,9 @@ class DjangoDetector(FrameworkDetector):
     # ── Global pattern helpers ────────────────────────────────
 
     def _build_route_tree(
-        self, store: Any, project_root: str,
+        self,
+        store: Any,
+        project_root: str,
     ) -> FrameworkPattern | None:
         """Build a global route tree from all urls.py files."""
         new_nodes: list[Node] = []
@@ -1008,7 +1159,7 @@ class DjangoDetector(FrameworkDetector):
 
         for url_file in url_files:
             try:
-                with open(url_file, "r", encoding="utf-8") as f:
+                with open(url_file, encoding="utf-8") as f:
                     content = f.read()
             except OSError:
                 continue
@@ -1019,7 +1170,7 @@ class DjangoDetector(FrameworkDetector):
             for match in _URL_INCLUDE_RE.finditer(content):
                 prefix = match.group("prefix")
                 module = match.group("module")
-                line_no = content[:match.start()].count("\n") + 1
+                line_no = content[: match.start()].count("\n") + 1
 
                 route_node = Node(
                     id=generate_node_id(rel_path, line_no, NodeKind.ROUTE, f"include:{prefix}"),
@@ -1043,7 +1194,7 @@ class DjangoDetector(FrameworkDetector):
             for match in _URL_PATTERN_RE.finditer(content):
                 pattern = match.group("pattern")
                 view_ref = match.group("view").strip()
-                line_no = content[:match.start()].count("\n") + 1
+                line_no = content[: match.start()].count("\n") + 1
 
                 route_node = Node(
                     id=generate_node_id(rel_path, line_no, NodeKind.ROUTE, pattern),
@@ -1068,17 +1219,19 @@ class DjangoDetector(FrameworkDetector):
                 if view_name:
                     target_id = self._resolve_view(view_name, store)
                     if target_id:
-                        new_edges.append(Edge(
-                            source_id=route_node.id,
-                            target_id=target_id,
-                            kind=EdgeKind.ROUTES_TO,
-                            confidence=0.85,
-                            line_number=line_no,
-                            metadata={
-                                "framework": "django",
-                                "url_pattern": pattern,
-                            },
-                        ))
+                        new_edges.append(
+                            Edge(
+                                source_id=route_node.id,
+                                target_id=target_id,
+                                kind=EdgeKind.ROUTES_TO,
+                                confidence=0.85,
+                                line_number=line_no,
+                                metadata={
+                                    "framework": "django",
+                                    "url_pattern": pattern,
+                                },
+                            )
+                        )
 
         if not new_nodes:
             return None
@@ -1092,12 +1245,16 @@ class DjangoDetector(FrameworkDetector):
         )
 
     def _resolve_view(
-        self, view_name: str, store: Any,
+        self,
+        view_name: str,
+        store: Any,
     ) -> str | None:
         """Resolve a view name to a node ID via the store."""
         # Try controller nodes first
         ctrl_nodes = store.find_nodes(
-            kind=NodeKind.CONTROLLER, name_pattern=view_name, limit=10,
+            kind=NodeKind.CONTROLLER,
+            name_pattern=view_name,
+            limit=10,
         )
         for cn in ctrl_nodes:
             if cn.name == view_name:
@@ -1105,7 +1262,9 @@ class DjangoDetector(FrameworkDetector):
 
         # Try class nodes
         class_nodes = store.find_nodes(
-            kind=NodeKind.CLASS, name_pattern=view_name, limit=10,
+            kind=NodeKind.CLASS,
+            name_pattern=view_name,
+            limit=10,
         )
         for cn in class_nodes:
             if cn.name == view_name:
@@ -1113,7 +1272,9 @@ class DjangoDetector(FrameworkDetector):
 
         # Try function nodes
         func_nodes = store.find_nodes(
-            kind=NodeKind.FUNCTION, name_pattern=view_name, limit=10,
+            kind=NodeKind.FUNCTION,
+            name_pattern=view_name,
+            limit=10,
         )
         for fn in func_nodes:
             if fn.name == view_name:
@@ -1122,7 +1283,9 @@ class DjangoDetector(FrameworkDetector):
         return None
 
     def _extract_middleware_chain(
-        self, store: Any, project_root: str,
+        self,
+        store: Any,
+        project_root: str,
     ) -> FrameworkPattern | None:
         """Extract middleware chain from Django settings."""
         # Find settings.py
@@ -1138,7 +1301,8 @@ class DjangoDetector(FrameworkDetector):
             return None
 
         middleware_re = re.compile(
-            r"MIDDLEWARE\s*=\s*\[([^\]]+)\]", re.DOTALL,
+            r"MIDDLEWARE\s*=\s*\[([^\]]+)\]",
+            re.DOTALL,
         )
 
         new_nodes: list[Node] = []
@@ -1146,7 +1310,7 @@ class DjangoDetector(FrameworkDetector):
 
         for settings_file in settings_files:
             try:
-                with open(settings_file, "r", encoding="utf-8") as f:
+                with open(settings_file, encoding="utf-8") as f:
                     content = f.read()
             except OSError:
                 continue
@@ -1157,12 +1321,12 @@ class DjangoDetector(FrameworkDetector):
 
             rel_path = os.path.relpath(settings_file, project_root)
             mw_list_str = match.group(1)
-            mw_entries = re.findall(r"[\'\"]([^\'\"]+)[\'\"]" , mw_list_str)
+            mw_entries = re.findall(r"[\'\"]([^\'\"]+)[\'\"]", mw_list_str)
 
             prev_node = None
             for idx, mw_path in enumerate(mw_entries):
                 mw_name = mw_path.rsplit(".", 1)[-1]
-                line_no = content[:match.start()].count("\n") + 1 + idx
+                line_no = content[: match.start()].count("\n") + 1 + idx
 
                 mw_node = Node(
                     id=generate_node_id(rel_path, line_no, NodeKind.MIDDLEWARE, mw_name),
@@ -1183,16 +1347,18 @@ class DjangoDetector(FrameworkDetector):
 
                 # Chain middleware in order
                 if prev_node:
-                    new_edges.append(Edge(
-                        source_id=prev_node.id,
-                        target_id=mw_node.id,
-                        kind=EdgeKind.DEPENDS_ON,
-                        confidence=0.90,
-                        metadata={
-                            "framework": "django",
-                            "relationship": "middleware_chain",
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=prev_node.id,
+                            target_id=mw_node.id,
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.90,
+                            metadata={
+                                "framework": "django",
+                                "relationship": "middleware_chain",
+                            },
+                        )
+                    )
                 prev_node = mw_node
 
             break  # Use first settings file found

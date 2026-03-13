@@ -3,6 +3,7 @@
 Detects Express-specific patterns including routes, middleware,
 and route handlers from already-parsed AST nodes.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,16 +25,25 @@ from coderag.core.registry import FrameworkDetector
 logger = logging.getLogger(__name__)
 
 # HTTP methods used by Express
-_HTTP_METHODS = frozenset({
-    "get", "post", "put", "patch", "delete", "options", "head", "all",
-})
+_HTTP_METHODS = frozenset(
+    {
+        "get",
+        "post",
+        "put",
+        "patch",
+        "delete",
+        "options",
+        "head",
+        "all",
+    }
+)
 
 # Regex for Express route patterns in source code
 # Matches: app.get('/path', handler), router.post('/path', handler), etc.
 _ROUTE_RE = re.compile(
     r"""(?:app|router|server)\s*\.\s*"""
     r"""(?P<method>get|post|put|patch|delete|options|head|all)"""
-    r"""\s*\(\s*['"](?P<path>[^'"]+)['"]""" ,
+    r"""\s*\(\s*['"](?P<path>[^'"]+)['"]""",
     re.MULTILINE,
 )
 
@@ -64,7 +74,7 @@ class ExpressDetector(FrameworkDetector):
             return False
 
         try:
-            with open(pkg_json, "r", encoding="utf-8") as f:
+            with open(pkg_json, encoding="utf-8") as f:
                 data = json.load(f)
             deps = data.get("dependencies", {})
             dev_deps = data.get("devDependencies", {})
@@ -91,10 +101,7 @@ class ExpressDetector(FrameworkDetector):
         source_text = source.decode("utf-8", errors="replace")
 
         # Build a map of function nodes by line range for handler resolution
-        func_nodes = [
-            n for n in nodes
-            if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD, NodeKind.VARIABLE)
-        ]
+        func_nodes = [n for n in nodes if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD, NodeKind.VARIABLE)]
 
         # ── Route extraction ──────────────────────────────────
         route_nodes: list[Node] = []
@@ -103,7 +110,7 @@ class ExpressDetector(FrameworkDetector):
         for match in _ROUTE_RE.finditer(source_text):
             http_method = match.group("method").upper()
             path = match.group("path")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             route_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.ROUTE, f"{http_method}:{path}"),
@@ -124,30 +131,38 @@ class ExpressDetector(FrameworkDetector):
 
             # Try to find the handler function
             handler_id = self._find_handler_near_line(
-                line_no, func_nodes, file_path, source_text, match.end(),
+                line_no,
+                func_nodes,
+                file_path,
+                source_text,
+                match.end(),
             )
             if handler_id:
-                route_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=handler_id,
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.80,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "express",
-                        "http_method": http_method,
-                        "url_pattern": path,
-                    },
-                ))
+                route_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=handler_id,
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.80,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "express",
+                            "http_method": http_method,
+                            "url_pattern": path,
+                        },
+                    )
+                )
 
         if route_nodes:
-            patterns.append(FrameworkPattern(
-                framework_name="express",
-                pattern_type="routes",
-                nodes=route_nodes,
-                edges=route_edges,
-                metadata={"route_count": len(route_nodes)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="express",
+                    pattern_type="routes",
+                    nodes=route_nodes,
+                    edges=route_edges,
+                    metadata={"route_count": len(route_nodes)},
+                )
+            )
 
         # ── Middleware extraction ──────────────────────────────
         mw_nodes: list[Node] = []
@@ -155,10 +170,10 @@ class ExpressDetector(FrameworkDetector):
 
         for match in _MIDDLEWARE_RE.finditer(source_text):
             path = match.group("path") or "/"
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Extract middleware name from the rest of the line
-            rest = source_text[match.end():match.end() + 200]
+            rest = source_text[match.end() : match.end() + 200]
             mw_name = self._extract_middleware_name(rest)
             if not mw_name:
                 mw_name = f"middleware@L{line_no}"
@@ -180,13 +195,15 @@ class ExpressDetector(FrameworkDetector):
             mw_nodes.append(mw_node)
 
         if mw_nodes:
-            patterns.append(FrameworkPattern(
-                framework_name="express",
-                pattern_type="middleware",
-                nodes=mw_nodes,
-                edges=mw_edges,
-                metadata={"middleware_count": len(mw_nodes)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="express",
+                    pattern_type="middleware",
+                    nodes=mw_nodes,
+                    edges=mw_edges,
+                    metadata={"middleware_count": len(mw_nodes)},
+                )
+            )
 
         return patterns
 
@@ -216,7 +233,7 @@ class ExpressDetector(FrameworkDetector):
         3. Closest function node within a few lines
         """
         # Try to extract handler name from the source after the path
-        rest = source_text[match_end:match_end + 200]
+        rest = source_text[match_end : match_end + 200]
         # Look for a named reference: , handlerName) or , handlerName,
         handler_match = re.match(r"\s*,\s*([a-zA-Z_$][a-zA-Z0-9_$]*)\s*[,)]", rest)
         if handler_match:

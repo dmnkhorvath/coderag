@@ -1,4 +1,5 @@
 """JavaScript language plugin for CodeRAG."""
+
 from coderag.plugins.javascript.extractor import JavaScriptExtractor
 from coderag.plugins.javascript.plugin import JavaScriptPlugin
 from coderag.plugins.javascript.resolver import JSResolver

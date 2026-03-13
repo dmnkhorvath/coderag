@@ -1,4 +1,5 @@
 """LogsScreen — full-screen log viewer with search and filtering."""
+
 from __future__ import annotations
 
 import re
@@ -7,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import Input, RichLog, Static
@@ -60,9 +61,7 @@ class LogsScreen(Screen):
     ]
 
     auto_follow: reactive[bool] = reactive(True)
-    active_levels: reactive[frozenset] = reactive(
-        frozenset({"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "SUCCESS"})
-    )
+    active_levels: reactive[frozenset] = reactive(frozenset({"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "SUCCESS"}))
     search_pattern: reactive[str] = reactive("")
 
     def __init__(self) -> None:
@@ -74,9 +73,7 @@ class LogsScreen(Screen):
     def compose(self) -> ComposeResult:
         with Vertical(id="logs-container"):
             yield Static("", id="logs-level-bar")
-            yield RichLog(
-                highlight=True, markup=True, wrap=True, id="logs-output"
-            )
+            yield RichLog(highlight=True, markup=True, wrap=True, id="logs-output")
             yield Input(
                 placeholder="Search regex...",
                 id="logs-search-input",
@@ -119,9 +116,7 @@ class LogsScreen(Screen):
                 pass
         return True
 
-    def _write_entry(
-        self, level: str, text: str, index: int
-    ) -> None:
+    def _write_entry(self, level: str, text: str, index: int) -> None:
         """Write a single formatted entry to the RichLog."""
         icon = LEVEL_ICONS.get(level, "")
         color = LEVEL_COLORS.get(level, "")
@@ -173,23 +168,15 @@ class LogsScreen(Screen):
     def _update_status(self) -> None:
         """Update the status bar."""
         total = len(self._log_buffer)
-        visible = sum(
-            1 for lvl, txt, _ in self._log_buffer if self._passes_filter(lvl, txt)
-        )
-        follow = (
-            "[bold green]FOLLOW[/bold green]"
-            if self.auto_follow
-            else "[dim]follow off[/dim]"
-        )
+        visible = sum(1 for lvl, txt, _ in self._log_buffer if self._passes_filter(lvl, txt))
+        follow = "[bold green]FOLLOW[/bold green]" if self.auto_follow else "[dim]follow off[/dim]"
         search_info = ""
         if self.search_pattern:
             n = len(self._match_indices)
             pos = self._current_match + 1 if self._current_match >= 0 else 0
             search_info = f"  │  Search: /{self.search_pattern}/ ({pos}/{n})"
         try:
-            self.query_one("#logs-status-bar", Static).update(
-                f" {follow}  │  {visible}/{total} entries{search_info}"
-            )
+            self.query_one("#logs-status-bar", Static).update(f" {follow}  │  {visible}/{total} entries{search_info}")
         except Exception:
             pass
 
@@ -254,9 +241,7 @@ class LogsScreen(Screen):
         self._toggle_level("ERROR")
 
     def action_filter_all(self) -> None:
-        self.active_levels = frozenset(
-            {"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "SUCCESS"}
-        )
+        self.active_levels = frozenset({"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "SUCCESS"})
         self._refilter()
         self._update_level_bar()
 
@@ -281,6 +266,7 @@ class LogsScreen(Screen):
         for level, text, _fp in reversed(self._log_buffer):
             if self._passes_filter(level, text):
                 import subprocess
+
                 try:
                     subprocess.run(
                         ["xclip", "-selection", "clipboard"],

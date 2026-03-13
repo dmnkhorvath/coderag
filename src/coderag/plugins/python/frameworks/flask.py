@@ -4,6 +4,7 @@ Detects Flask-specific patterns including routes, blueprints,
 error handlers, before/after request hooks, extensions,
 and template rendering from already-parsed AST nodes and source code.
 """
+
 from __future__ import annotations
 
 import logging
@@ -65,7 +66,7 @@ _EXTENSION_INIT_RE = re.compile(
 
 # render_template calls
 _RENDER_TEMPLATE_RE = re.compile(
-    r"render_template\s*\(\s*[\'\"](?P<template>[^\'\"]+)[\'\"]" ,
+    r"render_template\s*\(\s*[\'\"](?P<template>[^\'\"]+)[\'\"]",
     re.MULTILINE,
 )
 
@@ -93,15 +94,19 @@ class FlaskDetector(FrameworkDetector):
     def detect_framework(self, project_root: str) -> bool:
         """Check for flask in dependency files or source imports."""
         dep_files = [
-            "requirements.txt", "requirements/base.txt",
-            "requirements/production.txt", "setup.py",
-            "setup.cfg", "pyproject.toml", "Pipfile",
+            "requirements.txt",
+            "requirements/base.txt",
+            "requirements/production.txt",
+            "setup.py",
+            "setup.cfg",
+            "pyproject.toml",
+            "Pipfile",
         ]
         for dep_file in dep_files:
             fpath = os.path.join(project_root, dep_file)
             if os.path.isfile(fpath):
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         content = f.read().lower()
                     if "flask" in content:
                         return True
@@ -113,7 +118,7 @@ class FlaskDetector(FrameworkDetector):
             fpath = os.path.join(project_root, entry)
             if os.path.isfile(fpath):
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         content = f.read()
                     if "from flask import" in content or "import flask" in content:
                         return True
@@ -134,10 +139,7 @@ class FlaskDetector(FrameworkDetector):
         patterns: list[FrameworkPattern] = []
         source_text = source.decode("utf-8", errors="replace")
 
-        func_nodes = [
-            n for n in nodes
-            if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)
-        ]
+        func_nodes = [n for n in nodes if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)]
 
         # ── Route detection ───────────────────────────────────
         route_nodes: list[Node] = []
@@ -147,13 +149,11 @@ class FlaskDetector(FrameworkDetector):
             obj_name = match.group("obj")
             path = match.group("path")
             methods_str = match.group("methods")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Parse HTTP methods
             if methods_str:
-                http_methods = [
-                    m.strip().strip("\'\"") for m in methods_str.split(",")
-                ]
+                http_methods = [m.strip().strip("'\"") for m in methods_str.split(",")]
             else:
                 http_methods = ["GET"]
 
@@ -180,34 +180,38 @@ class FlaskDetector(FrameworkDetector):
                 # Find handler function below decorator
                 handler = self._find_func_near_line(line_no, func_nodes, file_path)
                 if handler:
-                    route_edges.append(Edge(
-                        source_id=route_node.id,
-                        target_id=handler.id,
-                        kind=EdgeKind.ROUTES_TO,
-                        confidence=0.90,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "flask",
-                            "http_method": method,
-                            "url_pattern": path,
-                        },
-                    ))
+                    route_edges.append(
+                        Edge(
+                            source_id=route_node.id,
+                            target_id=handler.id,
+                            kind=EdgeKind.ROUTES_TO,
+                            confidence=0.90,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "flask",
+                                "http_method": method,
+                                "url_pattern": path,
+                            },
+                        )
+                    )
 
         if route_nodes:
-            patterns.append(FrameworkPattern(
-                framework_name="flask",
-                pattern_type="routes",
-                nodes=route_nodes,
-                edges=route_edges,
-                metadata={"route_count": len(route_nodes)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="flask",
+                    pattern_type="routes",
+                    nodes=route_nodes,
+                    edges=route_edges,
+                    metadata={"route_count": len(route_nodes)},
+                )
+            )
 
         # ── Blueprint detection ───────────────────────────────
         for match in _BLUEPRINT_RE.finditer(source_text):
             var_name = match.group("var")
             bp_name = match.group("name")
             prefix = match.group("prefix") or ""
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             bp_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.MODULE, f"blueprint:{bp_name}"),
@@ -225,18 +229,20 @@ class FlaskDetector(FrameworkDetector):
                     "url_prefix": prefix,
                 },
             )
-            patterns.append(FrameworkPattern(
-                framework_name="flask",
-                pattern_type="blueprint",
-                nodes=[bp_node],
-                edges=[],
-                metadata={"blueprint_name": bp_name, "prefix": prefix},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="flask",
+                    pattern_type="blueprint",
+                    nodes=[bp_node],
+                    edges=[],
+                    metadata={"blueprint_name": bp_name, "prefix": prefix},
+                )
+            )
 
         # ── Error handler detection ───────────────────────────
         for match in _ERROR_HANDLER_RE.finditer(source_text):
             error_code = match.group("code")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
             handler_name = handler.name if handler else f"error_handler_{error_code}"
@@ -258,28 +264,32 @@ class FlaskDetector(FrameworkDetector):
             )
             eh_edges: list[Edge] = []
             if handler:
-                eh_edges.append(Edge(
-                    source_id=eh_node.id,
-                    target_id=handler.id,
-                    kind=EdgeKind.DEPENDS_ON,
-                    confidence=0.90,
-                    line_number=line_no,
-                    metadata={"framework": "flask", "error_code": error_code},
-                ))
+                eh_edges.append(
+                    Edge(
+                        source_id=eh_node.id,
+                        target_id=handler.id,
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.90,
+                        line_number=line_no,
+                        metadata={"framework": "flask", "error_code": error_code},
+                    )
+                )
 
-            patterns.append(FrameworkPattern(
-                framework_name="flask",
-                pattern_type="error_handler",
-                nodes=[eh_node],
-                edges=eh_edges,
-                metadata={"error_code": error_code},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="flask",
+                    pattern_type="error_handler",
+                    nodes=[eh_node],
+                    edges=eh_edges,
+                    metadata={"error_code": error_code},
+                )
+            )
 
         # ── Before/after request hooks ────────────────────────
         mw_nodes: list[Node] = []
         for match in _HOOK_RE.finditer(source_text):
             hook_type = match.group("hook")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
             handler_name = handler.name if handler else f"{hook_type}@L{line_no}"
@@ -301,32 +311,36 @@ class FlaskDetector(FrameworkDetector):
             mw_nodes.append(mw_node)
 
         if mw_nodes:
-            patterns.append(FrameworkPattern(
-                framework_name="flask",
-                pattern_type="middleware",
-                nodes=mw_nodes,
-                edges=[],
-                metadata={"middleware_count": len(mw_nodes)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="flask",
+                    pattern_type="middleware",
+                    nodes=mw_nodes,
+                    edges=[],
+                    metadata={"middleware_count": len(mw_nodes)},
+                )
+            )
 
         # ── Extension detection ───────────────────────────────
         for match in _EXTENSION_INIT_RE.finditer(source_text):
             var_name = match.group("var")
             ext_name = match.group("ext")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Add extension metadata to file-level patterns
-            patterns.append(FrameworkPattern(
-                framework_name="flask",
-                pattern_type="extension",
-                nodes=[],
-                edges=[],
-                metadata={
-                    "extension_name": ext_name,
-                    "variable_name": var_name,
-                    "line": line_no,
-                },
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="flask",
+                    pattern_type="extension",
+                    nodes=[],
+                    edges=[],
+                    metadata={
+                        "extension_name": ext_name,
+                        "variable_name": var_name,
+                        "line": line_no,
+                    },
+                )
+            )
 
         # ── Template rendering ────────────────────────────────
         templates: list[str] = []
@@ -334,13 +348,15 @@ class FlaskDetector(FrameworkDetector):
             templates.append(match.group("template"))
 
         if templates:
-            patterns.append(FrameworkPattern(
-                framework_name="flask",
-                pattern_type="templates",
-                nodes=[],
-                edges=[],
-                metadata={"templates": templates, "template_count": len(templates)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="flask",
+                    pattern_type="templates",
+                    nodes=[],
+                    edges=[],
+                    metadata={"templates": templates, "template_count": len(templates)},
+                )
+            )
 
         return patterns
 
@@ -381,7 +397,10 @@ class FlaskDetector(FrameworkDetector):
         return None
 
     def _find_func_near_line(
-        self, line_no: int, func_nodes: list[Node], file_path: str,
+        self,
+        line_no: int,
+        func_nodes: list[Node],
+        file_path: str,
     ) -> Node | None:
         """Find the function defined closest after the given line."""
         closest = None
@@ -395,7 +414,9 @@ class FlaskDetector(FrameworkDetector):
         return closest
 
     def _extract_blueprint_registrations(
-        self, store: Any, project_root: str,
+        self,
+        store: Any,
+        project_root: str,
     ) -> FrameworkPattern | None:
         """Extract blueprint registration chain from source files."""
         new_nodes: list[Node] = []
@@ -408,7 +429,7 @@ class FlaskDetector(FrameworkDetector):
                     continue
                 fpath = os.path.join(root, fname)
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         content = f.read()
                 except OSError:
                     continue
@@ -422,7 +443,7 @@ class FlaskDetector(FrameworkDetector):
                     app_var = match.group("app")
                     bp_var = match.group("bp")
                     prefix = match.group("prefix") or ""
-                    line_no = content[:match.start()].count("\n") + 1
+                    line_no = content[: match.start()].count("\n") + 1
 
                     reg_node = Node(
                         id=generate_node_id(rel_path, line_no, NodeKind.MODULE, f"bp_reg:{bp_var}"),
@@ -445,21 +466,25 @@ class FlaskDetector(FrameworkDetector):
 
                     # Try to find the blueprint module node in store
                     bp_nodes = store.find_nodes(
-                        kind=NodeKind.MODULE, name_pattern=bp_var, limit=10,
+                        kind=NodeKind.MODULE,
+                        name_pattern=bp_var,
+                        limit=10,
                     )
                     for bn in bp_nodes:
                         if "blueprint" in bn.metadata.get("component_type", ""):
-                            new_edges.append(Edge(
-                                source_id=reg_node.id,
-                                target_id=bn.id,
-                                kind=EdgeKind.DEPENDS_ON,
-                                confidence=0.80,
-                                line_number=line_no,
-                                metadata={
-                                    "framework": "flask",
-                                    "relationship": "registers_blueprint",
-                                },
-                            ))
+                            new_edges.append(
+                                Edge(
+                                    source_id=reg_node.id,
+                                    target_id=bn.id,
+                                    kind=EdgeKind.DEPENDS_ON,
+                                    confidence=0.80,
+                                    line_number=line_no,
+                                    metadata={
+                                        "framework": "flask",
+                                        "relationship": "registers_blueprint",
+                                    },
+                                )
+                            )
                             break
 
         if not new_nodes:

@@ -1,14 +1,10 @@
 """Tests for Next.js and Vue framework detectors."""
+
 from __future__ import annotations
 
 import json
-import os
-import tempfile
-
-import pytest
 
 from coderag.core.models import (
-    Edge,
     EdgeKind,
     Node,
     NodeKind,
@@ -17,10 +13,10 @@ from coderag.core.models import (
 from coderag.plugins.javascript.frameworks.nextjs import NextJSDetector
 from coderag.plugins.javascript.frameworks.vue import VueDetector
 
-
 # ===================================================================
 # Helpers
 # ===================================================================
+
 
 def _make_node(
     file_path: str,
@@ -120,7 +116,7 @@ class TestNextJSAppRouter:
         assert route.metadata["file_type"] == "page"
 
     def test_nested_page(self):
-        source = b'export default function Settings() {\n  return <div>Settings</div>;\n}\n'
+        source = b"export default function Settings() {\n  return <div>Settings</div>;\n}\n"
         file_path = "app/dashboard/settings/page.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "Settings")]
         detector = NextJSDetector()
@@ -130,7 +126,7 @@ class TestNextJSAppRouter:
         assert route_nodes[0].metadata["url_pattern"] == "/dashboard/settings"
 
     def test_dynamic_segment(self):
-        source = b'export default function UserPage() {\n  return <div>User</div>;\n}\n'
+        source = b"export default function UserPage() {\n  return <div>User</div>;\n}\n"
         file_path = "app/users/[id]/page.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "UserPage")]
         detector = NextJSDetector()
@@ -140,7 +136,7 @@ class TestNextJSAppRouter:
         assert "[id]" in route_nodes[0].metadata["url_pattern"]
 
     def test_catch_all_segment(self):
-        source = b'export default function DocsPage() {\n  return <div>Docs</div>;\n}\n'
+        source = b"export default function DocsPage() {\n  return <div>Docs</div>;\n}\n"
         file_path = "app/docs/[...slug]/page.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "DocsPage")]
         detector = NextJSDetector()
@@ -150,7 +146,7 @@ class TestNextJSAppRouter:
         assert "[...slug]" in route_nodes[0].metadata["url_pattern"]
 
     def test_route_group_excluded_from_url(self):
-        source = b'export default function About() {\n  return <div>About</div>;\n}\n'
+        source = b"export default function About() {\n  return <div>About</div>;\n}\n"
         file_path = "app/(marketing)/about/page.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "About")]
         detector = NextJSDetector()
@@ -162,7 +158,9 @@ class TestNextJSAppRouter:
         assert url == "/about"
 
     def test_layout_tsx(self):
-        source = b'export default function RootLayout({ children }) {\n  return <html><body>{children}</body></html>;\n}\n'
+        source = (
+            b"export default function RootLayout({ children }) {\n  return <html><body>{children}</body></html>;\n}\n"
+        )
         file_path = "app/layout.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "RootLayout")]
         detector = NextJSDetector()
@@ -172,7 +170,7 @@ class TestNextJSAppRouter:
         assert route_nodes[0].metadata["file_type"] == "layout"
 
     def test_loading_tsx(self):
-        source = b'export default function Loading() {\n  return <div>Loading...</div>;\n}\n'
+        source = b"export default function Loading() {\n  return <div>Loading...</div>;\n}\n"
         file_path = "app/loading.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "Loading")]
         detector = NextJSDetector()
@@ -192,7 +190,7 @@ class TestNextJSAppRouter:
         assert route_nodes[0].metadata["file_type"] == "error"
 
     def test_route_handler_with_methods(self):
-        source = b'export async function GET(request) {\n  return Response.json({ users: [] });\n}\n\nexport async function POST(request) {\n  return Response.json({ created: true });\n}\n'
+        source = b"export async function GET(request) {\n  return Response.json({ users: [] });\n}\n\nexport async function POST(request) {\n  return Response.json({ created: true });\n}\n"
         file_path = "app/api/users/route.ts"
         nodes = [
             _make_node(file_path, 1, NodeKind.FUNCTION, "GET"),
@@ -207,7 +205,7 @@ class TestNextJSAppRouter:
         assert all(n.metadata["url_pattern"] == "/api/users" for n in route_nodes)
 
     def test_routes_to_edges(self):
-        source = b'export async function GET(request) {\n  return Response.json({});\n}\n'
+        source = b"export async function GET(request) {\n  return Response.json({});\n}\n"
         file_path = "app/api/data/route.ts"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "GET")]
         detector = NextJSDetector()
@@ -221,7 +219,7 @@ class TestNextJSPagesRouter:
     """Test Next.js Pages Router detection."""
 
     def test_pages_index(self):
-        source = b'export default function Home() {\n  return <div>Home</div>;\n}\n'
+        source = b"export default function Home() {\n  return <div>Home</div>;\n}\n"
         file_path = "pages/index.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "Home")]
         detector = NextJSDetector()
@@ -232,7 +230,7 @@ class TestNextJSPagesRouter:
         assert route_nodes[0].metadata["url_pattern"] == "/"
 
     def test_pages_nested(self):
-        source = b'export default function About() {\n  return <div>About</div>;\n}\n'
+        source = b"export default function About() {\n  return <div>About</div>;\n}\n"
         file_path = "pages/about.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "About")]
         detector = NextJSDetector()
@@ -242,7 +240,7 @@ class TestNextJSPagesRouter:
         assert route_nodes[0].metadata["url_pattern"] == "/about"
 
     def test_pages_dynamic(self):
-        source = b'export default function UserPage() {\n  return <div>User</div>;\n}\n'
+        source = b"export default function UserPage() {\n  return <div>User</div>;\n}\n"
         file_path = "pages/users/[id].tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "UserPage")]
         detector = NextJSDetector()
@@ -262,7 +260,7 @@ class TestNextJSPagesRouter:
         assert route_nodes[0].metadata["is_api"] is True
 
     def test_pages_skip_underscore_files(self):
-        source = b'export default function App({ Component, pageProps }) {\n  return <Component {...pageProps} />;\n}\n'
+        source = b"export default function App({ Component, pageProps }) {\n  return <Component {...pageProps} />;\n}\n"
         file_path = "pages/_app.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "App")]
         detector = NextJSDetector()
@@ -297,7 +295,7 @@ class TestNextJSDirectives:
         assert comp_nodes[0].metadata["component_type"] == "server"
 
     def test_no_directive(self):
-        source = b'export default function Page() {\n  return <div>Page</div>;\n}\n'
+        source = b"export default function Page() {\n  return <div>Page</div>;\n}\n"
         file_path = "app/components/Page.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "Page")]
         detector = NextJSDetector()
@@ -310,7 +308,7 @@ class TestNextJSNonRouteFiles:
     """Test that non-route files are not detected."""
 
     def test_regular_component_file(self):
-        source = b'export default function Button() {\n  return <button>Click</button>;\n}\n'
+        source = b"export default function Button() {\n  return <button>Click</button>;\n}\n"
         file_path = "src/components/Button.tsx"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "Button")]
         detector = NextJSDetector()
@@ -319,7 +317,7 @@ class TestNextJSNonRouteFiles:
         assert len(route_nodes) == 0
 
     def test_non_route_file_in_app(self):
-        source = b'export function formatDate(d) { return d.toISOString(); }\n'
+        source = b"export function formatDate(d) { return d.toISOString(); }\n"
         file_path = "app/utils/format.ts"
         nodes = [_make_node(file_path, 1, NodeKind.FUNCTION, "formatDate")]
         detector = NextJSDetector()
@@ -396,7 +394,7 @@ class TestVueSFC:
         assert comp.metadata["script_lang"] == "typescript"
 
     def test_sfc_template_only(self):
-        source = b'<template>\n  <div>Static content</div>\n</template>\n'
+        source = b"<template>\n  <div>Static content</div>\n</template>\n"
         file_path = "src/components/Static.vue"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -406,7 +404,7 @@ class TestVueSFC:
         assert comp_nodes[0].metadata["has_script"] is False
 
     def test_non_vue_file_no_sfc(self):
-        source = b'export function helper() { return 42; }\n'
+        source = b"export function helper() { return 42; }\n"
         file_path = "src/utils/helper.ts"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -414,7 +412,7 @@ class TestVueSFC:
         assert len(sfc_patterns) == 0
 
     def test_kebab_case_name(self):
-        source = b'<template><div>Test</div></template>\n<script>export default {}</script>\n'
+        source = b"<template><div>Test</div></template>\n<script>export default {}</script>\n"
         file_path = "src/components/user-profile-card.vue"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -427,7 +425,9 @@ class TestVueCompositionAPI:
     """Test Vue Composition API pattern detection."""
 
     def test_ref_and_reactive(self):
-        source = b'import { ref, reactive } from "vue";\nconst count = ref(0);\nconst state = reactive({ name: "test" });\n'
+        source = (
+            b'import { ref, reactive } from "vue";\nconst count = ref(0);\nconst state = reactive({ name: "test" });\n'
+        )
         file_path = "src/composables/useCounter.ts"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -483,7 +483,7 @@ class TestVueCompositionAPI:
         assert "ref" in usages
 
     def test_no_composition_api(self):
-        source = b'export function add(a, b) { return a + b; }\n'
+        source = b"export function add(a, b) { return a + b; }\n"
         file_path = "src/utils/math.ts"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -495,7 +495,7 @@ class TestVueOptionsAPI:
     """Test Vue Options API pattern detection."""
 
     def test_data_and_methods(self):
-        source = b'export default {\n  data() {\n    return { count: 0 };\n  },\n  methods: {\n    increment() { this.count++; }\n  }\n};\n'
+        source = b"export default {\n  data() {\n    return { count: 0 };\n  },\n  methods: {\n    increment() { this.count++; }\n  }\n};\n"
         file_path = "src/components/Counter.vue"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -506,7 +506,7 @@ class TestVueOptionsAPI:
         assert "methods" in options
 
     def test_computed_and_watch_options(self):
-        source = b'export default {\n  computed: {\n    doubled() { return this.count * 2; }\n  },\n  watch: {\n    count(newVal) { console.log(newVal); }\n  }\n};\n'
+        source = b"export default {\n  computed: {\n    doubled() { return this.count * 2; }\n  },\n  watch: {\n    count(newVal) { console.log(newVal); }\n  }\n};\n"
         file_path = "src/components/Watcher.vue"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -565,7 +565,7 @@ class TestVueStores:
         assert any(u["type"] == "vuex" for u in usages)
 
     def test_no_store_usage(self):
-        source = b'export function add(a, b) { return a + b; }\n'
+        source = b"export function add(a, b) { return a + b; }\n"
         file_path = "src/utils/math.ts"
         detector = VueDetector()
         patterns = detector.detect(file_path, None, source, [], [])
@@ -577,7 +577,7 @@ class TestVueEdges:
     """Test that Vue detector creates appropriate edges."""
 
     def test_sfc_contains_edges(self):
-        source = b'<template><div>Test</div></template>\n<script>\nexport default {\n  methods: { doSomething() {} }\n};\n</script>\n'
+        source = b"<template><div>Test</div></template>\n<script>\nexport default {\n  methods: { doSomething() {} }\n};\n</script>\n"
         file_path = "src/components/Test.vue"
         nodes = [_make_node(file_path, 4, NodeKind.FUNCTION, "doSomething")]
         detector = VueDetector()

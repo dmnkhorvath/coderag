@@ -5,6 +5,7 @@ Composition API, Options API, state management (Vuex/Pinia),
 Vue Router, provide/inject, composables, and template analysis
 from already-parsed AST nodes and source code.
 """
+
 from __future__ import annotations
 
 import json
@@ -84,59 +85,151 @@ _USE_STORE_RE = re.compile(r"\buse(?P<name>[A-Z][a-zA-Z0-9]*)Store\s*\(")
 _COMPONENTS_OPTION_RE = re.compile(r"\bcomponents\s*:\s*\{")
 
 # ── Vue Router patterns ──────────────────────────────────────
-_CREATE_ROUTER_RE = re.compile(r'\bcreateRouter\s*\(')
-_USE_ROUTE_RE = re.compile(r'\b(?P<fn>useRoute|useRouter)\s*\(')
+_CREATE_ROUTER_RE = re.compile(r"\bcreateRouter\s*\(")
+_USE_ROUTE_RE = re.compile(r"\b(?P<fn>useRoute|useRouter)\s*\(")
 _ROUTE_DEF_RE = re.compile(r"""path\s*:\s*['"](?P<path>[^'"]+)['"]""")
 _ROUTE_COMPONENT_RE = re.compile(r"""component\s*:\s*(?P<comp>[A-Z]\w+)""")
 _ROUTE_LAZY_RE = re.compile(r"""component\s*:\s*\(\)\s*=>\s*import\s*\(['"](?P<module>[^'"]+)['"]\)""")
-_NAV_GUARD_RE = re.compile(r'\b(?:router\.)?(?P<guard>beforeEach|beforeEnter|afterEach|beforeResolve)\s*\(')
+_NAV_GUARD_RE = re.compile(r"\b(?:router\.)?(?P<guard>beforeEach|beforeEnter|afterEach|beforeResolve)\s*\(")
 _ROUTER_LINK_RE = re.compile(r'<router-link[^>]*\bto=["\'](?P<to>[^"\']*)["\'\']')
 
 # ── Provide/Inject patterns ──────────────────────────────────
 _PROVIDE_RE = re.compile(r"""\bprovide\s*\(\s*(?:['"](?P<str_key>[^'"]+)['"]|(?P<sym_key>[A-Za-z_]\w*))""")
 _INJECT_RE = re.compile(r"""\binject\s*\(\s*(?:['"](?P<str_key>[^'"]+)['"]|(?P<sym_key>[A-Za-z_]\w*))""")
-_INJECTION_KEY_RE = re.compile(r'\b(?P<name>\w+)\s*(?::\s*InjectionKey|=\s*Symbol\s*\()')
+_INJECTION_KEY_RE = re.compile(r"\b(?P<name>\w+)\s*(?::\s*InjectionKey|=\s*Symbol\s*\()")
 
 # ── Composables patterns ─────────────────────────────────────
-_COMPOSABLE_DEF_RE = re.compile(r'(?:function\s+|(?:const|let)\s+)(?P<name>use[A-Z]\w*)\s*(?:=|\()')
-_COMPOSABLE_USE_RE = re.compile(r'\b(?P<name>use[A-Z]\w*)\s*\(')
+_COMPOSABLE_DEF_RE = re.compile(r"(?:function\s+|(?:const|let)\s+)(?P<name>use[A-Z]\w*)\s*(?:=|\()")
+_COMPOSABLE_USE_RE = re.compile(r"\b(?P<name>use[A-Z]\w*)\s*\(")
 
 # ── Template analysis patterns ────────────────────────────────
-_TEMPLATE_COMPONENT_RE = re.compile(r'<(?P<comp>[A-Z][A-Za-z0-9]*)[\s/>]')
-_TEMPLATE_KEBAB_COMP_RE = re.compile(r'<(?P<comp>[a-z][a-z0-9]*(?:-[a-z0-9]+)+)[\s/>]')
-_V_MODEL_RE = re.compile(r'\bv-model(?::(?P<arg>\w+))?=')
+_TEMPLATE_COMPONENT_RE = re.compile(r"<(?P<comp>[A-Z][A-Za-z0-9]*)[\s/>]")
+_TEMPLATE_KEBAB_COMP_RE = re.compile(r"<(?P<comp>[a-z][a-z0-9]*(?:-[a-z0-9]+)+)[\s/>]")
+_V_MODEL_RE = re.compile(r"\bv-model(?::(?P<arg>\w+))?=")
 _SLOT_DEF_RE = re.compile(r'<slot(?:\s+name=["\'](?P<name>[^"\']*)["\'\'])?')
-_SLOT_USE_RE = re.compile(r'<template\s+(?:#|v-slot:)(?P<name>\w+)')
-_EVENT_LISTENER_RE = re.compile(r'(?:@|v-on:)(?P<event>[\w.-]+)=')
-_DYNAMIC_COMPONENT_RE = re.compile(r'<component\s+:is=')
+_SLOT_USE_RE = re.compile(r"<template\s+(?:#|v-slot:)(?P<name>\w+)")
+_EVENT_LISTENER_RE = re.compile(r"(?:@|v-on:)(?P<event>[\w.-]+)=")
+_DYNAMIC_COMPONENT_RE = re.compile(r"<component\s+:is=")
 
 # Known Vue built-in composables to exclude from custom composable detection
-_VUE_BUILTIN_COMPOSABLES = frozenset({
-    'useRoute', 'useRouter', 'useStore', 'useSlots', 'useAttrs',
-})
+_VUE_BUILTIN_COMPOSABLES = frozenset(
+    {
+        "useRoute",
+        "useRouter",
+        "useStore",
+        "useSlots",
+        "useAttrs",
+    }
+)
 
 # Known HTML elements to exclude from template component detection
-_HTML_ELEMENTS = frozenset({
-    'div', 'span', 'p', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'table', 'tr', 'td', 'th', 'thead', 'tbody', 'tfoot',
-    'form', 'input', 'button', 'select', 'option', 'textarea', 'label',
-    'img', 'video', 'audio', 'canvas', 'svg', 'path', 'circle', 'rect', 'line',
-    'header', 'footer', 'nav', 'main', 'section', 'article', 'aside',
-    'pre', 'code', 'blockquote', 'em', 'strong', 'i', 'b', 'u', 'br', 'hr',
-    'meta', 'link', 'script', 'style', 'title', 'head', 'body', 'html',
-    'iframe', 'embed', 'object', 'param', 'source', 'track',
-    'details', 'summary', 'dialog', 'menu', 'menuitem',
-    'fieldset', 'legend', 'datalist', 'output', 'progress', 'meter',
-    'figure', 'figcaption', 'picture', 'map', 'area',
-    'col', 'colgroup', 'caption',
-    'slot', 'template',
-})
+_HTML_ELEMENTS = frozenset(
+    {
+        "div",
+        "span",
+        "p",
+        "a",
+        "ul",
+        "ol",
+        "li",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "table",
+        "tr",
+        "td",
+        "th",
+        "thead",
+        "tbody",
+        "tfoot",
+        "form",
+        "input",
+        "button",
+        "select",
+        "option",
+        "textarea",
+        "label",
+        "img",
+        "video",
+        "audio",
+        "canvas",
+        "svg",
+        "path",
+        "circle",
+        "rect",
+        "line",
+        "header",
+        "footer",
+        "nav",
+        "main",
+        "section",
+        "article",
+        "aside",
+        "pre",
+        "code",
+        "blockquote",
+        "em",
+        "strong",
+        "i",
+        "b",
+        "u",
+        "br",
+        "hr",
+        "meta",
+        "link",
+        "script",
+        "style",
+        "title",
+        "head",
+        "body",
+        "html",
+        "iframe",
+        "embed",
+        "object",
+        "param",
+        "source",
+        "track",
+        "details",
+        "summary",
+        "dialog",
+        "menu",
+        "menuitem",
+        "fieldset",
+        "legend",
+        "datalist",
+        "output",
+        "progress",
+        "meter",
+        "figure",
+        "figcaption",
+        "picture",
+        "map",
+        "area",
+        "col",
+        "colgroup",
+        "caption",
+        "slot",
+        "template",
+    }
+)
 
 # Vue built-in components to exclude from template component detection
-_VUE_BUILTIN_COMPONENTS = frozenset({
-    'Transition', 'TransitionGroup', 'KeepAlive', 'Suspense',
-    'Teleport', 'Component', 'Slot', 'RouterLink', 'RouterView',
-})
+_VUE_BUILTIN_COMPONENTS = frozenset(
+    {
+        "Transition",
+        "TransitionGroup",
+        "KeepAlive",
+        "Suspense",
+        "Teleport",
+        "Component",
+        "Slot",
+        "RouterLink",
+        "RouterView",
+    }
+)
 
 
 class VueDetector(FrameworkDetector):
@@ -153,7 +246,7 @@ class VueDetector(FrameworkDetector):
             return False
 
         try:
-            with open(pkg_json, "r", encoding="utf-8") as f:
+            with open(pkg_json, encoding="utf-8") as f:
                 data = json.load(f)
             deps = data.get("dependencies", {})
             dev_deps = data.get("devDependencies", {})
@@ -189,28 +282,36 @@ class VueDetector(FrameworkDetector):
         # ── SFC detection ─────────────────────────────────────
         if is_vue_file:
             sfc_pattern = self._detect_sfc(
-                file_path, source_text, nodes,
+                file_path,
+                source_text,
+                nodes,
             )
             if sfc_pattern:
                 patterns.append(sfc_pattern)
 
         # ── Composition API detection ─────────────────────────
         composition_pattern = self._detect_composition_api(
-            file_path, nodes, source_text,
+            file_path,
+            nodes,
+            source_text,
         )
         if composition_pattern:
             patterns.append(composition_pattern)
 
         # ── Options API detection ─────────────────────────────
         options_pattern = self._detect_options_api(
-            file_path, nodes, source_text,
+            file_path,
+            nodes,
+            source_text,
         )
         if options_pattern:
             patterns.append(options_pattern)
 
         # ── Store detection ───────────────────────────────────
         store_pattern = self._detect_stores(
-            file_path, nodes, source_text,
+            file_path,
+            nodes,
+            source_text,
         )
         if store_pattern:
             patterns.append(store_pattern)
@@ -233,7 +334,9 @@ class VueDetector(FrameworkDetector):
         # ── Template patterns (Vue files only) ────────────────
         if is_vue_file:
             template_pattern = self._detect_template_patterns(
-                file_path, source_text, nodes,
+                file_path,
+                source_text,
+                nodes,
             )
             if template_pattern:
                 patterns.append(template_pattern)
@@ -311,13 +414,15 @@ class VueDetector(FrameworkDetector):
         # Link to any function/class nodes in the file
         for n in nodes:
             if n.kind in (NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE):
-                new_edges.append(Edge(
-                    source_id=component_node.id,
-                    target_id=n.id,
-                    kind=EdgeKind.CONTAINS,
-                    confidence=0.90,
-                    metadata={"framework": "vue"},
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=component_node.id,
+                        target_id=n.id,
+                        kind=EdgeKind.CONTAINS,
+                        confidence=0.90,
+                        metadata={"framework": "vue"},
+                    )
+                )
 
         return FrameworkPattern(
             framework_name="vue",
@@ -380,7 +485,7 @@ class VueDetector(FrameworkDetector):
             if hook_name not in api_usages:
                 api_usages.append(hook_name)
 
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             hook_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.HOOK, hook_name),
                 kind=NodeKind.HOOK,
@@ -401,14 +506,16 @@ class VueDetector(FrameworkDetector):
             # Link hook to enclosing function
             enclosing = self._find_enclosing_function(line_no, nodes)
             if enclosing:
-                new_edges.append(Edge(
-                    source_id=enclosing.id,
-                    target_id=hook_node.id,
-                    kind=EdgeKind.USES_HOOK,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={"framework": "vue", "hook_name": hook_name},
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=enclosing.id,
+                        target_id=hook_node.id,
+                        kind=EdgeKind.USES_HOOK,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={"framework": "vue", "hook_name": hook_name},
+                    )
+                )
 
         if not api_usages:
             return None
@@ -453,7 +560,7 @@ class VueDetector(FrameworkDetector):
             if hook_name not in options_found:
                 options_found.append(hook_name)
 
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             hook_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.HOOK, hook_name),
                 kind=NodeKind.HOOK,
@@ -497,12 +604,10 @@ class VueDetector(FrameworkDetector):
         store_usages: list[dict[str, str]] = []
 
         # Detect Pinia defineStore
-        define_store_re = re.compile(
-            r"""\bdefineStore\s*\(\s*['"](?P<name>[^'"]*)['"]"""
-        )
+        define_store_re = re.compile(r"""\bdefineStore\s*\(\s*['"](?P<name>[^'"]*)['"]""")
         for match in define_store_re.finditer(source_text):
             store_name = match.group("name")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             store_usages.append({"type": "pinia", "name": store_name, "action": "define"})
 
             store_node = Node(
@@ -525,24 +630,26 @@ class VueDetector(FrameworkDetector):
         # Detect useXxxStore() calls (Pinia convention)
         for match in _USE_STORE_RE.finditer(source_text):
             store_name = match.group("name")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             store_usages.append({"type": "pinia", "name": store_name, "action": "use"})
 
             # Link to enclosing function
             enclosing = self._find_enclosing_function(line_no, nodes)
             if enclosing:
-                new_edges.append(Edge(
-                    source_id=enclosing.id,
-                    target_id=f"__unresolved__:store:{store_name}",
-                    kind=EdgeKind.CALLS,
-                    confidence=0.80,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "store_type": "pinia",
-                        "store_name": store_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=enclosing.id,
+                        target_id=f"__unresolved__:store:{store_name}",
+                        kind=EdgeKind.CALLS,
+                        confidence=0.80,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "store_type": "pinia",
+                            "store_name": store_name,
+                        },
+                    )
+                )
 
         # Detect Vuex patterns
         if _VUEX_STORE_RE.search(source_text):
@@ -579,20 +686,20 @@ class VueDetector(FrameworkDetector):
 
         # Detect createRouter()
         for match in _CREATE_ROUTER_RE.finditer(source_text):
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             router_usages.append({"type": "createRouter", "line": line_no})
 
         # Detect useRoute() / useRouter()
         for match in _USE_ROUTE_RE.finditer(source_text):
             fn_name = match.group("fn")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             router_usages.append({"type": fn_name, "line": line_no})
 
         # Detect route definitions: path: '/xxx'
         route_paths: list[dict[str, Any]] = []
         for match in _ROUTE_DEF_RE.finditer(source_text):
             route_path = match.group("path")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             route_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.ROUTE, route_path),
@@ -614,7 +721,7 @@ class VueDetector(FrameworkDetector):
         # Detect route component assignments (static)
         for match in _ROUTE_COMPONENT_RE.finditer(source_text):
             comp_name = match.group("comp")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Find the closest route path defined before this component assignment
             closest_route = None
@@ -623,23 +730,25 @@ class VueDetector(FrameworkDetector):
                     closest_route = rp
 
             if closest_route:
-                new_edges.append(Edge(
-                    source_id=closest_route["node_id"],
-                    target_id=f"__unresolved__:component:{comp_name}",
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "vue_edge_type": "vue_routes_to",
-                        "component_name": comp_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=closest_route["node_id"],
+                        target_id=f"__unresolved__:component:{comp_name}",
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "vue_edge_type": "vue_routes_to",
+                            "component_name": comp_name,
+                        },
+                    )
+                )
 
         # Detect lazy-loaded route components
         for match in _ROUTE_LAZY_RE.finditer(source_text):
             module_path = match.group("module")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             closest_route = None
             for rp in route_paths:
@@ -647,30 +756,32 @@ class VueDetector(FrameworkDetector):
                     closest_route = rp
 
             if closest_route:
-                new_edges.append(Edge(
-                    source_id=closest_route["node_id"],
-                    target_id=f"__unresolved__:module:{module_path}",
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "vue_edge_type": "vue_routes_to",
-                        "lazy_import": True,
-                        "module_path": module_path,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=closest_route["node_id"],
+                        target_id=f"__unresolved__:module:{module_path}",
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "vue_edge_type": "vue_routes_to",
+                            "lazy_import": True,
+                            "module_path": module_path,
+                        },
+                    )
+                )
 
         # Detect navigation guards
         for match in _NAV_GUARD_RE.finditer(source_text):
             guard_name = match.group("guard")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             router_usages.append({"type": "nav_guard", "guard": guard_name, "line": line_no})
 
         # Detect <router-link> in templates
         for match in _ROUTER_LINK_RE.finditer(source_text):
             link_to = match.group("to")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             router_usages.append({"type": "router_link", "to": link_to, "line": line_no})
 
         if not router_usages and not route_paths:
@@ -708,7 +819,7 @@ class VueDetector(FrameworkDetector):
         injection_keys: dict[str, int] = {}
         for match in _INJECTION_KEY_RE.finditer(source_text):
             key_name = match.group("name")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             injection_keys[key_name] = line_no
             pi_usages.append({"type": "injection_key", "name": key_name, "line": line_no})
 
@@ -717,7 +828,7 @@ class VueDetector(FrameworkDetector):
             str_key = match.group("str_key")
             sym_key = match.group("sym_key")
             key = str_key or sym_key or "unknown"
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             provider_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.PROVIDER, f"provide:{key}"),
@@ -740,43 +851,47 @@ class VueDetector(FrameworkDetector):
             # Link provider to enclosing function
             enclosing = self._find_enclosing_function(line_no, nodes)
             if enclosing:
-                new_edges.append(Edge(
-                    source_id=enclosing.id,
-                    target_id=provider_node.id,
-                    kind=EdgeKind.PROVIDES_CONTEXT,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "vue_edge_type": "vue_provides_context",
-                        "provide_key": key,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=enclosing.id,
+                        target_id=provider_node.id,
+                        kind=EdgeKind.PROVIDES_CONTEXT,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "vue_edge_type": "vue_provides_context",
+                            "provide_key": key,
+                        },
+                    )
+                )
 
         # Detect inject() calls
         for match in _INJECT_RE.finditer(source_text):
             str_key = match.group("str_key")
             sym_key = match.group("sym_key")
             key = str_key or sym_key or "unknown"
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             pi_usages.append({"type": "inject", "key": key, "line": line_no})
 
             # Link inject to enclosing function
             enclosing = self._find_enclosing_function(line_no, nodes)
             if enclosing:
-                new_edges.append(Edge(
-                    source_id=enclosing.id,
-                    target_id=f"__unresolved__:provide:{key}",
-                    kind=EdgeKind.CONSUMES_CONTEXT,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "vue_edge_type": "vue_consumes_context",
-                        "inject_key": key,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=enclosing.id,
+                        target_id=f"__unresolved__:provide:{key}",
+                        kind=EdgeKind.CONSUMES_CONTEXT,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "vue_edge_type": "vue_consumes_context",
+                            "inject_key": key,
+                        },
+                    )
+                )
 
         if not pi_usages:
             return None
@@ -814,7 +929,7 @@ class VueDetector(FrameworkDetector):
         # Detect composable definitions
         for match in _COMPOSABLE_DEF_RE.finditer(source_text):
             name = match.group("name")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             composable_defs.append(name)
 
@@ -847,14 +962,14 @@ class VueDetector(FrameworkDetector):
             if name.endswith("Store"):
                 continue
 
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Skip if this is actually a definition (already captured above)
             is_def = False
             for d_match in _COMPOSABLE_DEF_RE.finditer(source_text):
                 if d_match.start() == match.start() or (
                     d_match.group("name") == name
-                    and abs(source_text[:d_match.start()].count("\n") - source_text[:match.start()].count("\n")) == 0
+                    and abs(source_text[: d_match.start()].count("\n") - source_text[: match.start()].count("\n")) == 0
                 ):
                     is_def = True
                     break
@@ -868,17 +983,19 @@ class VueDetector(FrameworkDetector):
             # Link call to enclosing function
             enclosing = self._find_enclosing_function(line_no, nodes)
             if enclosing:
-                new_edges.append(Edge(
-                    source_id=enclosing.id,
-                    target_id=f"__unresolved__:composable:{name}",
-                    kind=EdgeKind.CALLS,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "composable_name": name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=enclosing.id,
+                        target_id=f"__unresolved__:composable:{name}",
+                        kind=EdgeKind.CALLS,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "composable_name": name,
+                        },
+                    )
+                )
 
         if not composable_defs and not composable_calls:
             return None
@@ -913,7 +1030,7 @@ class VueDetector(FrameworkDetector):
             return None
 
         template_content = template_match.group("content")
-        template_start_line = source_text[:template_match.start()].count("\n") + 1
+        template_start_line = source_text[: template_match.start()].count("\n") + 1
 
         new_nodes: list[Node] = []
         new_edges: list[Edge] = []
@@ -925,22 +1042,25 @@ class VueDetector(FrameworkDetector):
             comp_name = match.group("comp")
             if comp_name not in _VUE_BUILTIN_COMPONENTS and comp_name not in components_used:
                 components_used.append(comp_name)
-                line_no = template_start_line + template_content[:match.start()].count("\n")
+                line_no = template_start_line + template_content[: match.start()].count("\n")
 
                 # Create RENDERS edge from this file's component to the used component
-                new_edges.append(Edge(
-                    source_id=generate_node_id(file_path, 1, NodeKind.COMPONENT,
-                                               self._component_name_from_path(file_path)),
-                    target_id=f"__unresolved__:component:{comp_name}",
-                    kind=EdgeKind.RENDERS,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "vue_edge_type": "vue_renders",
-                        "component_name": comp_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=generate_node_id(
+                            file_path, 1, NodeKind.COMPONENT, self._component_name_from_path(file_path)
+                        ),
+                        target_id=f"__unresolved__:component:{comp_name}",
+                        kind=EdgeKind.RENDERS,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "vue_edge_type": "vue_renders",
+                            "component_name": comp_name,
+                        },
+                    )
+                )
 
         # Detect kebab-case component usage
         kebab_components: list[str] = []
@@ -948,24 +1068,27 @@ class VueDetector(FrameworkDetector):
             comp_name = match.group("comp")
             if comp_name not in _HTML_ELEMENTS and comp_name not in kebab_components:
                 kebab_components.append(comp_name)
-                line_no = template_start_line + template_content[:match.start()].count("\n")
+                line_no = template_start_line + template_content[: match.start()].count("\n")
 
                 # Convert kebab-case to PascalCase for the edge target
                 pascal_name = self._kebab_to_pascal(comp_name)
-                new_edges.append(Edge(
-                    source_id=generate_node_id(file_path, 1, NodeKind.COMPONENT,
-                                               self._component_name_from_path(file_path)),
-                    target_id=f"__unresolved__:component:{pascal_name}",
-                    kind=EdgeKind.RENDERS,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "vue",
-                        "vue_edge_type": "vue_renders",
-                        "component_name": pascal_name,
-                        "original_tag": comp_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=generate_node_id(
+                            file_path, 1, NodeKind.COMPONENT, self._component_name_from_path(file_path)
+                        ),
+                        target_id=f"__unresolved__:component:{pascal_name}",
+                        kind=EdgeKind.RENDERS,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "vue",
+                            "vue_edge_type": "vue_renders",
+                            "component_name": pascal_name,
+                            "original_tag": comp_name,
+                        },
+                    )
+                )
 
         template_info["components_used"] = components_used
         template_info["kebab_components"] = kebab_components
@@ -1004,13 +1127,7 @@ class VueDetector(FrameworkDetector):
 
         # Only return pattern if we found something interesting
         has_content = (
-            components_used
-            or kebab_components
-            or v_models
-            or slot_defs
-            or slot_uses
-            or events
-            or dynamic_count > 0
+            components_used or kebab_components or v_models or slot_defs or slot_uses or events or dynamic_count > 0
         )
 
         if not has_content:
@@ -1035,6 +1152,7 @@ class VueDetector(FrameworkDetector):
             src/components/user-profile.vue -> UserProfile
         """
         from pathlib import PurePosixPath
+
         stem = PurePosixPath(file_path.replace(os.sep, "/")).stem
         # Convert kebab-case to PascalCase
         parts = stem.replace("_", "-").split("-")
@@ -1053,11 +1171,13 @@ class VueDetector(FrameworkDetector):
 
     @staticmethod
     def _find_enclosing_function(
-        line_no: int, nodes: list[Node],
+        line_no: int,
+        nodes: list[Node],
     ) -> Node | None:
         """Find the function/component that encloses a given line."""
         candidates = [
-            n for n in nodes
+            n
+            for n in nodes
             if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD, NodeKind.VARIABLE)
             and n.start_line is not None
             and n.end_line is not None

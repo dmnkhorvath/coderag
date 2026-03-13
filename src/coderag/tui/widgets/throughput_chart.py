@@ -1,4 +1,5 @@
 """ThroughputChart widget — sparkline showing files/sec over time."""
+
 from __future__ import annotations
 
 from collections import deque
@@ -64,8 +65,7 @@ class ThroughputChart(Widget):
         try:
             self.query_one("#sparkline", Sparkline).data = list(self._data)
             self.query_one(".chart-header", Static).update(
-                f"{self._label}  {self.current_value:.1f} {self._unit}  "
-                f"(peak: {self.peak_value:.1f})"
+                f"{self._label}  {self.current_value:.1f} {self._unit}  (peak: {self.peak_value:.1f})"
             )
         except Exception:
             pass

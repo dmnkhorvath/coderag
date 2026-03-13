@@ -1,8 +1,8 @@
 """ResourceMonitor widget — CPU and memory bars using psutil."""
+
 from __future__ import annotations
 
 import psutil
-
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget
@@ -19,7 +19,9 @@ def _bar(pct: float, width: int = 20) -> str:
         color = "yellow"
     else:
         color = "green"
-    return f"[{color}]{"█" * filled}[/{color}][dim]{"░" * empty}[/dim]"
+    filled_str = "█" * filled
+    empty_str = "░" * empty
+    return f"[{color}]{filled_str}[/{color}][dim]{empty_str}[/dim]"
 
 
 class ResourceMonitor(Widget):

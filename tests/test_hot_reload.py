@@ -1,16 +1,19 @@
 """Tests for hot-reload functionality in MCP server."""
+
 import os
-import tempfile
-import time
 import shutil
 import subprocess
+import tempfile
+import time
+
 import pytest
+
 from coderag.core.config import CodeGraphConfig
 from coderag.core.registry import PluginRegistry
-from coderag.storage.sqlite_store import SQLiteStore
+from coderag.mcp.server import GraphContext, _AnalyzerProxy, _StoreProxy
 from coderag.pipeline.orchestrator import PipelineOrchestrator
 from coderag.plugins import BUILTIN_PLUGINS
-from coderag.mcp.server import GraphContext, _StoreProxy, _AnalyzerProxy
+from coderag.storage.sqlite_store import SQLiteStore
 
 
 def _write_php(path, content):
@@ -42,8 +45,7 @@ def graph_context():
     subprocess.run(["git", "-C", d, "config", "user.email", "t@t.com"], capture_output=True)
     subprocess.run(["git", "-C", d, "config", "user.name", "T"], capture_output=True)
 
-    _write_php(os.path.join(d, "app", "Foo.php"),
-               "<?php\nnamespace App;\nclass Foo {}\n")
+    _write_php(os.path.join(d, "app", "Foo.php"), "<?php\nnamespace App;\nclass Foo {}\n")
 
     subprocess.run(["git", "-C", d, "add", "."], capture_output=True)
     subprocess.run(["git", "-C", d, "commit", "-m", "Init"], capture_output=True)
@@ -76,8 +78,7 @@ class TestGraphContext:
         # Sleep to ensure mtime changes (filesystem resolution can be 1s)
         time.sleep(1.1)
 
-        _write_php(os.path.join(d, "app", "Bar.php"),
-                   "<?php\nnamespace App;\nclass Bar {}\n")
+        _write_php(os.path.join(d, "app", "Bar.php"), "<?php\nnamespace App;\nclass Bar {}\n")
 
         subprocess.run(["git", "-C", d, "add", "."], capture_output=True)
         subprocess.run(["git", "-C", d, "commit", "-m", "Add Bar"], capture_output=True)
@@ -108,8 +109,9 @@ class TestStoreProxy:
         before = proxy.get_summary().total_nodes
 
         time.sleep(1.1)
-        _write_php(os.path.join(d, "app", "Baz.php"),
-                   "<?php\nnamespace App;\nclass Baz { public function run(): void {} }\n")
+        _write_php(
+            os.path.join(d, "app", "Baz.php"), "<?php\nnamespace App;\nclass Baz { public function run(): void {} }\n"
+        )
 
         subprocess.run(["git", "-C", d, "add", "."], capture_output=True)
         subprocess.run(["git", "-C", d, "commit", "-m", "Add Baz"], capture_output=True)

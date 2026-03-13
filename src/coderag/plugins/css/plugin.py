@@ -1,4 +1,5 @@
 """CSS language plugin for CodeRAG."""
+
 from __future__ import annotations
 
 import logging
@@ -12,8 +13,8 @@ from coderag.core.registry import (
     ModuleResolver,
 )
 from coderag.plugins.css.extractor import CSSExtractor
-from coderag.plugins.css.resolver import CSSResolver
 from coderag.plugins.css.frameworks import TailwindDetector
+from coderag.plugins.css.resolver import CSSResolver
 
 logger = logging.getLogger(__name__)
 

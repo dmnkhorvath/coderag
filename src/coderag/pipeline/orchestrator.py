@@ -10,6 +10,7 @@ Implements phases 1-6 + 8:
   Phase 7: Enrichment (git metadata, metrics)
   Phase 8: Persist (store in SQLite)
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,25 +26,24 @@ from coderag.core.models import (
     PipelineSummary,
 )
 from coderag.core.registry import FrameworkDetector, PluginRegistry
-from coderag.pipeline.resolver import ReferenceResolver
-from coderag.pipeline.scanner import FileScanner
-from coderag.storage.sqlite_store import SQLiteStore
-
 from coderag.pipeline.events import (
     EventEmitter,
     FileCompleted,
     FileError,
-    FileStarted,
     PhaseCompleted,
     PhaseProgress,
     PhaseStarted,
-    PipelineCompleted as PipelineCompletedEvent,
     PipelinePhase,
     PipelineStarted,
 )
+from coderag.pipeline.events import (
+    PipelineCompleted as PipelineCompletedEvent,
+)
+from coderag.pipeline.resolver import ReferenceResolver
+from coderag.pipeline.scanner import FileScanner
+from coderag.storage.sqlite_store import SQLiteStore
 
 logger = logging.getLogger(__name__)
-
 
 
 # =============================================================================
@@ -147,21 +147,27 @@ class PipelineOrchestrator:
         changed_files = [f for f in files if f.is_changed]
         skipped = total_files - len(changed_files)
         logger.info("Found %d files, %d changed, %d skipped", total_files, len(changed_files), skipped)
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.DISCOVERY,
-            summary={"total_files": total_files},
-        ))
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.HASHING,
-            summary={"changed": len(changed_files), "skipped": skipped},
-        ))
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.DISCOVERY,
+                summary={"total_files": total_files},
+            )
+        )
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.HASHING,
+                summary={"changed": len(changed_files), "skipped": skipped},
+            )
+        )
 
         # ── Phase 3: Extract (parallel) ───────────────────────
         logger.info("Phase 3: Extracting ASTs (parallel)...")
-        self._emit(PhaseStarted(
-            phase=PipelinePhase.EXTRACTION,
-            total_items=len(changed_files),
-        ))
+        self._emit(
+            PhaseStarted(
+                phase=PipelinePhase.EXTRACTION,
+                total_items=len(changed_files),
+            )
+        )
         total_nodes = 0
         total_edges = 0
         files_parsed = 0
@@ -203,11 +209,13 @@ class PipelineOrchestrator:
             if error:
                 logger.error("Failed to process %s: %s", file_path, error)
                 files_errored += 1
-                self._emit(FileError(
-                    phase=PipelinePhase.EXTRACTION,
-                    file_path=file_path,
-                    error=error or "unknown error",
-                ))
+                self._emit(
+                    FileError(
+                        phase=PipelinePhase.EXTRACTION,
+                        file_path=file_path,
+                        error=error or "unknown error",
+                    )
+                )
                 return
             if result is None:
                 return
@@ -220,27 +228,33 @@ class PipelineOrchestrator:
             parse_time_ms += result.parse_time_ms
             files_parsed += 1
 
-            self._emit(FileCompleted(
-                phase=PipelinePhase.EXTRACTION,
-                file_path=file_path,
-                language=result.language,
-                nodes_count=n_nodes,
-                edges_count=n_edges,
-                duration_ms=result.parse_time_ms,
-            ))
-            self._emit(PhaseProgress(
-                phase=PipelinePhase.EXTRACTION,
-                current=files_parsed,
-                total=len(changed_files),
-                message=f"Parsed {file_path}",
-                file_path=file_path,
-            ))
+            self._emit(
+                FileCompleted(
+                    phase=PipelinePhase.EXTRACTION,
+                    file_path=file_path,
+                    language=result.language,
+                    nodes_count=n_nodes,
+                    edges_count=n_edges,
+                    duration_ms=result.parse_time_ms,
+                )
+            )
+            self._emit(
+                PhaseProgress(
+                    phase=PipelinePhase.EXTRACTION,
+                    current=files_parsed,
+                    total=len(changed_files),
+                    message=f"Parsed {file_path}",
+                    file_path=file_path,
+                )
+            )
 
             if result.errors:
                 for err in result.errors:
                     logger.warning(
                         "%s:%s: %s",
-                        err.file_path, err.line_number, err.message,
+                        err.file_path,
+                        err.line_number,
+                        err.message,
                     )
 
             # ── Phase 8a: Persist nodes & containment edges ──
@@ -255,7 +269,8 @@ class PipelineOrchestrator:
             try:
                 logger.info(
                     "Phase 3: Using ProcessPoolExecutor with %d workers, batch_size=%d",
-                    extraction_workers, batch_size,
+                    extraction_workers,
+                    batch_size,
                 )
                 # Process files in chunks to bound memory
                 for chunk_start in range(0, len(changed_files), batch_size):
@@ -266,14 +281,14 @@ class PipelineOrchestrator:
                         max_workers=extraction_workers,
                         initializer=_init_extraction_worker,
                     ) as executor:
-                        futures = {
-                            executor.submit(_extract_worker, fp): fp
-                            for fp in file_paths
-                        }
+                        futures = {executor.submit(_extract_worker, fp): fp for fp in file_paths}
                         for future in as_completed(futures):
                             file_path, result, plugin_name, error = future.result()
                             _process_extraction_result(
-                                file_path, result, plugin_name, error,
+                                file_path,
+                                result,
+                                plugin_name,
+                                error,
                             )
 
                 logger.debug("ProcessPoolExecutor extraction completed successfully.")
@@ -293,33 +308,37 @@ class PipelineOrchestrator:
                 extraction_workers,
             )
             with ThreadPoolExecutor(max_workers=extraction_workers) as executor:
-                futures = {
-                    executor.submit(_extract_single_thread, fi): fi
-                    for fi in changed_files
-                }
+                futures = {executor.submit(_extract_single_thread, fi): fi for fi in changed_files}
                 for future in as_completed(futures):
                     fi, result, plugin_name, error = future.result()
                     _process_extraction_result(
-                        fi.path, result, plugin_name, error,
+                        fi.path,
+                        result,
+                        plugin_name,
+                        error,
                     )
 
         logger.info(
             "Phase 3 complete: %d files parsed, %d errors, %d nodes, %d edges in %.1fms",
-            files_parsed, files_errored, total_nodes, total_edges, parse_time_ms,
+            files_parsed,
+            files_errored,
+            total_nodes,
+            total_edges,
+            parse_time_ms,
         )
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.EXTRACTION,
-            summary={"parsed": files_parsed, "errors": files_errored, "nodes": total_nodes, "edges": total_edges},
-            duration_ms=parse_time_ms,
-        ))
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.EXTRACTION,
+                summary={"parsed": files_parsed, "errors": files_errored, "nodes": total_nodes, "edges": total_edges},
+                duration_ms=parse_time_ms,
+            )
+        )
 
         # ── Phase 4: Reference Resolution ─────────────────────
         self._emit(PhaseStarted(phase=PipelinePhase.RESOLUTION))
         resolved_edge_count = 0
         unresolved_edge_count = 0
-        total_unresolved_refs = sum(
-            len(r.unresolved_references) for r in all_results
-        )
+        total_unresolved_refs = sum(len(r.unresolved_references) for r in all_results)
 
         if total_unresolved_refs > 0:
             logger.info(
@@ -329,17 +348,14 @@ class PipelineOrchestrator:
             resolver = ReferenceResolver(self._store)
             resolver.build_symbol_table()
 
-            resolved_edges, placeholder_nodes, resolved_count, unresolved_count = (
-                resolver.resolve(all_results)
-            )
+            resolved_edges, placeholder_nodes, resolved_count, unresolved_count = resolver.resolve(all_results)
 
             resolved_edge_count = resolved_count
             unresolved_edge_count = unresolved_count
 
             # Persist placeholder nodes for external references
             if placeholder_nodes:
-                logger.info("Persisting %d placeholder nodes for external refs",
-                            len(placeholder_nodes))
+                logger.info("Persisting %d placeholder nodes for external refs", len(placeholder_nodes))
                 self._store.upsert_nodes(placeholder_nodes)
 
             # Persist resolved edges
@@ -350,15 +366,18 @@ class PipelineOrchestrator:
 
             logger.info(
                 "Phase 4 complete: %d resolved, %d unresolved (of %d total refs)",
-                resolved_count, unresolved_count, total_unresolved_refs,
+                resolved_count,
+                unresolved_count,
+                total_unresolved_refs,
             )
         else:
             logger.info("Phase 4: No unresolved references to process.")
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.RESOLUTION,
-            summary={"resolved": resolved_edge_count, "unresolved": unresolved_edge_count},
-        ))
-
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.RESOLUTION,
+                summary={"resolved": resolved_edge_count, "unresolved": unresolved_edge_count},
+            )
+        )
 
         # ── Phase 5: Framework Detection ──────────────────────
         self._emit(PhaseStarted(phase=PipelinePhase.FRAMEWORK_DETECTION))
@@ -366,41 +385,49 @@ class PipelineOrchestrator:
         if fw_nodes or fw_edges:
             total_nodes += fw_nodes
             total_edges += fw_edges
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.FRAMEWORK_DETECTION,
-            summary={"nodes": fw_nodes, "edges": fw_edges},
-        ))
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.FRAMEWORK_DETECTION,
+                summary={"nodes": fw_nodes, "edges": fw_edges},
+            )
+        )
 
         # ── Phase 6: Cross-Language Matching ───────────────────
         self._emit(PhaseStarted(phase=PipelinePhase.CROSS_LANGUAGE))
         xl_edges = self._run_cross_language_matching(project_root)
         if xl_edges:
             total_edges += xl_edges
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.CROSS_LANGUAGE,
-            summary={"edges": xl_edges or 0},
-        ))
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.CROSS_LANGUAGE,
+                summary={"edges": xl_edges or 0},
+            )
+        )
 
         # ── Phase 6b: Style Edge Matching ─────────────────────
         self._emit(PhaseStarted(phase=PipelinePhase.STYLE_MATCHING))
         style_edges = self._run_style_edge_matching(project_root)
         if style_edges:
             total_edges += style_edges
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.STYLE_MATCHING,
-            summary={"edges": style_edges or 0},
-        ))
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.STYLE_MATCHING,
+                summary={"edges": style_edges or 0},
+            )
+        )
 
         # ── Phase 7: Git Enrichment ────────────────────────────
         self._emit(PhaseStarted(phase=PipelinePhase.GIT_ENRICHMENT))
         git_enrichment_stats = self._run_git_enrichment(project_root)
-        self._emit(PhaseCompleted(
-            phase=PipelinePhase.GIT_ENRICHMENT,
-            summary=git_enrichment_stats,
-        ))
+        self._emit(
+            PhaseCompleted(
+                phase=PipelinePhase.GIT_ENRICHMENT,
+                summary=git_enrichment_stats,
+            )
+        )
 
         # ── Phase 7b: PHPStan Enrichment (optional) ───────────
-        phpstan_stats = self._run_phpstan_enrichment(project_root)
+        self._run_phpstan_enrichment(project_root)
 
         elapsed = time.perf_counter() - t0
         summary = PipelineSummary(
@@ -413,20 +440,24 @@ class PipelineOrchestrator:
             total_pipeline_time_ms=elapsed * 1000,
         )
         logger.info(
-            "Pipeline complete: %d files, %d nodes, %d edges "
-            "(%d resolved, %d unresolved) in %.1fs",
-            files_parsed, total_nodes, total_edges,
-            resolved_edge_count, unresolved_edge_count, elapsed,
+            "Pipeline complete: %d files, %d nodes, %d edges (%d resolved, %d unresolved) in %.1fs",
+            files_parsed,
+            total_nodes,
+            total_edges,
+            resolved_edge_count,
+            unresolved_edge_count,
+            elapsed,
         )
-        self._emit(PipelineCompletedEvent(
-            total_files=files_parsed,
-            total_nodes=total_nodes,
-            total_edges=total_edges,
-            total_errors=files_errored,
-            duration_s=elapsed,
-        ))
+        self._emit(
+            PipelineCompletedEvent(
+                total_files=files_parsed,
+                total_nodes=total_nodes,
+                total_edges=total_edges,
+                total_errors=files_errored,
+                duration_s=elapsed,
+            )
+        )
         return summary
-
 
     def _run_style_edge_matching(self, project_root: str) -> int:
         """Run style edge matching to connect JS/TS components to CSS/SCSS.
@@ -444,12 +475,20 @@ class PipelineOrchestrator:
             return 0
 
         # Check if we have CSS/SCSS files in the project
-        has_css = bool(self._store.find_nodes(
-            kind=NodeKind.FILE, language="css", limit=1,
-        ))
-        has_scss = bool(self._store.find_nodes(
-            kind=NodeKind.FILE, language="scss", limit=1,
-        ))
+        has_css = bool(
+            self._store.find_nodes(
+                kind=NodeKind.FILE,
+                language="css",
+                limit=1,
+            )
+        )
+        has_scss = bool(
+            self._store.find_nodes(
+                kind=NodeKind.FILE,
+                language="scss",
+                limit=1,
+            )
+        )
 
         if not has_css and not has_scss:
             logger.info("Phase 6b: No CSS/SCSS files found, skipping.")
@@ -461,7 +500,8 @@ class PipelineOrchestrator:
             elapsed = time.perf_counter() - t0
             logger.info(
                 "Phase 6b complete: %d style edges in %.1fs",
-                edge_count, elapsed,
+                edge_count,
+                elapsed,
             )
             return edge_count
         except Exception:
@@ -496,6 +536,7 @@ class PipelineOrchestrator:
 
         # Check if project is a git repo
         import os
+
         if not os.path.isdir(os.path.join(project_root, ".git")):
             logger.info("Phase 7: Not a git repository, skipping.")
             return stats
@@ -524,11 +565,13 @@ class PipelineOrchestrator:
                 # Find ALL nodes for this file path and enrich them
                 abs_path = os.path.join(project_root, rel_path)
                 file_nodes = self._store.find_nodes(
-                    file_path=abs_path, limit=1000,
+                    file_path=abs_path,
+                    limit=1000,
                 )
                 if not file_nodes:
                     file_nodes = self._store.find_nodes(
-                        file_path=rel_path, limit=1000,
+                        file_path=rel_path,
+                        limit=1000,
                     )
 
                 if file_nodes:
@@ -541,6 +584,7 @@ class PipelineOrchestrator:
             co_changes = result.get("co_changes", [])
             if co_changes:
                 import json
+
                 self._store.set_metadata(
                     "git_co_changes",
                     json.dumps(co_changes[:100]),  # Top 100 pairs
@@ -568,10 +612,12 @@ class PipelineOrchestrator:
 
             elapsed = time.perf_counter() - t0
             logger.info(
-                "Phase 7 complete: %d files enriched, %d co-change pairs, "
-                "%d hot files, %d authors in %.1fs",
-                enriched_count, len(co_changes),
-                stats["hot_files"], stats["total_authors"], elapsed,
+                "Phase 7 complete: %d files enriched, %d co-change pairs, %d hot files, %d authors in %.1fs",
+                enriched_count,
+                len(co_changes),
+                stats["hot_files"],
+                stats["total_authors"],
+                elapsed,
             )
 
         except Exception as exc:
@@ -667,7 +713,8 @@ class PipelineOrchestrator:
             except Exception as exc:
                 logger.warning(
                     "Failed to get framework detectors from %s: %s",
-                    plugin.name, exc,
+                    plugin.name,
+                    exc,
                 )
 
         if not detectors:
@@ -681,13 +728,15 @@ class PipelineOrchestrator:
                 if det.detect_framework(project_root):
                     logger.info(
                         "Phase 5: Detected framework '%s' (plugin: %s)",
-                        det.framework_name, plugin.name,
+                        det.framework_name,
+                        plugin.name,
                     )
                     active_detectors.append((det, plugin))
             except Exception as exc:
                 logger.warning(
                     "Framework detection failed for %s: %s",
-                    det.framework_name, exc,
+                    det.framework_name,
+                    exc,
                 )
 
         if not active_detectors:
@@ -700,11 +749,13 @@ class PipelineOrchestrator:
         # ── Phase 5a: Per-file detection ──────────────────────
         # Get all files from the store grouped by language
         file_nodes = self._store.find_nodes(
-            kind=None, limit=100000,
+            kind=None,
+            limit=100000,
         )
 
         # Build a map of file_path -> nodes for that file
         from collections import defaultdict
+
         file_node_map: dict[str, list] = defaultdict(list)
         for node in file_nodes:
             if node.file_path:
@@ -722,7 +773,7 @@ class PipelineOrchestrator:
 
         # Process each file with active detectors
         import os
-        processed_files = set()
+
         for det, plugin in active_detectors:
             for file_path, nodes in file_node_map.items():
                 # Only process files matching this plugin's extensions
@@ -742,7 +793,7 @@ class PipelineOrchestrator:
                     # Re-parse with tree-sitter
                     extractor = plugin.get_extractor()
                     tree = None
-                    if hasattr(extractor, '_parser') and extractor._parser is not None:
+                    if hasattr(extractor, "_parser") and extractor._parser is not None:
                         tree = extractor._parser.parse(source)
 
                     file_edges = file_edge_map.get(file_path, [])
@@ -765,7 +816,9 @@ class PipelineOrchestrator:
                 except Exception as exc:
                     logger.debug(
                         "Framework detection failed for %s in %s: %s",
-                        det.framework_name, file_path, exc,
+                        det.framework_name,
+                        file_path,
+                        exc,
                     )
 
         # ── Phase 5b: Global detection ────────────────────────
@@ -782,13 +835,16 @@ class PipelineOrchestrator:
             except Exception as exc:
                 logger.warning(
                     "Global framework detection failed for %s: %s",
-                    det.framework_name, exc,
+                    det.framework_name,
+                    exc,
                 )
 
         elapsed = time.perf_counter() - t0
         logger.info(
             "Phase 5 complete: %d framework nodes, %d framework edges in %.1fs",
-            total_fw_nodes, total_fw_edges, elapsed,
+            total_fw_nodes,
+            total_fw_edges,
+            elapsed,
         )
 
         # Store detected frameworks as metadata
@@ -817,7 +873,7 @@ class PipelineOrchestrator:
         # Check if we have multiple languages in the project
         summary = self._store.get_summary()
         languages = set()
-        if hasattr(summary, 'languages'):
+        if hasattr(summary, "languages"):
             languages = summary.languages
         else:
             # Detect languages from file extensions in the store
@@ -864,10 +920,12 @@ class PipelineOrchestrator:
 
         elapsed = time.perf_counter() - t0
         logger.info(
-            "Phase 6 complete: %d endpoints, %d API calls, %d matches, "
-            "%d cross-language edges in %.1fs",
-            len(endpoints), len(api_calls), len(matches),
-            len(xl_edges), elapsed,
+            "Phase 6 complete: %d endpoints, %d API calls, %d matches, %d cross-language edges in %.1fs",
+            len(endpoints),
+            len(api_calls),
+            len(matches),
+            len(xl_edges),
+            elapsed,
         )
 
         # Store cross-language stats as metadata

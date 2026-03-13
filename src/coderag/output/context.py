@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from coderag.core.models import (
     ContextResult,
@@ -29,11 +29,17 @@ logger = logging.getLogger(__name__)
 
 # Edge kinds grouped by relationship category
 _RELATIONSHIP_EDGES = {
-    EdgeKind.CALLS, EdgeKind.EXTENDS, EdgeKind.IMPLEMENTS,
-    EdgeKind.USES_TRAIT, EdgeKind.INSTANTIATES, EdgeKind.IMPORTS,
+    EdgeKind.CALLS,
+    EdgeKind.EXTENDS,
+    EdgeKind.IMPLEMENTS,
+    EdgeKind.USES_TRAIT,
+    EdgeKind.INSTANTIATES,
+    EdgeKind.IMPORTS,
 }
 _CONTAINMENT_EDGES = {
-    EdgeKind.CONTAINS, EdgeKind.DEFINED_IN, EdgeKind.MEMBER_OF,
+    EdgeKind.CONTAINS,
+    EdgeKind.DEFINED_IN,
+    EdgeKind.MEMBER_OF,
 }
 
 
@@ -184,11 +190,14 @@ class ContextAssembler:
             seen_ids = {node.id} | {r.id for r, _, _ in all_related}
 
             new_neighbors = [
-                (n, e, d) for n, e, d in neighbors
+                (n, e, d)
+                for n, e, d in neighbors
                 if n.id not in seen_ids
-                and (e.kind not in _CONTAINMENT_EDGES
-                     if isinstance(e.kind, EdgeKind)
-                     else e.kind not in {ek.value for ek in _CONTAINMENT_EDGES})
+                and (
+                    e.kind not in _CONTAINMENT_EDGES
+                    if isinstance(e.kind, EdgeKind)
+                    else e.kind not in {ek.value for ek in _CONTAINMENT_EDGES}
+                )
             ]
 
             if new_neighbors:
@@ -200,10 +209,7 @@ class ContextAssembler:
                     tokens_used += section_tokens
 
                     # Score and sort
-                    scored = [
-                        (n, e, d, analyzer.relevance_score(n.id, qualified_name))
-                        for n, e, d in new_neighbors
-                    ]
+                    scored = [(n, e, d, analyzer.relevance_score(n.id, qualified_name)) for n, e, d in new_neighbors]
                     scored.sort(key=lambda x: -x[3])
 
                     for n, e, d, score in scored:
@@ -229,10 +235,7 @@ class ContextAssembler:
             seen_ids = {node.id} | {r.id for r, _, _ in all_related}
             seen_ids |= {n.id for n, _, _ in new_neighbors}
 
-            hop2 = [
-                (n, e, d) for n, e, d in neighbors_2
-                if n.id not in seen_ids and d == 2
-            ]
+            hop2 = [(n, e, d) for n, e, d in neighbors_2 if n.id not in seen_ids and d == 2]
 
             if hop2:
                 section = "\n\n## 2-Hop Relationships\n"
@@ -316,9 +319,7 @@ class ContextAssembler:
 
         # Score by PageRank
         pr_scores = analyzer.pagerank()
-        scored_nodes = [
-            (n, pr_scores.get(n.id, 0.0)) for n in nodes
-        ]
+        scored_nodes = [(n, pr_scores.get(n.id, 0.0)) for n in nodes]
         scored_nodes.sort(key=lambda x: -x[1])
 
         lines: list[str] = []
@@ -343,8 +344,7 @@ class ContextAssembler:
         # Progressive detail: try SUMMARY first, fall back to SIGNATURE
         detail = DetailLevel.SUMMARY
         total_summary_estimate = sum(
-            estimate_tokens(MarkdownFormatter.format_node(n, DetailLevel.SUMMARY))
-            for n, _ in scored_nodes
+            estimate_tokens(MarkdownFormatter.format_node(n, DetailLevel.SUMMARY)) for n, _ in scored_nodes
         )
 
         if total_summary_estimate > token_budget * 0.8:
@@ -452,8 +452,7 @@ class ContextAssembler:
 
                 node_ids = blast[depth]
                 section_header = (
-                    f"\n## Depth {depth} — {len(node_ids)} affected node"
-                    f"{'s' if len(node_ids) != 1 else ''}\n\n"
+                    f"\n## Depth {depth} — {len(node_ids)} affected node{'s' if len(node_ids) != 1 else ''}\n\n"
                 )
                 section_tokens = estimate_tokens(section_header)
 
@@ -481,10 +480,7 @@ class ContextAssembler:
                         break
 
                     kind_str = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
-                    entry = (
-                        f"- **{kind_str}** `{n.qualified_name}` "
-                        f"(`{n.file_path}:{n.start_line}`)\n"
-                    )
+                    entry = f"- **{kind_str}** `{n.qualified_name}` (`{n.file_path}:{n.start_line}`)\n"
                     entry_tokens = estimate_tokens(entry)
 
                     if tokens_used + entry_tokens < token_budget:
@@ -495,9 +491,7 @@ class ContextAssembler:
 
         # Affected files summary
         if tokens_used < token_budget * 0.9 and len(included_files) > 1:
-            files_section = (
-                f"\n## Affected Files ({len(included_files)})\n\n"
-            )
+            files_section = f"\n## Affected Files ({len(included_files)})\n\n"
             for fp in sorted(included_files):
                 files_section += f"- `{fp}`\n"
 

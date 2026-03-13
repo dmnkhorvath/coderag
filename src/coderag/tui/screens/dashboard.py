@@ -1,8 +1,9 @@
 """DashboardScreen — main monitoring view composing all widgets."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import Static
 
@@ -32,9 +33,7 @@ class DashboardScreen(Screen):
             yield MetricCard(label="processed", value="0", id="metric-processed")
 
         yield PipelineProgress(id="pipeline-section")
-        yield ThroughputChart(
-            label="Throughput", unit="f/s", id="throughput-section"
-        )
+        yield ThroughputChart(label="Throughput", unit="f/s", id="throughput-section")
         yield FilterableLog(id="log-section")
         yield ResourceMonitor(id="resource-section")
 

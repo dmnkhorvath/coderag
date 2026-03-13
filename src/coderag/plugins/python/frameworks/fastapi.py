@@ -5,6 +5,7 @@ dependency injection (Depends), Pydantic models, middleware,
 WebSocket endpoints, background tasks, and exception handlers
 from already-parsed AST nodes and source code.
 """
+
 from __future__ import annotations
 
 import logging
@@ -56,7 +57,9 @@ _DEPENDS_RE = re.compile(
 
 # Pydantic BaseModel / BaseSettings classes
 _PYDANTIC_BASES = {
-    "BaseModel", "BaseSettings", "BaseConfig",
+    "BaseModel",
+    "BaseSettings",
+    "BaseConfig",
 }
 
 # Pydantic field types
@@ -114,15 +117,19 @@ class FastAPIDetector(FrameworkDetector):
     def detect_framework(self, project_root: str) -> bool:
         """Check for fastapi in dependency files."""
         dep_files = [
-            "requirements.txt", "requirements/base.txt",
-            "requirements/production.txt", "setup.py",
-            "setup.cfg", "pyproject.toml", "Pipfile",
+            "requirements.txt",
+            "requirements/base.txt",
+            "requirements/production.txt",
+            "setup.py",
+            "setup.cfg",
+            "pyproject.toml",
+            "Pipfile",
         ]
         for dep_file in dep_files:
             fpath = os.path.join(project_root, dep_file)
             if os.path.isfile(fpath):
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         content = f.read().lower()
                     if "fastapi" in content:
                         return True
@@ -134,7 +141,7 @@ class FastAPIDetector(FrameworkDetector):
             fpath = os.path.join(project_root, entry)
             if os.path.isfile(fpath):
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         content = f.read()
                     if "from fastapi import" in content or "import fastapi" in content:
                         return True
@@ -155,10 +162,7 @@ class FastAPIDetector(FrameworkDetector):
         patterns: list[FrameworkPattern] = []
         source_text = source.decode("utf-8", errors="replace")
 
-        func_nodes = [
-            n for n in nodes
-            if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)
-        ]
+        func_nodes = [n for n in nodes if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)]
         class_nodes = [n for n in nodes if n.kind == NodeKind.CLASS]
 
         # ── Route detection ───────────────────────────────────
@@ -170,7 +174,7 @@ class FastAPIDetector(FrameworkDetector):
             http_method = match.group("method").upper()
             path = match.group("path")
             response_model = match.group("response_model")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             metadata: dict[str, Any] = {
                 "framework": "fastapi",
@@ -197,39 +201,45 @@ class FastAPIDetector(FrameworkDetector):
             # Find handler function below decorator
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
             if handler:
-                route_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=handler.id,
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.90,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "fastapi",
-                        "http_method": http_method,
-                        "url_pattern": path,
-                    },
-                ))
+                route_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=handler.id,
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.90,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "fastapi",
+                            "http_method": http_method,
+                            "url_pattern": path,
+                        },
+                    )
+                )
 
                 # Detect Depends() in handler parameters
                 dep_patterns = self._detect_depends_in_func(
-                    handler, source_text, file_path,
+                    handler,
+                    source_text,
+                    file_path,
                 )
                 route_edges.extend(dep_patterns)
 
         if route_nodes:
-            patterns.append(FrameworkPattern(
-                framework_name="fastapi",
-                pattern_type="routes",
-                nodes=route_nodes,
-                edges=route_edges,
-                metadata={"route_count": len(route_nodes)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="fastapi",
+                    pattern_type="routes",
+                    nodes=route_nodes,
+                    edges=route_edges,
+                    metadata={"route_count": len(route_nodes)},
+                )
+            )
 
         # ── WebSocket detection ───────────────────────────────
         for match in _WEBSOCKET_RE.finditer(source_text):
             obj_name = match.group("obj")
             path = match.group("path")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             ws_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.ROUTE, f"WS:{path}"),
@@ -252,33 +262,37 @@ class FastAPIDetector(FrameworkDetector):
             ws_edges: list[Edge] = []
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
             if handler:
-                ws_edges.append(Edge(
-                    source_id=ws_node.id,
-                    target_id=handler.id,
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.90,
-                    line_number=line_no,
-                    metadata={"framework": "fastapi", "protocol": "websocket"},
-                ))
+                ws_edges.append(
+                    Edge(
+                        source_id=ws_node.id,
+                        target_id=handler.id,
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.90,
+                        line_number=line_no,
+                        metadata={"framework": "fastapi", "protocol": "websocket"},
+                    )
+                )
 
-            patterns.append(FrameworkPattern(
-                framework_name="fastapi",
-                pattern_type="websocket",
-                nodes=[ws_node],
-                edges=ws_edges,
-                metadata={"path": path},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="fastapi",
+                    pattern_type="websocket",
+                    nodes=[ws_node],
+                    edges=ws_edges,
+                    metadata={"path": path},
+                )
+            )
 
         # ── APIRouter detection ───────────────────────────────
         for match in _APIROUTER_RE.finditer(source_text):
             var_name = match.group("var")
             prefix = match.group("prefix") or ""
             tags_str = match.group("tags")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             tags: list[str] = []
             if tags_str:
-                tags = [t.strip().strip("\'\"") for t in tags_str.split(",")]
+                tags = [t.strip().strip("'\"") for t in tags_str.split(",")]
 
             router_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.MODULE, f"router:{var_name}"),
@@ -297,13 +311,15 @@ class FastAPIDetector(FrameworkDetector):
                     "tags": tags,
                 },
             )
-            patterns.append(FrameworkPattern(
-                framework_name="fastapi",
-                pattern_type="api_router",
-                nodes=[router_node],
-                edges=[],
-                metadata={"router_name": var_name, "prefix": prefix},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="fastapi",
+                    pattern_type="api_router",
+                    nodes=[router_node],
+                    edges=[],
+                    metadata={"router_name": var_name, "prefix": prefix},
+                )
+            )
 
         # ── Pydantic model detection ──────────────────────────
         for cls in class_nodes:
@@ -321,7 +337,7 @@ class FastAPIDetector(FrameworkDetector):
         # @app.middleware('http') decorator
         for match in _MIDDLEWARE_DECORATOR_RE.finditer(source_text):
             mw_type = match.group("type")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
             handler_name = handler.name if handler else f"middleware@L{line_no}"
@@ -345,7 +361,7 @@ class FastAPIDetector(FrameworkDetector):
         # app.add_middleware(CORSMiddleware, ...)
         for match in _ADD_MIDDLEWARE_RE.finditer(source_text):
             mw_cls = match.group("cls")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             mw_name = mw_cls.rsplit(".", 1)[-1]
 
             mw_node = Node(
@@ -366,18 +382,20 @@ class FastAPIDetector(FrameworkDetector):
             mw_nodes.append(mw_node)
 
         if mw_nodes:
-            patterns.append(FrameworkPattern(
-                framework_name="fastapi",
-                pattern_type="middleware",
-                nodes=mw_nodes,
-                edges=[],
-                metadata={"middleware_count": len(mw_nodes)},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="fastapi",
+                    pattern_type="middleware",
+                    nodes=mw_nodes,
+                    edges=[],
+                    metadata={"middleware_count": len(mw_nodes)},
+                )
+            )
 
         # ── Exception handler detection ───────────────────────
         for match in _EXCEPTION_HANDLER_RE.finditer(source_text):
             exc_type = match.group("exc")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             handler = self._find_func_near_line(line_no, func_nodes, file_path)
             handler_name = handler.name if handler else f"exc_handler_{exc_type}"
@@ -397,13 +415,15 @@ class FastAPIDetector(FrameworkDetector):
                     "exception_type": exc_type,
                 },
             )
-            patterns.append(FrameworkPattern(
-                framework_name="fastapi",
-                pattern_type="exception_handler",
-                nodes=[eh_node],
-                edges=[],
-                metadata={"exception_type": exc_type},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="fastapi",
+                    pattern_type="exception_handler",
+                    nodes=[eh_node],
+                    edges=[],
+                    metadata={"exception_type": exc_type},
+                )
+            )
 
         # ── Background tasks detection ────────────────────────
         bg_funcs: list[str] = []
@@ -411,13 +431,15 @@ class FastAPIDetector(FrameworkDetector):
             bg_funcs.append(match.group("param"))
 
         if bg_funcs:
-            patterns.append(FrameworkPattern(
-                framework_name="fastapi",
-                pattern_type="background_tasks",
-                nodes=[],
-                edges=[],
-                metadata={"background_task_params": bg_funcs},
-            ))
+            patterns.append(
+                FrameworkPattern(
+                    framework_name="fastapi",
+                    pattern_type="background_tasks",
+                    nodes=[],
+                    edges=[],
+                    metadata={"background_task_params": bg_funcs},
+                )
+            )
 
         return patterns
 
@@ -469,7 +491,10 @@ class FastAPIDetector(FrameworkDetector):
         return None
 
     def _find_func_near_line(
-        self, line_no: int, func_nodes: list[Node], file_path: str,
+        self,
+        line_no: int,
+        func_nodes: list[Node],
+        file_path: str,
     ) -> Node | None:
         """Find the function defined closest after the given line."""
         closest = None
@@ -512,7 +537,10 @@ class FastAPIDetector(FrameworkDetector):
         return "\n".join(lines[start:end])
 
     def _detect_depends_in_func(
-        self, func: Node, source_text: str, file_path: str,
+        self,
+        func: Node,
+        source_text: str,
+        file_path: str,
     ) -> list[Edge]:
         """Detect Depends() usage in a function's parameters."""
         edges: list[Edge] = []
@@ -525,25 +553,30 @@ class FastAPIDetector(FrameworkDetector):
             dep_name = match.group("dep")
             dep_short = dep_name.rsplit(".", 1)[-1]
 
-            edges.append(Edge(
-                source_id=func.id,
-                target_id=f"__unresolved__:dep:{dep_short}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.85,
-                line_number=func.start_line,
-                metadata={
-                    "framework": "fastapi",
-                    "dependency": dep_name,
-                    "injection_type": "Depends",
-                },
-            ))
+            edges.append(
+                Edge(
+                    source_id=func.id,
+                    target_id=f"__unresolved__:dep:{dep_short}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.85,
+                    line_number=func.start_line,
+                    metadata={
+                        "framework": "fastapi",
+                        "dependency": dep_name,
+                        "injection_type": "Depends",
+                    },
+                )
+            )
 
         return edges
 
     # ── Pydantic model detection ──────────────────────────────
 
     def _detect_pydantic_model(
-        self, cls: Node, source_text: str, file_path: str,
+        self,
+        cls: Node,
+        source_text: str,
+        file_path: str,
     ) -> FrameworkPattern | None:
         """Detect Pydantic model and its fields."""
         new_nodes: list[Node] = []
@@ -574,12 +607,19 @@ class FastAPIDetector(FrameworkDetector):
 
             # Skip class-level keywords and dunder methods
             if field_name.startswith("_") or field_name in (
-                "class", "def", "return", "if", "else", "for", "while",
-                "model_config", "Config",
+                "class",
+                "def",
+                "return",
+                "if",
+                "else",
+                "for",
+                "while",
+                "model_config",
+                "Config",
             ):
                 continue
 
-            line_no = cls.start_line + class_source[:match.start()].count("\n")
+            line_no = cls.start_line + class_source[: match.start()].count("\n")
 
             prop_node = Node(
                 id=generate_node_id(file_path, line_no, NodeKind.PROPERTY, f"{cls.name}.{field_name}"),
@@ -597,14 +637,16 @@ class FastAPIDetector(FrameworkDetector):
                 },
             )
             new_nodes.append(prop_node)
-            new_edges.append(Edge(
-                source_id=model_node.id,
-                target_id=prop_node.id,
-                kind=EdgeKind.CONTAINS,
-                confidence=1.0,
-                line_number=line_no,
-                metadata={"framework": "fastapi"},
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=model_node.id,
+                    target_id=prop_node.id,
+                    kind=EdgeKind.CONTAINS,
+                    confidence=1.0,
+                    line_number=line_no,
+                    metadata={"framework": "fastapi"},
+                )
+            )
 
         return FrameworkPattern(
             framework_name="fastapi",
@@ -617,7 +659,9 @@ class FastAPIDetector(FrameworkDetector):
     # ── Global pattern helpers ────────────────────────────────
 
     def _extract_router_inclusions(
-        self, store: Any, project_root: str,
+        self,
+        store: Any,
+        project_root: str,
     ) -> FrameworkPattern | None:
         """Extract router inclusion chain from source files."""
         new_nodes: list[Node] = []
@@ -629,7 +673,7 @@ class FastAPIDetector(FrameworkDetector):
                     continue
                 fpath = os.path.join(root, fname)
                 try:
-                    with open(fpath, "r", encoding="utf-8") as f:
+                    with open(fpath, encoding="utf-8") as f:
                         content = f.read()
                 except OSError:
                     continue
@@ -644,11 +688,11 @@ class FastAPIDetector(FrameworkDetector):
                     router_var = match.group("router")
                     prefix = match.group("prefix") or ""
                     tags_str = match.group("tags")
-                    line_no = content[:match.start()].count("\n") + 1
+                    line_no = content[: match.start()].count("\n") + 1
 
                     tags: list[str] = []
                     if tags_str:
-                        tags = [t.strip().strip("\'\"") for t in tags_str.split(",")]
+                        tags = [t.strip().strip("'\"") for t in tags_str.split(",")]
 
                     inc_node = Node(
                         id=generate_node_id(rel_path, line_no, NodeKind.MODULE, f"include:{router_var}"),
@@ -672,21 +716,25 @@ class FastAPIDetector(FrameworkDetector):
 
                     # Try to find the router module node in store
                     router_nodes = store.find_nodes(
-                        kind=NodeKind.MODULE, name_pattern=router_var, limit=10,
+                        kind=NodeKind.MODULE,
+                        name_pattern=router_var,
+                        limit=10,
                     )
                     for rn in router_nodes:
                         if "api_router" in rn.metadata.get("component_type", ""):
-                            new_edges.append(Edge(
-                                source_id=inc_node.id,
-                                target_id=rn.id,
-                                kind=EdgeKind.DEPENDS_ON,
-                                confidence=0.80,
-                                line_number=line_no,
-                                metadata={
-                                    "framework": "fastapi",
-                                    "relationship": "includes_router",
-                                },
-                            ))
+                            new_edges.append(
+                                Edge(
+                                    source_id=inc_node.id,
+                                    target_id=rn.id,
+                                    kind=EdgeKind.DEPENDS_ON,
+                                    confidence=0.80,
+                                    line_number=line_no,
+                                    metadata={
+                                        "framework": "fastapi",
+                                        "relationship": "includes_router",
+                                    },
+                                )
+                            )
                             break
 
         if not new_nodes:
@@ -703,7 +751,6 @@ class FastAPIDetector(FrameworkDetector):
     def _build_dependency_tree(self, store: Any) -> FrameworkPattern | None:
         """Build dependency injection tree from Depends() edges."""
         # Find all DEPENDS_ON edges with fastapi framework metadata
-        new_edges: list[Edge] = []
 
         # Find all function nodes that might be dependencies
         func_nodes = store.find_nodes(kind=NodeKind.FUNCTION, language="python", limit=500)
@@ -732,10 +779,7 @@ class FastAPIDetector(FrameworkDetector):
         new_edges: list[Edge] = []
 
         model_nodes = store.find_nodes(kind=NodeKind.MODEL, language="python", limit=500)
-        pydantic_models = [
-            m for m in model_nodes
-            if m.metadata.get("model_type") == "pydantic"
-        ]
+        pydantic_models = [m for m in model_nodes if m.metadata.get("model_type") == "pydantic"]
 
         if len(pydantic_models) < 2:
             return None
@@ -754,7 +798,7 @@ class FastAPIDetector(FrameworkDetector):
 
             # Read the file to check bases
             try:
-                with open(cls.file_path, "r", encoding="utf-8") as f:
+                with open(cls.file_path, encoding="utf-8") as f:
                     source_text = f.read()
             except OSError:
                 continue
@@ -763,16 +807,18 @@ class FastAPIDetector(FrameworkDetector):
             for base in bases:
                 base_short = base.rsplit(".", 1)[-1]
                 if base_short in model_map and base_short != cls.name:
-                    new_edges.append(Edge(
-                        source_id=model_map[cls.name],
-                        target_id=model_map[base_short],
-                        kind=EdgeKind.EXTENDS,
-                        confidence=0.90,
-                        metadata={
-                            "framework": "fastapi",
-                            "relationship": "pydantic_inheritance",
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=model_map[cls.name],
+                            target_id=model_map[base_short],
+                            kind=EdgeKind.EXTENDS,
+                            confidence=0.90,
+                            metadata={
+                                "framework": "fastapi",
+                                "relationship": "pydantic_inheritance",
+                            },
+                        )
+                    )
 
         if not new_edges:
             return None

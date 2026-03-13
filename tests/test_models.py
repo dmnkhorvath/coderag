@@ -1,7 +1,13 @@
 """Tests for coderag.core.models."""
+
 import pytest
+
 from coderag.core.models import (
-    Node, Edge, NodeKind, EdgeKind, GraphSummary, estimate_tokens,
+    Edge,
+    EdgeKind,
+    Node,
+    NodeKind,
+    estimate_tokens,
 )
 
 
@@ -12,8 +18,18 @@ class TestNodeKind:
         assert NodeKind.PACKAGE.value == "package"
 
     def test_all_declaration_kinds(self):
-        for kind in ["class", "interface", "trait", "function", "method",
-                     "property", "constant", "enum", "type_alias", "variable"]:
+        for kind in [
+            "class",
+            "interface",
+            "trait",
+            "function",
+            "method",
+            "property",
+            "constant",
+            "enum",
+            "type_alias",
+            "variable",
+        ]:
             assert NodeKind(kind).value == kind
 
     def test_framework_kinds(self):

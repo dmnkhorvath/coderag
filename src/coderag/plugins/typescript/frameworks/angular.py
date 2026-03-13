@@ -4,6 +4,7 @@ Detects Angular-specific patterns including components, services,
 modules, directives, pipes, routing, dependency injection, signals,
 and RxJS patterns from TypeScript source files.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,7 +31,8 @@ logger = logging.getLogger(__name__)
 
 # @Component decorator
 _COMPONENT_DECORATOR_RE = re.compile(
-    r"@Component\s*\(\s*\{", re.MULTILINE,
+    r"@Component\s*\(\s*\{",
+    re.MULTILINE,
 )
 # Extract selector from @Component
 _COMPONENT_SELECTOR_RE = re.compile(
@@ -58,11 +60,13 @@ _PROVIDED_IN_RE = re.compile(
 )
 # @NgModule decorator
 _NG_MODULE_RE = re.compile(
-    r"@NgModule\s*\(\s*\{", re.MULTILINE,
+    r"@NgModule\s*\(\s*\{",
+    re.MULTILINE,
 )
 # @Directive decorator
 _DIRECTIVE_RE = re.compile(
-    r"@Directive\s*\(\s*\{", re.MULTILINE,
+    r"@Directive\s*\(\s*\{",
+    re.MULTILINE,
 )
 # Directive selector
 _DIRECTIVE_SELECTOR_RE = re.compile(
@@ -70,7 +74,8 @@ _DIRECTIVE_SELECTOR_RE = re.compile(
 )
 # @Pipe decorator
 _PIPE_RE = re.compile(
-    r"@Pipe\s*\(\s*\{", re.MULTILINE,
+    r"@Pipe\s*\(\s*\{",
+    re.MULTILINE,
 )
 _PIPE_NAME_RE = re.compile(
     r"""name\s*:\s*['"](?P<name>[^'"]+)['"]""",
@@ -81,19 +86,24 @@ _PIPE_NAME_RE = re.compile(
 # =============================================================================
 
 _DECLARATIONS_RE = re.compile(
-    r"declarations\s*:\s*\[(?P<items>[^\]]*)\]", re.DOTALL,
+    r"declarations\s*:\s*\[(?P<items>[^\]]*)\]",
+    re.DOTALL,
 )
 _MODULE_IMPORTS_RE = re.compile(
-    r"imports\s*:\s*\[(?P<items>[^\]]*)\]", re.DOTALL,
+    r"imports\s*:\s*\[(?P<items>[^\]]*)\]",
+    re.DOTALL,
 )
 _MODULE_EXPORTS_RE = re.compile(
-    r"exports\s*:\s*\[(?P<items>[^\]]*)\]", re.DOTALL,
+    r"exports\s*:\s*\[(?P<items>[^\]]*)\]",
+    re.DOTALL,
 )
 _PROVIDERS_RE = re.compile(
-    r"providers\s*:\s*\[(?P<items>[^\]]*)\]", re.DOTALL,
+    r"providers\s*:\s*\[(?P<items>[^\]]*)\]",
+    re.DOTALL,
 )
 _BOOTSTRAP_RE = re.compile(
-    r"bootstrap\s*:\s*\[(?P<items>[^\]]*)\]", re.DOTALL,
+    r"bootstrap\s*:\s*\[(?P<items>[^\]]*)\]",
+    re.DOTALL,
 )
 
 # =============================================================================
@@ -130,8 +140,7 @@ _INJECT_FN_RE = re.compile(
 # =============================================================================
 
 # Route definitions: { path: 'xxx', component: Xxx }
-_ROUTE_PATH_RE = re.compile(
-    r"""path\s*:\s*['"](?P<path>[^'"]*)['"]""")
+_ROUTE_PATH_RE = re.compile(r"""path\s*:\s*['"](?P<path>[^'"]*)['"]""")
 _ROUTE_COMPONENT_RE = re.compile(
     r"component\s*:\s*(?P<comp>[A-Z]\w+)",
 )
@@ -191,7 +200,8 @@ _HTTP_CLIENT_URL_RE = re.compile(
 # =============================================================================
 
 _INLINE_TEMPLATE_RE = re.compile(
-    r"template\s*:\s*`(?P<template>[^`]*)`", re.DOTALL,
+    r"template\s*:\s*`(?P<template>[^`]*)`",
+    re.DOTALL,
 )
 # Component selectors in templates (app-xxx pattern)
 _TEMPLATE_SELECTOR_RE = re.compile(
@@ -305,7 +315,7 @@ class AngularDetector(FrameworkDetector):
             return False
 
         try:
-            with open(pkg_json, "r", encoding="utf-8") as f:
+            with open(pkg_json, encoding="utf-8") as f:
                 data = json.load(f)
             deps = data.get("dependencies", {})
             dev_deps = data.get("devDependencies", {})
@@ -443,7 +453,7 @@ class AngularDetector(FrameworkDetector):
 
             if not class_name:
                 # Try regex fallback
-                after_decorator = source_text[match.start():]
+                after_decorator = source_text[match.start() :]
                 cls_m = _CLASS_DECL_RE.search(after_decorator)
                 if cls_m:
                     class_name = cls_m.group("name")
@@ -479,18 +489,20 @@ class AngularDetector(FrameworkDetector):
                 template_text = inline_tpl_m.group("template")
                 for sel_match in _TEMPLATE_SELECTOR_RE.finditer(template_text):
                     child_tag = sel_match.group("tag")
-                    new_edges.append(Edge(
-                        source_id=comp_node.id,
-                        target_id=f"__unresolved__:component:{child_tag}",
-                        kind=EdgeKind.RENDERS,
-                        confidence=0.85,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_renders_component",
-                            "child_selector": child_tag,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id=f"__unresolved__:component:{child_tag}",
+                            kind=EdgeKind.RENDERS,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_renders_component",
+                                "child_selector": child_tag,
+                            },
+                        )
+                    )
 
         if not new_nodes:
             return None
@@ -526,7 +538,7 @@ class AngularDetector(FrameworkDetector):
             class_name = class_node.name if class_node else None
 
             if not class_name:
-                after_decorator = source_text[match.start():]
+                after_decorator = source_text[match.start() :]
                 cls_m = _CLASS_DECL_RE.search(after_decorator)
                 if cls_m:
                     class_name = cls_m.group("name")
@@ -583,7 +595,7 @@ class AngularDetector(FrameworkDetector):
             class_name = class_node.name if class_node else None
 
             if not class_name:
-                after_decorator = source_text[match.start():]
+                after_decorator = source_text[match.start() :]
                 cls_m = _CLASS_DECL_RE.search(after_decorator)
                 if cls_m:
                     class_name = cls_m.group("name")
@@ -614,86 +626,96 @@ class AngularDetector(FrameworkDetector):
             decl_m = _DECLARATIONS_RE.search(block)
             if decl_m:
                 for item in _extract_list_items(decl_m.group("items")):
-                    new_edges.append(Edge(
-                        source_id=mod_node.id,
-                        target_id=f"__unresolved__:component:{item}",
-                        kind=EdgeKind.CONTAINS,
-                        confidence=0.92,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_declares",
-                            "declared_name": item,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=mod_node.id,
+                            target_id=f"__unresolved__:component:{item}",
+                            kind=EdgeKind.CONTAINS,
+                            confidence=0.92,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_declares",
+                                "declared_name": item,
+                            },
+                        )
+                    )
 
             # imports → IMPORTS edges
             imp_m = _MODULE_IMPORTS_RE.search(block)
             if imp_m:
                 for item in _extract_list_items(imp_m.group("items")):
-                    new_edges.append(Edge(
-                        source_id=mod_node.id,
-                        target_id=f"__unresolved__:module:{item}",
-                        kind=EdgeKind.IMPORTS,
-                        confidence=0.92,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_imports_module",
-                            "imported_module": item,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=mod_node.id,
+                            target_id=f"__unresolved__:module:{item}",
+                            kind=EdgeKind.IMPORTS,
+                            confidence=0.92,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_imports_module",
+                                "imported_module": item,
+                            },
+                        )
+                    )
 
             # exports → EXPORTS edges
             exp_m = _MODULE_EXPORTS_RE.search(block)
             if exp_m:
                 for item in _extract_list_items(exp_m.group("items")):
-                    new_edges.append(Edge(
-                        source_id=mod_node.id,
-                        target_id=f"__unresolved__:component:{item}",
-                        kind=EdgeKind.EXPORTS,
-                        confidence=0.92,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_exports",
-                            "exported_name": item,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=mod_node.id,
+                            target_id=f"__unresolved__:component:{item}",
+                            kind=EdgeKind.EXPORTS,
+                            confidence=0.92,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_exports",
+                                "exported_name": item,
+                            },
+                        )
+                    )
 
             # providers → PROVIDES_CONTEXT edges
             prov_m = _PROVIDERS_RE.search(block)
             if prov_m:
                 for item in _extract_list_items(prov_m.group("items")):
-                    new_edges.append(Edge(
-                        source_id=mod_node.id,
-                        target_id=f"__unresolved__:service:{item}",
-                        kind=EdgeKind.PROVIDES_CONTEXT,
-                        confidence=0.90,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_provides",
-                            "provided_service": item,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=mod_node.id,
+                            target_id=f"__unresolved__:service:{item}",
+                            kind=EdgeKind.PROVIDES_CONTEXT,
+                            confidence=0.90,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_provides",
+                                "provided_service": item,
+                            },
+                        )
+                    )
 
             # bootstrap → RENDERS edges
             boot_m = _BOOTSTRAP_RE.search(block)
             if boot_m:
                 for item in _extract_list_items(boot_m.group("items")):
-                    new_edges.append(Edge(
-                        source_id=mod_node.id,
-                        target_id=f"__unresolved__:component:{item}",
-                        kind=EdgeKind.RENDERS,
-                        confidence=0.95,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_bootstraps",
-                            "bootstrapped_component": item,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=mod_node.id,
+                            target_id=f"__unresolved__:component:{item}",
+                            kind=EdgeKind.RENDERS,
+                            confidence=0.95,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_bootstraps",
+                                "bootstrapped_component": item,
+                            },
+                        )
+                    )
 
         if not new_nodes:
             return None
@@ -731,7 +753,7 @@ class AngularDetector(FrameworkDetector):
             class_name = class_node.name if class_node else None
 
             if not class_name:
-                after_decorator = source_text[match.start():]
+                after_decorator = source_text[match.start() :]
                 cls_m = _CLASS_DECL_RE.search(after_decorator)
                 if cls_m:
                     class_name = cls_m.group("name")
@@ -791,7 +813,7 @@ class AngularDetector(FrameworkDetector):
             class_name = class_node.name if class_node else None
 
             if not class_name:
-                after_decorator = source_text[match.start():]
+                after_decorator = source_text[match.start() :]
                 cls_m = _CLASS_DECL_RE.search(after_decorator)
                 if cls_m:
                     class_name = cls_m.group("name")
@@ -879,72 +901,80 @@ class AngularDetector(FrameworkDetector):
             comp_m = _ROUTE_COMPONENT_RE.search(window)
             if comp_m:
                 comp_name = comp_m.group("comp")
-                new_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=f"__unresolved__:component:{comp_name}",
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.92,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "angular",
-                        "angular_edge_type": "angular_routes_to",
-                        "component": comp_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=f"__unresolved__:component:{comp_name}",
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.92,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "angular",
+                            "angular_edge_type": "angular_routes_to",
+                            "component": comp_name,
+                        },
+                    )
+                )
 
             # Lazy-loaded component
             lazy_m = _ROUTE_LAZY_RE.search(window)
             if lazy_m:
                 module_path = lazy_m.group("module")
-                new_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=f"__unresolved__:lazy:{module_path}",
-                    kind=EdgeKind.DYNAMIC_IMPORTS,
-                    confidence=0.88,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "angular",
-                        "angular_edge_type": "angular_lazy_loads",
-                        "module_path": module_path,
-                        "lazy_type": "loadComponent",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=f"__unresolved__:lazy:{module_path}",
+                        kind=EdgeKind.DYNAMIC_IMPORTS,
+                        confidence=0.88,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "angular",
+                            "angular_edge_type": "angular_lazy_loads",
+                            "module_path": module_path,
+                            "lazy_type": "loadComponent",
+                        },
+                    )
+                )
 
             # Lazy-loaded children
             lazy_children_m = _ROUTE_LAZY_CHILDREN_RE.search(window)
             if lazy_children_m:
                 module_path = lazy_children_m.group("module")
-                new_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=f"__unresolved__:lazy:{module_path}",
-                    kind=EdgeKind.DYNAMIC_IMPORTS,
-                    confidence=0.88,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "angular",
-                        "angular_edge_type": "angular_lazy_loads",
-                        "module_path": module_path,
-                        "lazy_type": "loadChildren",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=f"__unresolved__:lazy:{module_path}",
+                        kind=EdgeKind.DYNAMIC_IMPORTS,
+                        confidence=0.88,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "angular",
+                            "angular_edge_type": "angular_lazy_loads",
+                            "module_path": module_path,
+                            "lazy_type": "loadChildren",
+                        },
+                    )
+                )
 
             # Route guards
             guard_m = _ROUTE_GUARD_RE.search(window)
             if guard_m:
                 guards = _extract_list_items(guard_m.group("guards"))
                 for guard in guards:
-                    new_edges.append(Edge(
-                        source_id=route_node.id,
-                        target_id=f"__unresolved__:guard:{guard}",
-                        kind=EdgeKind.DEPENDS_ON,
-                        confidence=0.90,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_guards",
-                            "guard_name": guard,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=route_node.id,
+                            target_id=f"__unresolved__:guard:{guard}",
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.90,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_guards",
+                                "guard_name": guard,
+                            },
+                        )
+                    )
 
         if not new_nodes:
             return None
@@ -984,7 +1014,7 @@ class AngularDetector(FrameworkDetector):
             class_node = self._find_enclosing_class(ctor_line, nodes)
             if not class_node:
                 # Fallback: search backwards for class declaration
-                before = source_text[:ctor_match.start()]
+                before = source_text[: ctor_match.start()]
                 cls_matches = list(_CLASS_DECL_RE.finditer(before))
                 if not cls_matches:
                     continue
@@ -1003,20 +1033,22 @@ class AngularDetector(FrameworkDetector):
             for param_match in _CONSTRUCTOR_PARAMS_RE.finditer(params_text):
                 param_name = param_match.group("param")
                 type_name = param_match.group("type")
-                new_edges.append(Edge(
-                    source_id=source_id,
-                    target_id=f"__unresolved__:service:{type_name}",
-                    kind=EdgeKind.DEPENDS_ON,
-                    confidence=0.90,
-                    line_number=ctor_line,
-                    metadata={
-                        "framework": "angular",
-                        "angular_edge_type": "angular_injects",
-                        "param_name": param_name,
-                        "service_type": type_name,
-                        "injection_style": "constructor",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=source_id,
+                        target_id=f"__unresolved__:service:{type_name}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.90,
+                        line_number=ctor_line,
+                        metadata={
+                            "framework": "angular",
+                            "angular_edge_type": "angular_injects",
+                            "param_name": param_name,
+                            "service_type": type_name,
+                            "injection_style": "constructor",
+                        },
+                    )
+                )
 
         # inject() function calls (Angular 14+)
         for inject_match in _INJECT_FN_RE.finditer(source_text):
@@ -1028,7 +1060,7 @@ class AngularDetector(FrameworkDetector):
             if class_node:
                 source_id = class_node.id
             else:
-                before = source_text[:inject_match.start()]
+                before = source_text[: inject_match.start()]
                 cls_matches = list(_CLASS_DECL_RE.finditer(before))
                 if not cls_matches:
                     continue
@@ -1040,19 +1072,21 @@ class AngularDetector(FrameworkDetector):
                     last_cls.group("name"),
                 )
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:service:{type_name}",
-                kind=EdgeKind.DEPENDS_ON,
-                line_number=inject_line,
-                metadata={
-                    "framework": "angular",
-                    "angular_edge_type": "angular_injects",
-                    "param_name": prop_name,
-                    "service_type": type_name,
-                    "injection_style": "inject_function",
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:service:{type_name}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    line_number=inject_line,
+                    metadata={
+                        "framework": "angular",
+                        "angular_edge_type": "angular_injects",
+                        "param_name": prop_name,
+                        "service_type": type_name,
+                        "injection_style": "inject_function",
+                    },
+                )
+            )
 
         if not new_edges:
             return None
@@ -1082,41 +1116,45 @@ class AngularDetector(FrameworkDetector):
         for match in _SIGNAL_RE.finditer(source_text):
             name = match.group("name")
             line_no = _line_of(source_text, match.start())
-            new_nodes.append(Node(
-                id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
-                kind=NodeKind.VARIABLE,
-                name=name,
-                qualified_name=name,
-                file_path=file_path,
-                start_line=line_no,
-                end_line=line_no,
-                language="typescript",
-                metadata={
-                    "framework": "angular",
-                    "angular_type": "signal",
-                    "signal_kind": "writable",
-                },
-            ))
+            new_nodes.append(
+                Node(
+                    id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
+                    kind=NodeKind.VARIABLE,
+                    name=name,
+                    qualified_name=name,
+                    file_path=file_path,
+                    start_line=line_no,
+                    end_line=line_no,
+                    language="typescript",
+                    metadata={
+                        "framework": "angular",
+                        "angular_type": "signal",
+                        "signal_kind": "writable",
+                    },
+                )
+            )
 
         # computed()
         for match in _COMPUTED_SIGNAL_RE.finditer(source_text):
             name = match.group("name")
             line_no = _line_of(source_text, match.start())
-            new_nodes.append(Node(
-                id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
-                kind=NodeKind.VARIABLE,
-                name=name,
-                qualified_name=name,
-                file_path=file_path,
-                start_line=line_no,
-                end_line=line_no,
-                language="typescript",
-                metadata={
-                    "framework": "angular",
-                    "angular_type": "signal",
-                    "signal_kind": "computed",
-                },
-            ))
+            new_nodes.append(
+                Node(
+                    id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
+                    kind=NodeKind.VARIABLE,
+                    name=name,
+                    qualified_name=name,
+                    file_path=file_path,
+                    start_line=line_no,
+                    end_line=line_no,
+                    language="typescript",
+                    metadata={
+                        "framework": "angular",
+                        "angular_type": "signal",
+                        "signal_kind": "computed",
+                    },
+                )
+            )
 
         # effect() — no named variable, just detect presence
         effect_count = len(list(_EFFECT_RE.finditer(source_text)))
@@ -1163,7 +1201,7 @@ class AngularDetector(FrameworkDetector):
             if class_node:
                 source_id = class_node.id
             else:
-                before = source_text[:match.start()]
+                before = source_text[: match.start()]
                 cls_matches = list(_CLASS_DECL_RE.finditer(before))
                 if cls_matches:
                     last_cls = cls_matches[-1]
@@ -1176,18 +1214,20 @@ class AngularDetector(FrameworkDetector):
                 else:
                     continue
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:api:{url}",
-                kind=EdgeKind.API_CALLS,
-                line_number=line_no,
-                metadata={
-                    "framework": "angular",
-                    "angular_edge_type": "angular_http_calls",
-                    "http_method": method.upper(),
-                    "url": url,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:api:{url}",
+                    kind=EdgeKind.API_CALLS,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "angular",
+                        "angular_edge_type": "angular_http_calls",
+                        "http_method": method.upper(),
+                        "url": url,
+                    },
+                )
+            )
 
         # Also detect this.http.method() without URL extraction
         for match in _HTTP_CLIENT_RE.finditer(source_text):
@@ -1208,7 +1248,7 @@ class AngularDetector(FrameworkDetector):
             if class_node:
                 source_id = class_node.id
             else:
-                before = source_text[:match.start()]
+                before = source_text[: match.start()]
                 cls_matches = list(_CLASS_DECL_RE.finditer(before))
                 if cls_matches:
                     last_cls = cls_matches[-1]
@@ -1221,24 +1261,21 @@ class AngularDetector(FrameworkDetector):
                 else:
                     continue
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:api:http_{method}",
-                kind=EdgeKind.API_CALLS,
-                line_number=line_no,
-                metadata={
-                    "framework": "angular",
-                    "angular_edge_type": "angular_http_calls",
-                    "http_method": method.upper(),
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:api:http_{method}",
+                    kind=EdgeKind.API_CALLS,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "angular",
+                        "angular_edge_type": "angular_http_calls",
+                        "http_method": method.upper(),
+                    },
+                )
+            )
 
-        has_rxjs = (
-            observable_count > 0
-            or subject_count > 0
-            or subscribe_count > 0
-            or pipe_count > 0
-        )
+        has_rxjs = observable_count > 0 or subject_count > 0 or subscribe_count > 0 or pipe_count > 0
 
         if not new_edges and not has_rxjs:
             return None
@@ -1299,20 +1336,22 @@ class AngularDetector(FrameworkDetector):
 
                 service_name = edge.target_id.split(":")[-1]
                 if service_name in service_map:
-                    new_edges.append(Edge(
-                        source_id=edge.source_id,
-                        target_id=service_map[service_name],
-                        kind=EdgeKind.DEPENDS_ON,
-                        confidence=0.95,
-                        line_number=edge.line_number,
-                        metadata={
-                            "framework": "angular",
-                            "angular_edge_type": "angular_injects",
-                            "resolved": True,
-                            "service_name": service_name,
-                            **(edge.metadata or {}),
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=edge.source_id,
+                            target_id=service_map[service_name],
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.95,
+                            line_number=edge.line_number,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_injects",
+                                "resolved": True,
+                                "service_name": service_name,
+                                **(edge.metadata or {}),
+                            },
+                        )
+                    )
 
         if not new_edges:
             return None
@@ -1333,7 +1372,8 @@ class AngularDetector(FrameworkDetector):
     def _find_enclosing_class(line_no: int, nodes: list[Node]) -> Node | None:
         """Find the CLASS node that encloses a given line number."""
         candidates = [
-            n for n in nodes
+            n
+            for n in nodes
             if n.kind == NodeKind.CLASS
             and n.start_line is not None
             and n.end_line is not None

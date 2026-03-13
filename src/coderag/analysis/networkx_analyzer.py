@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from collections import defaultdict
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import networkx as nx
 
@@ -145,7 +144,8 @@ class NetworkXAnalyzer:
                     meta = {}
 
                 self._graph.add_edge(
-                    src, tgt,
+                    src,
+                    tgt,
                     kind=row["kind"],
                     confidence=row["confidence"] or 1.0,
                     metadata=meta,
@@ -155,15 +155,14 @@ class NetworkXAnalyzer:
         self._loaded = True
         logger.info(
             "Loaded graph: %d nodes, %d edges",
-            node_count, edge_count,
+            node_count,
+            edge_count,
         )
 
     def _ensure_loaded(self) -> None:
         """Raise if graph not loaded."""
         if not self._loaded:
-            raise RuntimeError(
-                "Graph not loaded. Call load_from_store() first."
-            )
+            raise RuntimeError("Graph not loaded. Call load_from_store() first.")
 
     # ── PageRank ──────────────────────────────────────────────
 
@@ -243,7 +242,8 @@ class NetworkXAnalyzer:
             k = min(500, n)
             logger.info(
                 "Large graph (%d nodes), sampling k=%d for betweenness",
-                n, k,
+                n,
+                k,
             )
 
         scores = nx.betweenness_centrality(self._graph, k=k)
@@ -283,13 +283,12 @@ class NetworkXAnalyzer:
             from networkx.algorithms.community import (
                 greedy_modularity_communities,
             )
+
             communities = list(greedy_modularity_communities(undirected))
         except Exception as exc:
             logger.warning("Community detection failed: %s", exc)
             # Fallback: use connected components as communities
-            communities = [
-                set(c) for c in nx.connected_components(undirected)
-            ]
+            communities = [set(c) for c in nx.connected_components(undirected)]
 
         # Sort by size descending
         communities.sort(key=len, reverse=True)
@@ -452,8 +451,7 @@ class NetworkXAnalyzer:
         out_deg = self._graph.out_degree(node_id)
         total_deg = in_deg + out_deg
         max_deg = max(
-            (self._graph.in_degree(n) + self._graph.out_degree(n)
-             for n in self._graph.nodes),
+            (self._graph.in_degree(n) + self._graph.out_degree(n) for n in self._graph.nodes),
             default=1,
         )
         deg_normalized = total_deg / max_deg if max_deg > 0 else 0.0
@@ -474,12 +472,7 @@ class NetworkXAnalyzer:
                 name_bonus = 0.5
 
         # Weighted combination
-        score = (
-            0.30 * pr_normalized
-            + 0.25 * deg_normalized
-            + 0.25 * kind_weight
-            + 0.20 * name_bonus
-        )
+        score = 0.30 * pr_normalized + 0.25 * deg_normalized + 0.25 * kind_weight + 0.20 * name_bonus
 
         return min(1.0, score)
 
@@ -507,9 +500,7 @@ class NetworkXAnalyzer:
         # Use ego_graph on undirected view for reachability,
         # then extract the directed subgraph
         undirected = self._graph.to_undirected(as_view=True)
-        ego_nodes = nx.ego_graph(
-            undirected, node_id, radius=max_depth
-        ).nodes()
+        ego_nodes = nx.ego_graph(undirected, node_id, radius=max_depth).nodes()
 
         return self._graph.subgraph(ego_nodes).copy()
 
@@ -611,10 +602,7 @@ class NetworkXAnalyzer:
             raise ValueError(f"Unknown metric: {metric}")
 
         if kind_filter:
-            scores = {
-                nid: s for nid, s in scores.items()
-                if self._graph.nodes[nid].get("kind") == kind_filter
-            }
+            scores = {nid: s for nid, s in scores.items() if self._graph.nodes[nid].get("kind") == kind_filter}
 
         sorted_nodes = sorted(scores.items(), key=lambda x: -x[1])
         return sorted_nodes[:limit]
@@ -657,7 +645,4 @@ class NetworkXAnalyzer:
         return dict(self._graph.nodes[node_id])
 
     def __repr__(self) -> str:
-        return (
-            f"NetworkXAnalyzer(nodes={self.node_count}, "
-            f"edges={self.edge_count}, loaded={self._loaded})"
-        )
+        return f"NetworkXAnalyzer(nodes={self.node_count}, edges={self.edge_count}, loaded={self._loaded})"

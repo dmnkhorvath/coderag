@@ -1,12 +1,11 @@
 """FilterableLog widget — RichLog with level filtering and auto-follow."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import RichLog, Static
-from rich.text import Text
-
 
 LEVEL_ICONS = {
     "DEBUG": "[dim]🔍[/dim]",
@@ -38,9 +37,7 @@ class FilterableLog(Widget):
     """
 
     auto_follow: reactive[bool] = reactive(True)
-    active_levels: reactive[frozenset] = reactive(
-        frozenset({"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "SUCCESS"})
-    )
+    active_levels: reactive[frozenset] = reactive(frozenset({"DEBUG", "INFO", "WARN", "WARNING", "ERROR", "SUCCESS"}))
 
     def __init__(
         self,
@@ -85,8 +82,8 @@ class FilterableLog(Widget):
         visible = sum(1 for lvl, _ in self._all_entries if lvl in self.active_levels)
         follow_indicator = "[bold green]FOLLOW[/bold green]" if self.auto_follow else "[dim]follow off[/dim]"
         levels_str = " ".join(
-            f"[bold]{l[0]}[/bold]" if l in self.active_levels else f"[dim]{l[0]}[/dim]"
-            for l in ["DEBUG", "INFO", "WARN", "ERROR"]
+            f"[bold]{level[0]}[/bold]" if level in self.active_levels else f"[dim]{level[0]}[/dim]"
+            for level in ["DEBUG", "INFO", "WARN", "ERROR"]
         )
         try:
             self.query_one(".log-status", Static).update(

@@ -1,7 +1,8 @@
 """Tests for coderag.core.config."""
+
 import os
 import tempfile
-import pytest
+
 from coderag.core.config import CodeGraphConfig
 
 

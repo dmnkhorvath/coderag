@@ -1,15 +1,18 @@
 """Integration tests for the full CodeRAG pipeline."""
+
 import os
 import shutil
 import subprocess
 import tempfile
+
 import pytest
+
 from coderag.core.config import CodeGraphConfig
+from coderag.core.models import EdgeKind, NodeKind
 from coderag.core.registry import PluginRegistry
-from coderag.storage.sqlite_store import SQLiteStore
 from coderag.pipeline.orchestrator import PipelineOrchestrator
 from coderag.plugins import BUILTIN_PLUGINS
-from coderag.core.models import NodeKind, EdgeKind
+from coderag.storage.sqlite_store import SQLiteStore
 
 
 def _write_php(path, content):
@@ -29,59 +32,68 @@ def php_project():
 
     app_dir = os.path.join(d, "app")
 
-    _write_php(os.path.join(app_dir, "User.php"), (
-        "<?php\n"
-        "namespace App;\n"
-        "\n"
-        "class User {\n"
-        "    private string $name;\n"
-        "    private string $email;\n"
-        "\n"
-        "    public function getName(): string {\n"
-        "        return $this->name;\n"
-        "    }\n"
-        "\n"
-        "    public function getEmail(): string {\n"
-        "        return $this->email;\n"
-        "    }\n"
-        "\n"
-        "    public function getDisplayName(): string {\n"
-        '        return $this->getName() . " <" . $this->getEmail() . ">";\n'
-        "    }\n"
-        "}\n"
-    ))
+    _write_php(
+        os.path.join(app_dir, "User.php"),
+        (
+            "<?php\n"
+            "namespace App;\n"
+            "\n"
+            "class User {\n"
+            "    private string $name;\n"
+            "    private string $email;\n"
+            "\n"
+            "    public function getName(): string {\n"
+            "        return $this->name;\n"
+            "    }\n"
+            "\n"
+            "    public function getEmail(): string {\n"
+            "        return $this->email;\n"
+            "    }\n"
+            "\n"
+            "    public function getDisplayName(): string {\n"
+            '        return $this->getName() . " <" . $this->getEmail() . ">";\n'
+            "    }\n"
+            "}\n"
+        ),
+    )
 
-    _write_php(os.path.join(app_dir, "UserService.php"), (
-        "<?php\n"
-        "namespace App;\n"
-        "\n"
-        "use App\\User;\n"
-        "\n"
-        "class UserService {\n"
-        "    public function getUser(int $id): User {\n"
-        "        return new User();\n"
-        "    }\n"
-        "\n"
-        "    public function findByEmail(string $email): ?User {\n"
-        "        return null;\n"
-        "    }\n"
-        "}\n"
-    ))
+    _write_php(
+        os.path.join(app_dir, "UserService.php"),
+        (
+            "<?php\n"
+            "namespace App;\n"
+            "\n"
+            "use App\\User;\n"
+            "\n"
+            "class UserService {\n"
+            "    public function getUser(int $id): User {\n"
+            "        return new User();\n"
+            "    }\n"
+            "\n"
+            "    public function findByEmail(string $email): ?User {\n"
+            "        return null;\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
 
-    _write_php(os.path.join(app_dir, "Controller.php"), (
-        "<?php\n"
-        "namespace App;\n"
-        "\n"
-        "use App\\UserService;\n"
-        "\n"
-        "class Controller {\n"
-        "    private UserService $service;\n"
-        "\n"
-        "    public function index(): array {\n"
-        "        return [];\n"
-        "    }\n"
-        "}\n"
-    ))
+    _write_php(
+        os.path.join(app_dir, "Controller.php"),
+        (
+            "<?php\n"
+            "namespace App;\n"
+            "\n"
+            "use App\\UserService;\n"
+            "\n"
+            "class Controller {\n"
+            "    private UserService $service;\n"
+            "\n"
+            "    public function index(): array {\n"
+            "        return [];\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
 
     subprocess.run(["git", "-C", d, "add", "."], capture_output=True)
     subprocess.run(["git", "-C", d, "commit", "-m", "Initial"], capture_output=True)

@@ -43,6 +43,7 @@ def _child_by_type(node, type_name: str):
             return child
     return None
 
+
 def _get_declaration_value_text(decl_node, source: bytes) -> str:
     """Get the value text from a declaration node (everything after property_name)."""
     found_prop = False
@@ -68,13 +69,10 @@ def _get_declaration_value_node(decl_node):
     return None
 
 
-
 # Regex patterns
 _VAR_REFERENCE_RE = re.compile(r"var\(\s*(--[\w-]+)")
 _CUSTOM_PROP_RE = re.compile(r"^--[\w-]+$")
-_ANIMATION_NAME_RE = re.compile(
-    r"animation(?:-name)?\s*:\s*([\w-]+)"
-)
+_ANIMATION_NAME_RE = re.compile(r"animation(?:-name)?\s*:\s*([\w-]+)")
 _URL_PATH_RE = re.compile(r"""url\(['"]?([^'")]+)['"]?\)""")
 
 # Skip thresholds
@@ -86,9 +84,15 @@ class _CSSExtractionContext:
     """Mutable state passed through the CSS extraction walk."""
 
     __slots__ = (
-        "file_path", "source", "file_node_id",
-        "nodes", "edges", "errors", "unresolved",
-        "custom_props", "keyframes_names",
+        "file_path",
+        "source",
+        "file_node_id",
+        "nodes",
+        "edges",
+        "errors",
+        "unresolved",
+        "custom_props",
+        "keyframes_names",
     )
 
     def __init__(
@@ -111,7 +115,7 @@ class _CSSExtractionContext:
 
 def _node_text(node: tree_sitter.Node, source: bytes) -> str:
     """Extract text content of a tree-sitter node."""
-    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _is_minified(source: bytes) -> bool:
@@ -138,12 +142,14 @@ class CSSExtractor(ASTExtractor):
             return ExtractionResult(
                 file_path=file_path,
                 language="css",
-                errors=[ExtractionError(
-                    file_path=file_path,
-                    line_number=None,
-                    message=f"File too large ({len(source)} bytes), skipped",
-                    severity="warning",
-                )],
+                errors=[
+                    ExtractionError(
+                        file_path=file_path,
+                        line_number=None,
+                        message=f"File too large ({len(source)} bytes), skipped",
+                        severity="warning",
+                    )
+                ],
                 parse_time_ms=(time.perf_counter() - t0) * 1000,
             )
 
@@ -151,12 +157,14 @@ class CSSExtractor(ASTExtractor):
             return ExtractionResult(
                 file_path=file_path,
                 language="css",
-                errors=[ExtractionError(
-                    file_path=file_path,
-                    line_number=None,
-                    message="Minified CSS detected, skipped",
-                    severity="warning",
-                )],
+                errors=[
+                    ExtractionError(
+                        file_path=file_path,
+                        line_number=None,
+                        message="Minified CSS detected, skipped",
+                        severity="warning",
+                    )
+                ],
                 parse_time_ms=(time.perf_counter() - t0) * 1000,
             )
 
@@ -202,27 +210,31 @@ class CSSExtractor(ASTExtractor):
         )
 
     def supported_node_kinds(self) -> frozenset[NodeKind]:
-        return frozenset({
-            NodeKind.FILE,
-            NodeKind.CSS_CLASS,
-            NodeKind.CSS_ID,
-            NodeKind.CSS_VARIABLE,
-            NodeKind.CSS_KEYFRAMES,
-            NodeKind.CSS_MEDIA_QUERY,
-            NodeKind.CSS_LAYER,
-            NodeKind.CSS_FONT_FACE,
-            NodeKind.IMPORT,
-        })
+        return frozenset(
+            {
+                NodeKind.FILE,
+                NodeKind.CSS_CLASS,
+                NodeKind.CSS_ID,
+                NodeKind.CSS_VARIABLE,
+                NodeKind.CSS_KEYFRAMES,
+                NodeKind.CSS_MEDIA_QUERY,
+                NodeKind.CSS_LAYER,
+                NodeKind.CSS_FONT_FACE,
+                NodeKind.IMPORT,
+            }
+        )
 
     def supported_edge_kinds(self) -> frozenset[EdgeKind]:
-        return frozenset({
-            EdgeKind.CONTAINS,
-            EdgeKind.IMPORTS,
-            EdgeKind.CSS_USES_VARIABLE,
-            EdgeKind.CSS_MEDIA_CONTAINS,
-            EdgeKind.CSS_LAYER_CONTAINS,
-            EdgeKind.CSS_KEYFRAMES_USED_BY,
-        })
+        return frozenset(
+            {
+                EdgeKind.CONTAINS,
+                EdgeKind.IMPORTS,
+                EdgeKind.CSS_USES_VARIABLE,
+                EdgeKind.CSS_MEDIA_CONTAINS,
+                EdgeKind.CSS_LAYER_CONTAINS,
+                EdgeKind.CSS_KEYFRAMES_USED_BY,
+            }
+        )
 
     # -- Error collection ---------------------------------------------------
 
@@ -233,12 +245,14 @@ class CSSExtractor(ASTExtractor):
         errors: list[ExtractionError],
     ) -> None:
         if node.type == "ERROR" or node.is_missing:
-            errors.append(ExtractionError(
-                file_path=file_path,
-                line_number=node.start_point[0] + 1,
-                message=f"Parse error at line {node.start_point[0] + 1}",
-                node_type=node.type,
-            ))
+            errors.append(
+                ExtractionError(
+                    file_path=file_path,
+                    line_number=node.start_point[0] + 1,
+                    message=f"Parse error at line {node.start_point[0] + 1}",
+                    node_type=node.type,
+                )
+            )
         for child in node.children:
             self._collect_errors(child, file_path, errors)
 
@@ -334,24 +348,28 @@ class CSSExtractor(ASTExtractor):
         node_id = generate_node_id(ctx.file_path, line, NodeKind.CSS_CLASS, name)
 
         source_text = _node_text(rule_node, ctx.source)
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_CLASS,
-            name=f".{name}",
-            qualified_name=f".{name}",
-            file_path=ctx.file_path,
-            start_line=rule_node.start_point[0] + 1,
-            end_line=rule_node.end_point[0] + 1,
-            language="css",
-            source_text=source_text if len(source_text) < 2000 else None,
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_CLASS,
+                name=f".{name}",
+                qualified_name=f".{name}",
+                file_path=ctx.file_path,
+                start_line=rule_node.start_point[0] + 1,
+                end_line=rule_node.end_point[0] + 1,
+                language="css",
+                source_text=source_text if len(source_text) < 2000 else None,
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
     def _handle_id_selector(
         self,
@@ -370,24 +388,28 @@ class CSSExtractor(ASTExtractor):
         node_id = generate_node_id(ctx.file_path, line, NodeKind.CSS_ID, name)
 
         source_text = _node_text(rule_node, ctx.source)
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_ID,
-            name=f"#{name}",
-            qualified_name=f"#{name}",
-            file_path=ctx.file_path,
-            start_line=rule_node.start_point[0] + 1,
-            end_line=rule_node.end_point[0] + 1,
-            language="css",
-            source_text=source_text if len(source_text) < 2000 else None,
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_ID,
+                name=f"#{name}",
+                qualified_name=f"#{name}",
+                file_path=ctx.file_path,
+                start_line=rule_node.start_point[0] + 1,
+                end_line=rule_node.end_point[0] + 1,
+                language="css",
+                source_text=source_text if len(source_text) < 2000 else None,
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
     # -- Declaration handling -----------------------------------------------
 
@@ -427,13 +449,15 @@ class CSSExtractor(ASTExtractor):
                 var_name = match.group(1)
                 line = decl_node.start_point[0] + 1
                 # Create unresolved reference for cross-file resolution
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=ctx.file_node_id,
-                    reference_name=var_name,
-                    reference_kind=EdgeKind.CSS_USES_VARIABLE,
-                    line_number=line,
-                    context={"type": "css_var_reference"},
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=ctx.file_node_id,
+                        reference_name=var_name,
+                        reference_kind=EdgeKind.CSS_USES_VARIABLE,
+                        line_number=line,
+                        context={"type": "css_var_reference"},
+                    )
+                )
 
             # Check for animation-name references
             if prop_name in ("animation", "animation-name"):
@@ -448,28 +472,35 @@ class CSSExtractor(ASTExtractor):
         """Create a CSS_VARIABLE node for a custom property definition."""
         line = decl_node.start_point[0] + 1
         node_id = generate_node_id(
-            ctx.file_path, line, NodeKind.CSS_VARIABLE, prop_name,
+            ctx.file_path,
+            line,
+            NodeKind.CSS_VARIABLE,
+            prop_name,
         )
 
         source_text = _node_text(decl_node, ctx.source)
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_VARIABLE,
-            name=prop_name,
-            qualified_name=prop_name,
-            file_path=ctx.file_path,
-            start_line=line,
-            end_line=decl_node.end_point[0] + 1,
-            language="css",
-            source_text=source_text if len(source_text) < 2000 else None,
-        ))
-        ctx.edges.append(Edge(
-            source_id=ctx.file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_VARIABLE,
+                name=prop_name,
+                qualified_name=prop_name,
+                file_path=ctx.file_path,
+                start_line=line,
+                end_line=decl_node.end_point[0] + 1,
+                language="css",
+                source_text=source_text if len(source_text) < 2000 else None,
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=ctx.file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
         # Track for intra-file resolution
         ctx.custom_props[prop_name] = node_id
 
@@ -482,10 +513,25 @@ class CSSExtractor(ASTExtractor):
         """Extract animation-name references to @keyframes."""
         # Simple heuristic: first word-like token that isn't a CSS keyword
         css_anim_keywords = {
-            "none", "initial", "inherit", "unset", "revert",
-            "ease", "linear", "ease-in", "ease-out", "ease-in-out",
-            "infinite", "alternate", "reverse", "normal", "forwards",
-            "backwards", "both", "running", "paused",
+            "none",
+            "initial",
+            "inherit",
+            "unset",
+            "revert",
+            "ease",
+            "linear",
+            "ease-in",
+            "ease-out",
+            "ease-in-out",
+            "infinite",
+            "alternate",
+            "reverse",
+            "normal",
+            "forwards",
+            "backwards",
+            "both",
+            "running",
+            "paused",
         }
         tokens = value_text.strip().split()
         for token in tokens:
@@ -495,13 +541,15 @@ class CSSExtractor(ASTExtractor):
                 if re.match(r"^[\d.]+(?:s|ms)$", clean):
                     continue
                 line = decl_node.start_point[0] + 1
-                ctx.unresolved.append(UnresolvedReference(
-                    source_node_id=ctx.file_node_id,
-                    reference_name=clean,
-                    reference_kind=EdgeKind.CSS_KEYFRAMES_USED_BY,
-                    line_number=line,
-                    context={"type": "animation_name_reference"},
-                ))
+                ctx.unresolved.append(
+                    UnresolvedReference(
+                        source_node_id=ctx.file_node_id,
+                        reference_name=clean,
+                        reference_kind=EdgeKind.CSS_KEYFRAMES_USED_BY,
+                        line_number=line,
+                        context={"type": "animation_name_reference"},
+                    )
+                )
                 break  # Only first animation name
 
     # -- @import handling ---------------------------------------------------
@@ -519,35 +567,44 @@ class CSSExtractor(ASTExtractor):
             return
 
         node_id = generate_node_id(
-            ctx.file_path, line, NodeKind.IMPORT, import_path,
+            ctx.file_path,
+            line,
+            NodeKind.IMPORT,
+            import_path,
         )
 
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.IMPORT,
-            name=import_path,
-            qualified_name=import_path,
-            file_path=ctx.file_path,
-            start_line=line,
-            end_line=node.end_point[0] + 1,
-            language="css",
-            source_text=_node_text(node, ctx.source),
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.IMPORT,
+                name=import_path,
+                qualified_name=import_path,
+                file_path=ctx.file_path,
+                start_line=line,
+                end_line=node.end_point[0] + 1,
+                language="css",
+                source_text=_node_text(node, ctx.source),
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
         # Create unresolved import reference
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=node_id,
-            reference_name=import_path,
-            reference_kind=EdgeKind.IMPORTS,
-            line_number=line,
-            context={"type": "css_import"},
-        ))
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=node_id,
+                reference_name=import_path,
+                reference_kind=EdgeKind.IMPORTS,
+                line_number=line,
+                context={"type": "css_import"},
+            )
+        )
 
     def _extract_import_path(
         self,
@@ -593,28 +650,35 @@ class CSSExtractor(ASTExtractor):
 
         line = node.start_point[0] + 1
         node_id = generate_node_id(
-            ctx.file_path, line, NodeKind.CSS_KEYFRAMES, name,
+            ctx.file_path,
+            line,
+            NodeKind.CSS_KEYFRAMES,
+            name,
         )
 
         source_text = _node_text(node, ctx.source)
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_KEYFRAMES,
-            name=f"@keyframes {name}",
-            qualified_name=f"@keyframes {name}",
-            file_path=ctx.file_path,
-            start_line=line,
-            end_line=node.end_point[0] + 1,
-            language="css",
-            source_text=source_text if len(source_text) < 2000 else None,
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_KEYFRAMES,
+                name=f"@keyframes {name}",
+                qualified_name=f"@keyframes {name}",
+                file_path=ctx.file_path,
+                start_line=line,
+                end_line=node.end_point[0] + 1,
+                language="css",
+                source_text=source_text if len(source_text) < 2000 else None,
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
         ctx.keyframes_names[name] = node_id
 
     # -- @media handling ----------------------------------------------------
@@ -642,26 +706,33 @@ class CSSExtractor(ASTExtractor):
 
         line = node.start_point[0] + 1
         node_id = generate_node_id(
-            ctx.file_path, line, NodeKind.CSS_MEDIA_QUERY, condition,
+            ctx.file_path,
+            line,
+            NodeKind.CSS_MEDIA_QUERY,
+            condition,
         )
 
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_MEDIA_QUERY,
-            name=f"@media {condition}",
-            qualified_name=f"@media {condition}",
-            file_path=ctx.file_path,
-            start_line=line,
-            end_line=node.end_point[0] + 1,
-            language="css",
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_MEDIA_QUERY,
+                name=f"@media {condition}",
+                qualified_name=f"@media {condition}",
+                file_path=ctx.file_path,
+                start_line=line,
+                end_line=node.end_point[0] + 1,
+                language="css",
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Walk nested rules inside the media block
         if block_node is not None:
@@ -684,15 +755,16 @@ class CSSExtractor(ASTExtractor):
         # Find the most recently added selector nodes from this rule
         rule_line = rule_node.start_point[0] + 1
         for node in ctx.nodes:
-            if (node.kind in (NodeKind.CSS_CLASS, NodeKind.CSS_ID)
-                    and node.start_line == rule_line):
-                ctx.edges.append(Edge(
-                    source_id=media_id,
-                    target_id=node.id,
-                    kind=EdgeKind.CSS_MEDIA_CONTAINS,
-                    confidence=1.0,
-                    line_number=rule_line,
-                ))
+            if node.kind in (NodeKind.CSS_CLASS, NodeKind.CSS_ID) and node.start_line == rule_line:
+                ctx.edges.append(
+                    Edge(
+                        source_id=media_id,
+                        target_id=node.id,
+                        kind=EdgeKind.CSS_MEDIA_CONTAINS,
+                        confidence=1.0,
+                        line_number=rule_line,
+                    )
+                )
 
     # -- @layer / @font-face handling (via at_rule) -------------------------
 
@@ -740,26 +812,33 @@ class CSSExtractor(ASTExtractor):
 
         line = node.start_point[0] + 1
         node_id = generate_node_id(
-            ctx.file_path, line, NodeKind.CSS_LAYER, name,
+            ctx.file_path,
+            line,
+            NodeKind.CSS_LAYER,
+            name,
         )
 
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_LAYER,
-            name=f"@layer {name}",
-            qualified_name=f"@layer {name}",
-            file_path=ctx.file_path,
-            start_line=line,
-            end_line=node.end_point[0] + 1,
-            language="css",
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_LAYER,
+                name=f"@layer {name}",
+                qualified_name=f"@layer {name}",
+                file_path=ctx.file_path,
+                start_line=line,
+                end_line=node.end_point[0] + 1,
+                language="css",
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
         # Walk nested rules inside the layer block
         if block_node is not None:
@@ -769,15 +848,16 @@ class CSSExtractor(ASTExtractor):
                     # Create layer_contains edges
                     rule_line = child.start_point[0] + 1
                     for n in ctx.nodes:
-                        if (n.kind in (NodeKind.CSS_CLASS, NodeKind.CSS_ID)
-                                and n.start_line == rule_line):
-                            ctx.edges.append(Edge(
-                                source_id=node_id,
-                                target_id=n.id,
-                                kind=EdgeKind.CSS_LAYER_CONTAINS,
-                                confidence=1.0,
-                                line_number=rule_line,
-                            ))
+                        if n.kind in (NodeKind.CSS_CLASS, NodeKind.CSS_ID) and n.start_line == rule_line:
+                            ctx.edges.append(
+                                Edge(
+                                    source_id=node_id,
+                                    target_id=n.id,
+                                    kind=EdgeKind.CSS_LAYER_CONTAINS,
+                                    confidence=1.0,
+                                    line_number=rule_line,
+                                )
+                            )
 
     def _handle_font_face(
         self,
@@ -806,28 +886,35 @@ class CSSExtractor(ASTExtractor):
 
         line = node.start_point[0] + 1
         node_id = generate_node_id(
-            ctx.file_path, line, NodeKind.CSS_FONT_FACE, font_name,
+            ctx.file_path,
+            line,
+            NodeKind.CSS_FONT_FACE,
+            font_name,
         )
 
         source_text = _node_text(node, ctx.source)
-        ctx.nodes.append(Node(
-            id=node_id,
-            kind=NodeKind.CSS_FONT_FACE,
-            name=f"@font-face {font_name}",
-            qualified_name=f"@font-face {font_name}",
-            file_path=ctx.file_path,
-            start_line=line,
-            end_line=node.end_point[0] + 1,
-            language="css",
-            source_text=source_text if len(source_text) < 2000 else None,
-        ))
-        ctx.edges.append(Edge(
-            source_id=parent_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-            line_number=line,
-        ))
+        ctx.nodes.append(
+            Node(
+                id=node_id,
+                kind=NodeKind.CSS_FONT_FACE,
+                name=f"@font-face {font_name}",
+                qualified_name=f"@font-face {font_name}",
+                file_path=ctx.file_path,
+                start_line=line,
+                end_line=node.end_point[0] + 1,
+                language="css",
+                source_text=source_text if len(source_text) < 2000 else None,
+            )
+        )
+        ctx.edges.append(
+            Edge(
+                source_id=parent_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+                line_number=line,
+            )
+        )
 
     # -- Intra-file resolution ----------------------------------------------
 
@@ -842,24 +929,28 @@ class CSSExtractor(ASTExtractor):
             if ref.reference_kind == EdgeKind.CSS_USES_VARIABLE:
                 target_id = ctx.custom_props.get(ref.reference_name)
                 if target_id:
-                    ctx.edges.append(Edge(
-                        source_id=ref.source_node_id,
-                        target_id=target_id,
-                        kind=EdgeKind.CSS_USES_VARIABLE,
-                        confidence=0.9,
-                        line_number=ref.line_number,
-                    ))
+                    ctx.edges.append(
+                        Edge(
+                            source_id=ref.source_node_id,
+                            target_id=target_id,
+                            kind=EdgeKind.CSS_USES_VARIABLE,
+                            confidence=0.9,
+                            line_number=ref.line_number,
+                        )
+                    )
                     resolved = True
             elif ref.reference_kind == EdgeKind.CSS_KEYFRAMES_USED_BY:
                 target_id = ctx.keyframes_names.get(ref.reference_name)
                 if target_id:
-                    ctx.edges.append(Edge(
-                        source_id=ref.source_node_id,
-                        target_id=target_id,
-                        kind=EdgeKind.CSS_KEYFRAMES_USED_BY,
-                        confidence=0.85,
-                        line_number=ref.line_number,
-                    ))
+                    ctx.edges.append(
+                        Edge(
+                            source_id=ref.source_node_id,
+                            target_id=target_id,
+                            kind=EdgeKind.CSS_KEYFRAMES_USED_BY,
+                            confidence=0.85,
+                            line_number=ref.line_number,
+                        )
+                    )
                     resolved = True
 
             if not resolved:

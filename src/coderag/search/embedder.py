@@ -3,10 +3,11 @@
 Uses sentence-transformers to produce dense vector representations
 of code symbols for semantic search.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -114,10 +115,7 @@ class CodeEmbedder:
         params = meta.get("parameters") or meta.get("params")
         if params:
             if isinstance(params, list):
-                param_str = ", ".join(
-                    p if isinstance(p, str) else p.get("name", str(p))
-                    for p in params
-                )
+                param_str = ", ".join(p if isinstance(p, str) else p.get("name", str(p)) for p in params)
             else:
                 param_str = str(params)
             parts.append(f". Parameters: {param_str}")

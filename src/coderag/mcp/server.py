@@ -6,6 +6,7 @@ knowledge graph to LLMs via the Model Context Protocol.
 Supports hot-reload: when the database file changes (e.g., after
 a re-parse), the server automatically reloads the store and analyzer.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -13,7 +14,6 @@ import logging
 import os
 import sys
 import threading
-import time
 from pathlib import Path
 from typing import Any
 
@@ -122,8 +122,7 @@ class GraphContext:
             self.load()
             stats = self._analyzer.get_statistics()
             print(
-                f"[hot-reload] Reloaded: {stats.get('node_count', 0)} nodes, "
-                f"{stats.get('edge_count', 0)} edges",
+                f"[hot-reload] Reloaded: {stats.get('node_count', 0)} nodes, {stats.get('edge_count', 0)} edges",
                 file=sys.stderr,
             )
             return True
@@ -180,10 +179,7 @@ def _find_db_path(project_dir: str, db_path: str | None = None) -> Path:
         p = Path(project_dir) / _DEFAULT_DB_SUBPATH
 
     if not p.exists():
-        msg = (
-            f"Graph database not found at {p}. "
-            f"Run 'coderag parse {project_dir}' first to build the knowledge graph."
-        )
+        msg = f"Graph database not found at {p}. Run 'coderag parse {project_dir}' first to build the knowledge graph."
         raise FileNotFoundError(msg)
     return p
 
@@ -301,7 +297,7 @@ def run_stdio_server(
     node_count = stats.get("node_count", 0)
     edge_count = stats.get("edge_count", 0)
     print(f"Ready: {node_count} nodes, {edge_count} edges", file=sys.stderr)
-    print(f"Transport: stdio", file=sys.stderr)
+    print("Transport: stdio", file=sys.stderr)
     if hot_reload:
         print(
             f"Hot-reload: enabled (polling every {_RELOAD_POLL_INTERVAL}s)",
@@ -311,9 +307,7 @@ def run_stdio_server(
     async def _run() -> None:
         if hot_reload:
             # Start watcher as background task
-            asyncio.create_task(
-                _hot_reload_watcher(ctx, _RELOAD_POLL_INTERVAL)
-            )
+            asyncio.create_task(_hot_reload_watcher(ctx, _RELOAD_POLL_INTERVAL))
         await mcp.run_stdio_async()
 
     try:

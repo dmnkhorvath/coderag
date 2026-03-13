@@ -4,13 +4,14 @@ Detects Next.js-specific patterns including file-based routing
 (App Router and Pages Router), server/client components, and
 route handlers from project structure and source directives.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 import re
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Any
 
 from coderag.core.models import (
@@ -111,7 +112,7 @@ class NextJSDetector(FrameworkDetector):
             return False
 
         try:
-            with open(pkg_json, "r", encoding="utf-8") as f:
+            with open(pkg_json, encoding="utf-8") as f:
                 data = json.load(f)
             deps = data.get("dependencies", {})
             dev_deps = data.get("devDependencies", {})
@@ -143,21 +144,29 @@ class NextJSDetector(FrameworkDetector):
 
         # ── Directive detection ────────────────────────────────
         directive_pattern = self._detect_directives(
-            file_path, nodes, source_text,
+            file_path,
+            nodes,
+            source_text,
         )
         if directive_pattern:
             patterns.append(directive_pattern)
 
         # ── App Router detection ──────────────────────────────
         app_pattern = self._detect_app_router(
-            file_path, norm_path, nodes, source_text,
+            file_path,
+            norm_path,
+            nodes,
+            source_text,
         )
         if app_pattern:
             patterns.append(app_pattern)
 
         # ── Pages Router detection ────────────────────────────
         pages_pattern = self._detect_pages_router(
-            file_path, norm_path, nodes, source_text,
+            file_path,
+            norm_path,
+            nodes,
+            source_text,
         )
         if pages_pattern:
             patterns.append(pages_pattern)
@@ -195,10 +204,9 @@ class NextJSDetector(FrameworkDetector):
 
         # Find exported functions/components in this file
         component_nodes = [
-            n for n in nodes
-            if n.kind in (NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE)
-            and n.name
-            and n.name[0].isupper()
+            n
+            for n in nodes
+            if n.kind in (NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE) and n.name and n.name[0].isupper()
         ]
 
         directive = "use client" if is_client else "use server"
@@ -207,7 +215,9 @@ class NextJSDetector(FrameworkDetector):
         for comp in component_nodes:
             comp_node = Node(
                 id=generate_node_id(
-                    file_path, comp.start_line, NodeKind.COMPONENT,
+                    file_path,
+                    comp.start_line,
+                    NodeKind.COMPONENT,
                     f"{component_type}:{comp.name}",
                 ),
                 kind=NodeKind.COMPONENT,
@@ -293,7 +303,9 @@ class NextJSDetector(FrameworkDetector):
                 line_no = self._find_export_line(source_text, method)
                 route_node = Node(
                     id=generate_node_id(
-                        file_path, line_no, NodeKind.ROUTE,
+                        file_path,
+                        line_no,
+                        NodeKind.ROUTE,
                         f"{method}:{route_path}",
                     ),
                     kind=NodeKind.ROUTE,
@@ -317,22 +329,26 @@ class NextJSDetector(FrameworkDetector):
                 # Link to handler function
                 handler = self._find_handler(nodes, method)
                 if handler:
-                    route_edges.append(Edge(
-                        source_id=route_node.id,
-                        target_id=handler.id,
-                        kind=EdgeKind.ROUTES_TO,
-                        confidence=0.90,
-                        line_number=line_no,
-                        metadata={
-                            "framework": "nextjs",
-                            "http_method": method,
-                        },
-                    ))
+                    route_edges.append(
+                        Edge(
+                            source_id=route_node.id,
+                            target_id=handler.id,
+                            kind=EdgeKind.ROUTES_TO,
+                            confidence=0.90,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "nextjs",
+                                "http_method": method,
+                            },
+                        )
+                    )
         else:
             # Create a single ROUTE node for page/layout/etc.
             route_node = Node(
                 id=generate_node_id(
-                    file_path, 1, NodeKind.ROUTE,
+                    file_path,
+                    1,
+                    NodeKind.ROUTE,
                     f"{file_type}:{route_path}",
                 ),
                 kind=NodeKind.ROUTE,
@@ -355,17 +371,19 @@ class NextJSDetector(FrameworkDetector):
             # Link to default export component
             default_export = self._find_default_export(nodes, source_text)
             if default_export:
-                route_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=default_export.id,
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.90,
-                    line_number=1,
-                    metadata={
-                        "framework": "nextjs",
-                        "file_type": file_type,
-                    },
-                ))
+                route_edges.append(
+                    Edge(
+                        source_id=route_node.id,
+                        target_id=default_export.id,
+                        kind=EdgeKind.ROUTES_TO,
+                        confidence=0.90,
+                        line_number=1,
+                        metadata={
+                            "framework": "nextjs",
+                            "file_type": file_type,
+                        },
+                    )
+                )
 
         if not route_nodes:
             return None
@@ -428,7 +446,9 @@ class NextJSDetector(FrameworkDetector):
 
         route_node = Node(
             id=generate_node_id(
-                file_path, 1, NodeKind.ROUTE,
+                file_path,
+                1,
+                NodeKind.ROUTE,
                 f"pages:{route_path}",
             ),
             kind=NodeKind.ROUTE,
@@ -451,17 +471,19 @@ class NextJSDetector(FrameworkDetector):
         # Link to default export
         default_export = self._find_default_export(nodes, source_text)
         if default_export:
-            route_edges.append(Edge(
-                source_id=route_node.id,
-                target_id=default_export.id,
-                kind=EdgeKind.ROUTES_TO,
-                confidence=0.90,
-                line_number=1,
-                metadata={
-                    "framework": "nextjs",
-                    "file_type": file_type,
-                },
-            ))
+            route_edges.append(
+                Edge(
+                    source_id=route_node.id,
+                    target_id=default_export.id,
+                    kind=EdgeKind.ROUTES_TO,
+                    confidence=0.90,
+                    line_number=1,
+                    metadata={
+                        "framework": "nextjs",
+                        "file_type": file_type,
+                    },
+                )
+            )
 
         return FrameworkPattern(
             framework_name="nextjs",
@@ -511,7 +533,7 @@ class NextJSDetector(FrameworkDetector):
         )
         match = pattern.search(source_text)
         if match:
-            return source_text[:match.start()].count("\n") + 1
+            return source_text[: match.start()].count("\n") + 1
         return 1
 
     @staticmethod
@@ -524,7 +546,8 @@ class NextJSDetector(FrameworkDetector):
 
     @staticmethod
     def _find_default_export(
-        nodes: list[Node], source_text: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> Node | None:
         """Find the default-exported component/function.
 
@@ -542,7 +565,9 @@ class NextJSDetector(FrameworkDetector):
             name = match.group("name")
             for n in nodes:
                 if n.name == name and n.kind in (
-                    NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE,
+                    NodeKind.FUNCTION,
+                    NodeKind.CLASS,
+                    NodeKind.VARIABLE,
                 ):
                     return n
 
@@ -555,17 +580,15 @@ class NextJSDetector(FrameworkDetector):
             name = match.group("name")
             for n in nodes:
                 if n.name == name and n.kind in (
-                    NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE,
+                    NodeKind.FUNCTION,
+                    NodeKind.CLASS,
+                    NodeKind.VARIABLE,
                 ):
                     return n
 
         # Fallback: return first uppercase-named function
         for n in nodes:
-            if (
-                n.kind in (NodeKind.FUNCTION, NodeKind.CLASS)
-                and n.name
-                and n.name[0].isupper()
-            ):
+            if n.kind in (NodeKind.FUNCTION, NodeKind.CLASS) and n.name and n.name[0].isupper():
                 return n
 
         return None

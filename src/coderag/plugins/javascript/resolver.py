@@ -6,6 +6,7 @@ Implements the Node.js module resolution algorithm for:
 - Built-in modules (fs, path, http, etc.)
 - Alias imports (@/utils, ~/components)
 """
+
 from __future__ import annotations
 
 import json
@@ -23,35 +24,105 @@ from coderag.core.registry import ModuleResolver
 logger = logging.getLogger(__name__)
 
 # Node.js built-in modules (core modules)
-_NODE_BUILTINS: frozenset[str] = frozenset({
-    "assert", "async_hooks", "buffer", "child_process", "cluster",
-    "console", "constants", "crypto", "dgram", "diagnostics_channel",
-    "dns", "domain", "events", "fs", "http", "http2", "https",
-    "inspector", "module", "net", "os", "path", "perf_hooks",
-    "process", "punycode", "querystring", "readline", "repl",
-    "stream", "string_decoder", "sys", "timers", "tls", "trace_events",
-    "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
-    # Node.js prefixed versions
-    "node:assert", "node:async_hooks", "node:buffer",
-    "node:child_process", "node:cluster", "node:console",
-    "node:constants", "node:crypto", "node:dgram",
-    "node:diagnostics_channel", "node:dns", "node:domain",
-    "node:events", "node:fs", "node:http", "node:http2",
-    "node:https", "node:inspector", "node:module", "node:net",
-    "node:os", "node:path", "node:perf_hooks", "node:process",
-    "node:punycode", "node:querystring", "node:readline",
-    "node:repl", "node:stream", "node:string_decoder", "node:sys",
-    "node:timers", "node:tls", "node:trace_events", "node:tty",
-    "node:url", "node:util", "node:v8", "node:vm", "node:wasi",
-    "node:worker_threads", "node:zlib",
-})
+_NODE_BUILTINS: frozenset[str] = frozenset(
+    {
+        "assert",
+        "async_hooks",
+        "buffer",
+        "child_process",
+        "cluster",
+        "console",
+        "constants",
+        "crypto",
+        "dgram",
+        "diagnostics_channel",
+        "dns",
+        "domain",
+        "events",
+        "fs",
+        "http",
+        "http2",
+        "https",
+        "inspector",
+        "module",
+        "net",
+        "os",
+        "path",
+        "perf_hooks",
+        "process",
+        "punycode",
+        "querystring",
+        "readline",
+        "repl",
+        "stream",
+        "string_decoder",
+        "sys",
+        "timers",
+        "tls",
+        "trace_events",
+        "tty",
+        "url",
+        "util",
+        "v8",
+        "vm",
+        "wasi",
+        "worker_threads",
+        "zlib",
+        # Node.js prefixed versions
+        "node:assert",
+        "node:async_hooks",
+        "node:buffer",
+        "node:child_process",
+        "node:cluster",
+        "node:console",
+        "node:constants",
+        "node:crypto",
+        "node:dgram",
+        "node:diagnostics_channel",
+        "node:dns",
+        "node:domain",
+        "node:events",
+        "node:fs",
+        "node:http",
+        "node:http2",
+        "node:https",
+        "node:inspector",
+        "node:module",
+        "node:net",
+        "node:os",
+        "node:path",
+        "node:perf_hooks",
+        "node:process",
+        "node:punycode",
+        "node:querystring",
+        "node:readline",
+        "node:repl",
+        "node:stream",
+        "node:string_decoder",
+        "node:sys",
+        "node:timers",
+        "node:tls",
+        "node:trace_events",
+        "node:tty",
+        "node:url",
+        "node:util",
+        "node:v8",
+        "node:vm",
+        "node:wasi",
+        "node:worker_threads",
+        "node:zlib",
+    }
+)
 
 # Extensions to try when resolving relative imports
 _JS_EXTENSIONS: tuple[str, ...] = (".js", ".jsx", ".mjs", ".cjs")
 
 # Index file names to try when resolving directories
 _INDEX_FILES: tuple[str, ...] = (
-    "index.js", "index.jsx", "index.mjs", "index.cjs",
+    "index.js",
+    "index.jsx",
+    "index.mjs",
+    "index.cjs",
 )
 
 
@@ -109,9 +180,7 @@ class JSResolver(ModuleResolver):
 
         # 3. Relative imports (./foo, ../bar)
         if import_path.startswith("."):
-            from_dir = os.path.dirname(
-                os.path.join(self._project_root, from_file)
-            )
+            from_dir = os.path.dirname(os.path.join(self._project_root, from_file))
             result = self._resolve_relative(import_path, from_dir)
             if result is not None:
                 return ResolutionResult(
@@ -155,9 +224,7 @@ class JSResolver(ModuleResolver):
             self._known_files.add(fi.path)
             abs_path = os.path.join(self._project_root, fi.path)
             self._known_abs.add(os.path.normpath(abs_path))
-        logger.info(
-            "JS resolver indexed %d files from project", len(self._known_files)
-        )
+        logger.info("JS resolver indexed %d files from project", len(self._known_files))
 
     # -- Internal: relative resolution --------------------------------------
 
@@ -193,7 +260,9 @@ class JSResolver(ModuleResolver):
     # -- Internal: package resolution ---------------------------------------
 
     def _resolve_package(
-        self, import_path: str, from_file: str,
+        self,
+        import_path: str,
+        from_file: str,
     ) -> ResolutionResult | None:
         """Resolve a bare package specifier via node_modules."""
         # Split scoped packages: @scope/pkg/path -> package=@scope/pkg, subpath=path
@@ -271,7 +340,7 @@ class JSResolver(ModuleResolver):
             if import_path == prefix:
                 return replacement
             if import_path.startswith(prefix + "/"):
-                rest = import_path[len(prefix) + 1:]
+                rest = import_path[len(prefix) + 1 :]
                 return os.path.join(replacement, rest)
         return None
 
@@ -283,7 +352,7 @@ class JSResolver(ModuleResolver):
         if not os.path.isfile(pkg_path):
             return
         try:
-            with open(pkg_path, "r") as f:
+            with open(pkg_path) as f:
                 data = json.load(f)
             self._module_type = data.get("type", "commonjs")
             logger.info(
@@ -305,10 +374,11 @@ class JSResolver(ModuleResolver):
     def _load_jsconfig_paths(self, config_path: str) -> None:
         """Load path aliases from jsconfig.json or tsconfig.json."""
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 raw = f.read()
             # Strip single-line comments (crude but effective)
             import re
+
             raw = re.sub(r"//.*?$", "", raw, flags=re.MULTILINE)
             raw = re.sub(r"/\*.*?\*/", "", raw, flags=re.DOTALL)
             # Strip trailing commas
@@ -317,9 +387,7 @@ class JSResolver(ModuleResolver):
 
             compiler_opts = data.get("compilerOptions", {})
             base_url = compiler_opts.get("baseUrl", ".")
-            base_abs = os.path.normpath(
-                os.path.join(os.path.dirname(config_path), base_url)
-            )
+            base_abs = os.path.normpath(os.path.join(os.path.dirname(config_path), base_url))
             paths = compiler_opts.get("paths", {})
             for alias_pattern, targets in paths.items():
                 # Handle wildcard patterns: "@/*" -> ["src/*"]
@@ -334,9 +402,7 @@ class JSResolver(ModuleResolver):
                     target = targets[0]
                     if target.endswith("*"):
                         target = target[:-1]
-                    self._aliases[alias_pattern] = os.path.join(
-                        base_abs, target
-                    )
+                    self._aliases[alias_pattern] = os.path.join(base_abs, target)
             if self._aliases:
                 logger.info(
                     "Loaded %d path aliases from %s",
@@ -352,7 +418,7 @@ class JSResolver(ModuleResolver):
         if not os.path.isfile(pkg_json):
             return None
         try:
-            with open(pkg_json, "r") as f:
+            with open(pkg_json) as f:
                 data = json.load(f)
             # Prefer "module" field for ESM, fall back to "main"
             return data.get("module") or data.get("main")

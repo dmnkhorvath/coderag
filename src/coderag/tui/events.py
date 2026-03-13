@@ -3,14 +3,12 @@
 These bridge pipeline events (from background thread) to Textual's
 message system (main thread).
 """
-from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from __future__ import annotations
 
 from textual.message import Message
 
-from coderag.pipeline.events import PipelineEvent, PipelinePhase
+from coderag.pipeline.events import PipelineEvent
 
 
 class PipelineEventMessage(Message):

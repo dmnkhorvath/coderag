@@ -4,6 +4,7 @@ Detects Symfony-specific patterns including PHP 8 attribute routes,
 Doctrine ORM entities, dependency injection, Twig template references,
 event system, form types, console commands, and security voters.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,54 +32,34 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Controller detection
 # ---------------------------------------------------------------------------
-_EXTENDS_CONTROLLER_RE = re.compile(
-    r"class\s+(?P<name>\w+)\s+extends\s+(?:Abstract)?Controller\b"
-)
+_EXTENDS_CONTROLLER_RE = re.compile(r"class\s+(?P<name>\w+)\s+extends\s+(?:Abstract)?Controller\b")
 
 # ---------------------------------------------------------------------------
 # PHP 8 Attribute Route detection
 # ---------------------------------------------------------------------------
-_ROUTE_ATTR_RE = re.compile(
-    r"""#\[Route\s*\(\s*['"](?P<path>[^'"]+)['"](?P<rest>.*?)\)\s*\]"""
-)
-_ROUTE_NAME_RE = re.compile(
-    r"""name\s*:\s*['"](?P<name>[^'"]+)['"]"""
-)
-_ROUTE_METHODS_RE = re.compile(
-    r"""methods\s*:\s*\[(?P<methods>[^\]]*)\]"""
-)
+_ROUTE_ATTR_RE = re.compile(r"""#\[Route\s*\(\s*['"](?P<path>[^'"]+)['"](?P<rest>.*?)\)\s*\]""")
+_ROUTE_NAME_RE = re.compile(r"""name\s*:\s*['"](?P<name>[^'"]+)['"]""")
+_ROUTE_METHODS_RE = re.compile(r"""methods\s*:\s*\[(?P<methods>[^\]]*)\]""")
 
 # ---------------------------------------------------------------------------
 # Doctrine ORM Entity detection (PHP 8 attributes)
 # ---------------------------------------------------------------------------
-_ENTITY_ATTR_RE = re.compile(
-    r"#\[(?:ORM\\)?Entity(?:\s*\([^)]*\))?\]"
-)
-_TABLE_ATTR_RE = re.compile(
-    r"""#\[(?:ORM\\)?Table\s*\(\s*name\s*:\s*['"](?P<name>[^'"]+)['"]\)"""
-)
-_COLUMN_ATTR_RE = re.compile(
-    r"#\[(?:ORM\\)?Column\s*\((?P<args>[^)]*)\)\]"
-)
-_ID_ATTR_RE = re.compile(
-    r"#\[(?:ORM\\)?Id\]"
-)
+_ENTITY_ATTR_RE = re.compile(r"#\[(?:ORM\\)?Entity(?:\s*\([^)]*\))?\]")
+_TABLE_ATTR_RE = re.compile(r"""#\[(?:ORM\\)?Table\s*\(\s*name\s*:\s*['"](?P<name>[^'"]+)['"]\)""")
+_COLUMN_ATTR_RE = re.compile(r"#\[(?:ORM\\)?Column\s*\((?P<args>[^)]*)\)\]")
+_ID_ATTR_RE = re.compile(r"#\[(?:ORM\\)?Id\]")
 _RELATION_ATTR_RE = re.compile(
     r"""#\[(?:ORM\\)?(?P<type>OneToMany|ManyToOne|ManyToMany|OneToOne)\s*\(\s*targetEntity\s*:\s*(?P<target>\w+)(?:::class)?"""
 )
 _RELATION_ATTR_V2_RE = re.compile(
     r"""#\[(?:ORM\\)?(?P<type>OneToMany|ManyToOne|ManyToMany|OneToOne)\s*\([^)]*targetEntity\s*:\s*(?P<target>\w+)(?:::class)?"""
 )
-_REPOSITORY_CLASS_RE = re.compile(
-    r"""repositoryClass\s*:\s*(?P<repo>\w+)(?:::class)?"""
-)
+_REPOSITORY_CLASS_RE = re.compile(r"""repositoryClass\s*:\s*(?P<repo>\w+)(?:::class)?""")
 
 # ---------------------------------------------------------------------------
 # Entity class detection (for class name extraction)
 # ---------------------------------------------------------------------------
-_ENTITY_CLASS_RE = re.compile(
-    r"class\s+(?P<name>\w+)"
-)
+_ENTITY_CLASS_RE = re.compile(r"class\s+(?P<name>\w+)")
 
 # ---------------------------------------------------------------------------
 # Service / Dependency Injection detection
@@ -86,76 +67,48 @@ _ENTITY_CLASS_RE = re.compile(
 _CONSTRUCTOR_INJECT_RE = re.compile(
     r"(?:private|public|protected|readonly)\s+(?:readonly\s+)?(?P<type>[A-Z]\w+)\s+\$(?P<param>\w+)"
 )
-_AUTOWIRE_ATTR_RE = re.compile(
-    r"#\[Autowire\s*\((?P<args>[^)]*)\)\]"
-)
-_TAGGED_ITERATOR_RE = re.compile(
-    r"""#\[TaggedIterator\s*\(['"](?P<tag>[^'"]+)['"]\)\]"""
-)
+_AUTOWIRE_ATTR_RE = re.compile(r"#\[Autowire\s*\((?P<args>[^)]*)\)\]")
+_TAGGED_ITERATOR_RE = re.compile(r"""#\[TaggedIterator\s*\(['"](?P<tag>[^'"]+)['"]\)\]""")
 
 # ---------------------------------------------------------------------------
 # Twig template references in controllers
 # ---------------------------------------------------------------------------
-_RENDER_TEMPLATE_RE = re.compile(
-    r"""\$this->render\s*\(\s*['"](?P<template>[^'"]+)['"]"""
-)
-_TEMPLATE_ATTR_RE = re.compile(
-    r"""#\[Template\s*\(\s*['"](?P<template>[^'"]+)['"]\s*\)\]"""
-)
+_RENDER_TEMPLATE_RE = re.compile(r"""\$this->render\s*\(\s*['"](?P<template>[^'"]+)['"]""")
+_TEMPLATE_ATTR_RE = re.compile(r"""#\[Template\s*\(\s*['"](?P<template>[^'"]+)['"]\s*\)\]""")
 
 # ---------------------------------------------------------------------------
 # Event system detection
 # ---------------------------------------------------------------------------
-_EVENT_LISTENER_ATTR_RE = re.compile(
-    r"""#\[AsEventListener\s*\((?:[^)]*event\s*:\s*)?['"]?(?P<event>[\w.]+)['"]?"""
-)
-_EVENT_SUBSCRIBER_RE = re.compile(
-    r"implements\s+[^{]*EventSubscriberInterface"
-)
-_DISPATCH_EVENT_RE = re.compile(
-    r"->dispatch\s*\(\s*new\s+(?P<event>\w+)\s*\("
-)
+_EVENT_LISTENER_ATTR_RE = re.compile(r"""#\[AsEventListener\s*\((?:[^)]*event\s*:\s*)?['"]?(?P<event>[\w.]+)['"]?""")
+_EVENT_SUBSCRIBER_RE = re.compile(r"implements\s+[^{]*EventSubscriberInterface")
+_DISPATCH_EVENT_RE = re.compile(r"->dispatch\s*\(\s*new\s+(?P<event>\w+)\s*\(")
 
 # ---------------------------------------------------------------------------
 # Form type detection
 # ---------------------------------------------------------------------------
-_FORM_TYPE_RE = re.compile(
-    r"class\s+(?P<name>\w+)\s+extends\s+AbstractType\b"
-)
+_FORM_TYPE_RE = re.compile(r"class\s+(?P<name>\w+)\s+extends\s+AbstractType\b")
 
 # ---------------------------------------------------------------------------
 # Console command detection
 # ---------------------------------------------------------------------------
-_COMMAND_RE = re.compile(
-    r"class\s+(?P<name>\w+)\s+extends\s+Command\b"
-)
-_AS_COMMAND_ATTR_RE = re.compile(
-    r"""#\[AsCommand\s*\([^)]*name\s*:\s*['"](?P<name>[^'"]+)['"]"""
-)
+_COMMAND_RE = re.compile(r"class\s+(?P<name>\w+)\s+extends\s+Command\b")
+_AS_COMMAND_ATTR_RE = re.compile(r"""#\[AsCommand\s*\([^)]*name\s*:\s*['"](?P<name>[^'"]+)['"]""")
 
 # ---------------------------------------------------------------------------
 # Security detection
 # ---------------------------------------------------------------------------
-_IS_GRANTED_RE = re.compile(
-    r"""#\[IsGranted\s*\(\s*['"](?P<role>[^'"]+)['"]"""
-)
-_VOTER_RE = re.compile(
-    r"class\s+(?P<name>\w+)\s+extends\s+Voter\b"
-)
+_IS_GRANTED_RE = re.compile(r"""#\[IsGranted\s*\(\s*['"](?P<role>[^'"]+)['"]""")
+_VOTER_RE = re.compile(r"class\s+(?P<name>\w+)\s+extends\s+Voter\b")
 
 # ---------------------------------------------------------------------------
 # PHP method detection (fallback when AST nodes unavailable)
 # ---------------------------------------------------------------------------
-_PHP_METHOD_RE = re.compile(
-    r"(?:public|protected|private)\s+function\s+(?P<name>\w+)\s*\("
-)
+_PHP_METHOD_RE = re.compile(r"(?:public|protected|private)\s+function\s+(?P<name>\w+)\s*\(")
 
 # ---------------------------------------------------------------------------
 # Namespace detection
 # ---------------------------------------------------------------------------
-_NAMESPACE_RE = re.compile(
-    r"namespace\s+(?P<ns>[\w\\]+)\s*;"
-)
+_NAMESPACE_RE = re.compile(r"namespace\s+(?P<ns>[\w\\]+)\s*;")
 
 
 # =============================================================================
@@ -198,7 +151,7 @@ class SymfonyDetector(FrameworkDetector):
         composer_path = os.path.join(project_root, "composer.json")
         if os.path.isfile(composer_path):
             try:
-                with open(composer_path, "r", encoding="utf-8") as fh:
+                with open(composer_path, encoding="utf-8") as fh:
                     data = json.load(fh)
                 all_deps: dict[str, str] = {}
                 all_deps.update(data.get("require", {}))
@@ -316,7 +269,9 @@ class SymfonyDetector(FrameworkDetector):
 
     @staticmethod
     def _find_method_after_line(
-        line_no: int, nodes: list[Node], max_gap: int = 5,
+        line_no: int,
+        nodes: list[Node],
+        max_gap: int = 5,
     ) -> Node | None:
         """Find the METHOD node declared within *max_gap* lines after *line_no*."""
         candidates = [
@@ -333,7 +288,10 @@ class SymfonyDetector(FrameworkDetector):
 
     @staticmethod
     def _find_method_after_line_regex(
-        line_no: int, source_text: str, file_path: str, max_gap: int = 5,
+        line_no: int,
+        source_text: str,
+        file_path: str,
+        max_gap: int = 5,
     ) -> tuple[str | None, int | None]:
         """Regex fallback: find the next ``function`` declaration after *line_no*.
 
@@ -371,7 +329,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_controller(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect classes extending AbstractController or Controller."""
         m = _EXTENDS_CONTROLLER_RE.search(source_text)
@@ -417,7 +378,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_routes(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect #[Route(...)] attributes and link to handler methods."""
         new_nodes: list[Node] = []
@@ -461,42 +425,52 @@ class SymfonyDetector(FrameworkDetector):
             # Find the method this route attribute decorates
             method_node = self._find_method_after_line(line_no, nodes, max_gap=5)
             if method_node:
-                new_edges.append(Edge(
-                    source_id=route_node.id,
-                    target_id=method_node.id,
-                    kind=EdgeKind.ROUTES_TO,
-                    confidence=0.95,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "symfony",
-                        "symfony_edge_type": "symfony_routes_to",
-                        "path": path,
-                        "route_name": route_name,
-                    },
-                ))
-            else:
-                # Regex fallback
-                method_name, method_line = self._find_method_after_line_regex(
-                    line_no, source_text, file_path, max_gap=5,
-                )
-                if method_name and method_line:
-                    target_id = generate_node_id(
-                        file_path, method_line, NodeKind.METHOD, method_name,
-                    )
-                    new_edges.append(Edge(
+                new_edges.append(
+                    Edge(
                         source_id=route_node.id,
-                        target_id=target_id,
+                        target_id=method_node.id,
                         kind=EdgeKind.ROUTES_TO,
-                        confidence=0.85,
+                        confidence=0.95,
                         line_number=line_no,
                         metadata={
                             "framework": "symfony",
                             "symfony_edge_type": "symfony_routes_to",
                             "path": path,
                             "route_name": route_name,
-                            "resolved_via": "regex_fallback",
                         },
-                    ))
+                    )
+                )
+            else:
+                # Regex fallback
+                method_name, method_line = self._find_method_after_line_regex(
+                    line_no,
+                    source_text,
+                    file_path,
+                    max_gap=5,
+                )
+                if method_name and method_line:
+                    target_id = generate_node_id(
+                        file_path,
+                        method_line,
+                        NodeKind.METHOD,
+                        method_name,
+                    )
+                    new_edges.append(
+                        Edge(
+                            source_id=route_node.id,
+                            target_id=target_id,
+                            kind=EdgeKind.ROUTES_TO,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "symfony",
+                                "symfony_edge_type": "symfony_routes_to",
+                                "path": path,
+                                "route_name": route_name,
+                                "resolved_via": "regex_fallback",
+                            },
+                        )
+                    )
 
         if not new_nodes:
             return None
@@ -514,7 +488,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_entity(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect Doctrine ORM entities via #[ORM\\Entity] attributes."""
         if not _ENTITY_ATTR_RE.search(source_text):
@@ -532,9 +509,9 @@ class SymfonyDetector(FrameworkDetector):
             break
 
         # Find the class declaration after the entity attribute
-        class_match = _ENTITY_CLASS_RE.search(source_text[source_text.find("#["  if entity_line > 0 else ""):])
+        class_match = _ENTITY_CLASS_RE.search(source_text[source_text.find("#[" if entity_line > 0 else "") :])
         # More robust: search for class after the entity attribute position
-        after_attr = source_text[source_text.find("Entity"):]
+        after_attr = source_text[source_text.find("Entity") :]
         class_match = _ENTITY_CLASS_RE.search(after_attr)
         class_name = class_match.group("name") if class_match else "UnknownEntity"
         qualified = self._qualified_name(namespace, class_name)
@@ -591,33 +568,37 @@ class SymfonyDetector(FrameworkDetector):
                 rel_line = source_text[: rm.start()].count("\n") + 1
                 short_name = target_entity.rsplit("\\", 1)[-1] if "\\" in target_entity else target_entity
 
-                new_edges.append(Edge(
-                    source_id=model_node.id,
-                    target_id=f"__unresolved__:model:{short_name}",
-                    kind=EdgeKind.DEPENDS_ON,
-                    confidence=0.90,
-                    line_number=rel_line,
-                    metadata={
-                        "framework": "symfony",
-                        "symfony_edge_type": "doctrine_relates_to",
-                        "relationship_type": relation_type,
-                        "target_entity": target_entity,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=model_node.id,
+                        target_id=f"__unresolved__:model:{short_name}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.90,
+                        line_number=rel_line,
+                        metadata={
+                            "framework": "symfony",
+                            "symfony_edge_type": "doctrine_relates_to",
+                            "relationship_type": relation_type,
+                            "target_entity": target_entity,
+                        },
+                    )
+                )
 
         # Repository class edge
         if repo_class:
-            new_edges.append(Edge(
-                source_id=f"__unresolved__:class:{repo_class}",
-                target_id=model_node.id,
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.90,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "doctrine_repository_for",
-                    "repository_class": repo_class,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=f"__unresolved__:class:{repo_class}",
+                    target_id=model_node.id,
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.90,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "doctrine_repository_for",
+                        "repository_class": repo_class,
+                    },
+                )
+            )
 
         return FrameworkPattern(
             framework_name="symfony",
@@ -632,7 +613,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_dependency_injection(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect constructor injection and #[Autowire] attributes."""
         new_edges: list[Edge] = []
@@ -678,54 +662,60 @@ class SymfonyDetector(FrameworkDetector):
             dep_param = pm.group("param")
             param_line = construct_line + constructor_body[: pm.start()].count("\n")
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:class:{dep_type}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.85,
-                line_number=param_line,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "symfony_injects",
-                    "service_type": dep_type,
-                    "param_name": dep_param,
-                    "injection_style": "constructor",
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:class:{dep_type}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.85,
+                    line_number=param_line,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "symfony_injects",
+                        "service_type": dep_type,
+                        "param_name": dep_param,
+                        "injection_style": "constructor",
+                    },
+                )
+            )
 
         # Detect #[Autowire] attributes
         for am in _AUTOWIRE_ATTR_RE.finditer(source_text):
             autowire_line = source_text[: am.start()].count("\n") + 1
             autowire_args = am.group("args")
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:autowire:{autowire_args.strip()}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.90,
-                line_number=autowire_line,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "symfony_autowires",
-                    "autowire_args": autowire_args.strip(),
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:autowire:{autowire_args.strip()}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.90,
+                    line_number=autowire_line,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "symfony_autowires",
+                        "autowire_args": autowire_args.strip(),
+                    },
+                )
+            )
 
         # Detect #[TaggedIterator] attributes
         for tm in _TAGGED_ITERATOR_RE.finditer(source_text):
             tag_line = source_text[: tm.start()].count("\n") + 1
             tag_name = tm.group("tag")
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:tag:{tag_name}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.85,
-                line_number=tag_line,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "symfony_tagged_iterator",
-                    "tag": tag_name,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:tag:{tag_name}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.85,
+                    line_number=tag_line,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "symfony_tagged_iterator",
+                        "tag": tag_name,
+                    },
+                )
+            )
 
         if not new_edges:
             return None
@@ -743,7 +733,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_template_references(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect $this->render() and #[Template()] references to Twig templates."""
         new_edges: list[Edge] = []
@@ -759,22 +752,31 @@ class SymfonyDetector(FrameworkDetector):
                 source_id = method_node.id
             else:
                 cls_node = self._find_enclosing_class(line_no, nodes)
-                source_id = cls_node.id if cls_node else generate_node_id(
-                    file_path, line_no, NodeKind.METHOD, "unknown",
+                source_id = (
+                    cls_node.id
+                    if cls_node
+                    else generate_node_id(
+                        file_path,
+                        line_no,
+                        NodeKind.METHOD,
+                        "unknown",
+                    )
                 )
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:template:{template}",
-                kind=EdgeKind.RENDERS,
-                confidence=0.95,
-                line_number=line_no,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "renders_twig",
-                    "template": template,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:template:{template}",
+                    kind=EdgeKind.RENDERS,
+                    confidence=0.95,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "renders_twig",
+                        "template": template,
+                    },
+                )
+            )
 
         # #[Template('template/path.html.twig')]
         for tm in _TEMPLATE_ATTR_RE.finditer(source_text):
@@ -787,7 +789,10 @@ class SymfonyDetector(FrameworkDetector):
                 source_id = method_node.id
             else:
                 method_name, method_line = self._find_method_after_line_regex(
-                    line_no, source_text, file_path, max_gap=5,
+                    line_no,
+                    source_text,
+                    file_path,
+                    max_gap=5,
                 )
                 source_id = generate_node_id(
                     file_path,
@@ -796,19 +801,21 @@ class SymfonyDetector(FrameworkDetector):
                     method_name or "unknown",
                 )
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:template:{template}",
-                kind=EdgeKind.RENDERS,
-                confidence=0.90,
-                line_number=line_no,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "renders_twig",
-                    "template": template,
-                    "via_attribute": True,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:template:{template}",
+                    kind=EdgeKind.RENDERS,
+                    confidence=0.90,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "renders_twig",
+                        "template": template,
+                        "via_attribute": True,
+                    },
+                )
+            )
 
         if not new_edges:
             return None
@@ -841,7 +848,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_events(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect event listeners, subscribers, and event dispatching."""
         new_nodes: list[Node] = []
@@ -903,18 +913,20 @@ class SymfonyDetector(FrameworkDetector):
             )
             new_nodes.append(event_node)
 
-            new_edges.append(Edge(
-                source_id=listener_node.id,
-                target_id=event_node.id,
-                kind=EdgeKind.LISTENS_TO,
-                confidence=0.95,
-                line_number=line_no,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "symfony_listens_to",
-                    "event": event_name,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=listener_node.id,
+                    target_id=event_node.id,
+                    kind=EdgeKind.LISTENS_TO,
+                    confidence=0.95,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "symfony_listens_to",
+                        "event": event_name,
+                    },
+                )
+            )
 
         # implements EventSubscriberInterface
         if _EVENT_SUBSCRIBER_RE.search(source_text):
@@ -956,21 +968,26 @@ class SymfonyDetector(FrameworkDetector):
                 source_id = cls_node.id
             else:
                 source_id = generate_node_id(
-                    file_path, line_no, NodeKind.CLASS, "unknown",
+                    file_path,
+                    line_no,
+                    NodeKind.CLASS,
+                    "unknown",
                 )
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:event:{event_class}",
-                kind=EdgeKind.DISPATCHES_EVENT,
-                confidence=0.85,
-                line_number=line_no,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "symfony_dispatches",
-                    "event_class": event_class,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:event:{event_class}",
+                    kind=EdgeKind.DISPATCHES_EVENT,
+                    confidence=0.85,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "symfony_dispatches",
+                        "event_class": event_class,
+                    },
+                )
+            )
 
         if not new_nodes and not new_edges:
             return None
@@ -992,7 +1009,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_form_types(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect classes extending AbstractType (Symfony Form)."""
         m = _FORM_TYPE_RE.search(source_text)
@@ -1037,7 +1057,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_commands(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect console commands (extends Command or #[AsCommand])."""
         new_nodes: list[Node] = []
@@ -1101,7 +1124,10 @@ class SymfonyDetector(FrameworkDetector):
     # ------------------------------------------------------------------
 
     def _detect_security(
-        self, file_path: str, nodes: list[Node], source_text: str,
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
     ) -> FrameworkPattern | None:
         """Detect #[IsGranted] attributes and Voter classes."""
         new_nodes: list[Node] = []
@@ -1123,7 +1149,10 @@ class SymfonyDetector(FrameworkDetector):
                     source_id = cls_node.id
                 else:
                     method_name, method_line = self._find_method_after_line_regex(
-                        line_no, source_text, file_path, max_gap=5,
+                        line_no,
+                        source_text,
+                        file_path,
+                        max_gap=5,
                     )
                     source_id = generate_node_id(
                         file_path,
@@ -1132,18 +1161,20 @@ class SymfonyDetector(FrameworkDetector):
                         method_name or "unknown",
                     )
 
-            new_edges.append(Edge(
-                source_id=source_id,
-                target_id=f"__unresolved__:role:{role}",
-                kind=EdgeKind.DEPENDS_ON,
-                confidence=0.95,
-                line_number=line_no,
-                metadata={
-                    "framework": "symfony",
-                    "symfony_edge_type": "secured_by",
-                    "role": role,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:role:{role}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.95,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "secured_by",
+                        "role": role,
+                    },
+                )
+            )
 
         # class XxxVoter extends Voter
         voter_match = _VOTER_RE.search(source_text)

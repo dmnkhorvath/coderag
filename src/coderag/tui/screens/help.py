@@ -1,4 +1,5 @@
 """HelpScreen — modal overlay with organized keybinding reference."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult
@@ -6,7 +7,6 @@ from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Static
-
 
 HELP_TEXT = """[bold cyan]CodeRAG Monitor — Keybinding Reference[/bold cyan]
 

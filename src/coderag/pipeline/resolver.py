@@ -6,12 +6,13 @@ After all files are extracted (Phase 3), this module:
 3. Creates Edge objects for resolved references (high confidence)
 4. Creates placeholder nodes + low-confidence edges for unresolved external refs
 """
+
 from __future__ import annotations
 
 import hashlib
 import logging
 from collections import defaultdict
-from typing import Sequence
+from collections.abc import Sequence
 
 from coderag.core.models import (
     Edge,
@@ -66,15 +67,13 @@ class ReferenceResolver:
         suffix_index: dict[str, list[tuple[str, str]]] = defaultdict(list)
 
         conn = self._store._conn
-        cursor = conn.execute(
-            "SELECT id, qualified_name, name, kind FROM nodes"
-        )
+        cursor = conn.execute("SELECT id, qualified_name, name, kind FROM nodes")
 
         count = 0
         for row in cursor:
             node_id = row[0]
             qname = row[1]
-            name = row[2]
+            row[2]
 
             # Index by qualified name (exact match)
             self._symbol_table[qname] = node_id
@@ -103,7 +102,9 @@ class ReferenceResolver:
 
         logger.info(
             "Symbol table built: %d symbols, %d short names, %d suffix entries",
-            count, len(self._short_names), len(self._suffix_index),
+            count,
+            len(self._short_names),
+            len(self._suffix_index),
         )
         return count
 
@@ -142,7 +143,9 @@ class ReferenceResolver:
 
         logger.info(
             "Resolution complete: %d resolved, %d unresolved, %d placeholder nodes",
-            resolved_count, unresolved_count, len(placeholder_nodes),
+            resolved_count,
+            unresolved_count,
+            len(placeholder_nodes),
         )
         return resolved_edges, placeholder_nodes, resolved_count, unresolved_count
 
@@ -179,8 +182,7 @@ class ReferenceResolver:
                 kind=ref.reference_kind,
                 confidence=self.SUFFIX_MATCH_CONFIDENCE,
                 line_number=ref.line_number,
-                metadata={"resolution": "suffix", "matched_name": qname,
-                          "reference_name": ref.reference_name},
+                metadata={"resolution": "suffix", "matched_name": qname, "reference_name": ref.reference_name},
             )
             return edge, None
 
@@ -195,8 +197,7 @@ class ReferenceResolver:
                 kind=ref.reference_kind,
                 confidence=self.SHORT_NAME_MATCH_CONFIDENCE,
                 line_number=ref.line_number,
-                metadata={"resolution": "short_name", "matched_name": qname,
-                          "reference_name": ref.reference_name},
+                metadata={"resolution": "short_name", "matched_name": qname, "reference_name": ref.reference_name},
             )
             return edge, None
 

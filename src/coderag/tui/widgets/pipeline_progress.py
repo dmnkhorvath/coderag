@@ -1,4 +1,5 @@
 """PipelineProgress widget — shows all pipeline phases with status indicators."""
+
 from __future__ import annotations
 
 from textual.app import ComposeResult
@@ -7,7 +8,6 @@ from textual.widget import Widget
 from textual.widgets import ProgressBar, Static
 
 from coderag.pipeline.events import PipelinePhase
-
 
 # Ordered list of phases for display
 PHASE_ORDER: list[PipelinePhase] = [

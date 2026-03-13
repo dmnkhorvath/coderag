@@ -6,6 +6,7 @@ graph with type information extracted from the analysis results.
 Requires PHPStan to be installed and accessible in the system PATH
 or at a specified path. Gracefully degrades when PHPStan is not available.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,13 +14,14 @@ import logging
 import os
 import subprocess
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 # ── Data Classes ──────────────────────────────────────────────────
+
 
 @dataclass(frozen=True, slots=True)
 class PHPStanResult:
@@ -33,6 +35,7 @@ class PHPStanResult:
         tip: Optional tip for fixing the issue.
         ignorable: Whether this result can be safely ignored.
     """
+
     file_path: str
     line: int
     message: str
@@ -54,6 +57,7 @@ class EnrichmentReport:
         level: PHPStan analysis level used.
         skipped_reason: If enrichment was skipped, the reason why.
     """
+
     files_analyzed: int = 0
     errors_found: int = 0
     nodes_enriched: int = 0
@@ -160,6 +164,7 @@ def _extract_type_from_message(message: str) -> dict[str, str]:
 
 
 # ── PHPStan Enricher ──────────────────────────────────────────────
+
 
 class PHPStanEnricher:
     """Enrich PHP nodes with type information from PHPStan.
@@ -277,10 +282,7 @@ class PHPStanEnricher:
             RuntimeError: If PHPStan is not available.
         """
         if not self.is_available():
-            raise RuntimeError(
-                "PHPStan is not available. Install it with: "
-                "composer require --dev phpstan/phpstan"
-            )
+            raise RuntimeError("PHPStan is not available. Install it with: composer require --dev phpstan/phpstan")
 
         cmd = [
             self._phpstan_path,
@@ -380,7 +382,8 @@ class PHPStanEnricher:
         total_errors = sum(len(v) for v in results.values())
         logger.info(
             "PHPStan found %d issues in %d files.",
-            total_errors, len(results),
+            total_errors,
+            len(results),
         )
         return results
 
@@ -458,16 +461,16 @@ class PHPStanEnricher:
                             # Categorize by identifier
                             category = "unknown"
                             if r.identifier:
-                                category = _TYPE_PATTERNS.get(
-                                    r.identifier, r.identifier
-                                )
+                                category = _TYPE_PATTERNS.get(r.identifier, r.identifier)
 
-                            node_results.append({
-                                "line": r.line,
-                                "message": r.message,
-                                "category": category,
-                                "identifier": r.identifier,
-                            })
+                            node_results.append(
+                                {
+                                    "line": r.line,
+                                    "message": r.message,
+                                    "category": category,
+                                    "identifier": r.identifier,
+                                }
+                            )
 
                 if node_results or type_info:
                     # Update node metadata with PHPStan info
@@ -489,8 +492,7 @@ class PHPStanEnricher:
         report.duration_ms = (time.perf_counter() - t0) * 1000
 
         logger.info(
-            "PHPStan enrichment complete: %d files, %d errors, "
-            "%d nodes enriched in %.1fms",
+            "PHPStan enrichment complete: %d files, %d errors, %d nodes enriched in %.1fms",
             report.files_analyzed,
             report.errors_found,
             report.nodes_enriched,

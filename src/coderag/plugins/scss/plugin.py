@@ -1,4 +1,5 @@
 """SCSS language plugin for CodeRAG."""
+
 from __future__ import annotations
 
 import logging

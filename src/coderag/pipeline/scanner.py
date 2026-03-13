@@ -3,6 +3,7 @@
 Respects ignore patterns and supports incremental mode via
 content-hash comparison.
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -52,10 +53,7 @@ class FileScanner:
         for dirpath, dirnames, filenames in os.walk(self._root):
             # Prune ignored directories in-place
             rel_dir = os.path.relpath(dirpath, self._root)
-            dirnames[:] = [
-                d for d in dirnames
-                if not self._is_ignored(os.path.join(rel_dir, d) + "/")
-            ]
+            dirnames[:] = [d for d in dirnames if not self._is_ignored(os.path.join(rel_dir, d) + "/")]
 
             for fname in filenames:
                 abs_path = os.path.join(dirpath, fname)
@@ -78,14 +76,16 @@ class FileScanner:
                     logger.warning("Cannot read %s: %s", abs_path, exc)
                     continue
 
-                results.append(FileInfo(
-                    path=abs_path,
-                    relative_path=rel_path,
-                    language="",  # filled by orchestrator
-                    plugin_name="",  # filled by orchestrator
-                    content_hash=content_hash,
-                    size_bytes=size_bytes,
-                ))
+                results.append(
+                    FileInfo(
+                        path=abs_path,
+                        relative_path=rel_path,
+                        language="",  # filled by orchestrator
+                        plugin_name="",  # filled by orchestrator
+                        content_hash=content_hash,
+                        size_bytes=size_bytes,
+                    )
+                )
 
         logger.info("Scanned %d files in %s", len(results), self._root)
         return results

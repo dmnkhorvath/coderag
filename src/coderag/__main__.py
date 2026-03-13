@@ -1,4 +1,5 @@
 """Allow running CodeRAG as `python -m coderag`."""
+
 from coderag.cli.main import cli
 
 if __name__ == "__main__":

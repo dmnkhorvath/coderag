@@ -1,4 +1,5 @@
 """JavaScript language plugin for CodeRAG."""
+
 from __future__ import annotations
 
 import logging
@@ -62,6 +63,7 @@ class JavaScriptPlugin(LanguagePlugin):
         from coderag.plugins.javascript.frameworks.nextjs import NextJSDetector
         from coderag.plugins.javascript.frameworks.react import ReactDetector
         from coderag.plugins.javascript.frameworks.vue import VueDetector
+
         return [ExpressDetector(), NextJSDetector(), ReactDetector(), VueDetector()]
 
     def cleanup(self) -> None:

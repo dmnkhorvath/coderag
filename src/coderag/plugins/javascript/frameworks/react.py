@@ -3,6 +3,7 @@
 Detects React-specific patterns including components, hooks,
 and context providers/consumers from already-parsed AST nodes.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,14 +25,29 @@ from coderag.core.registry import FrameworkDetector
 logger = logging.getLogger(__name__)
 
 # React built-in hooks
-_BUILTIN_HOOKS = frozenset({
-    "useState", "useEffect", "useContext", "useReducer",
-    "useCallback", "useMemo", "useRef", "useImperativeHandle",
-    "useLayoutEffect", "useDebugValue", "useDeferredValue",
-    "useTransition", "useId", "useSyncExternalStore",
-    "useInsertionEffect", "useOptimistic", "useFormStatus",
-    "useFormState", "useActionState",
-})
+_BUILTIN_HOOKS = frozenset(
+    {
+        "useState",
+        "useEffect",
+        "useContext",
+        "useReducer",
+        "useCallback",
+        "useMemo",
+        "useRef",
+        "useImperativeHandle",
+        "useLayoutEffect",
+        "useDebugValue",
+        "useDeferredValue",
+        "useTransition",
+        "useId",
+        "useSyncExternalStore",
+        "useInsertionEffect",
+        "useOptimistic",
+        "useFormStatus",
+        "useFormState",
+        "useActionState",
+    }
+)
 
 # Regex for createContext calls
 _CREATE_CONTEXT_RE = re.compile(
@@ -68,7 +84,7 @@ class ReactDetector(FrameworkDetector):
             return False
 
         try:
-            with open(pkg_json, "r", encoding="utf-8") as f:
+            with open(pkg_json, encoding="utf-8") as f:
                 data = json.load(f)
             deps = data.get("dependencies", {})
             dev_deps = data.get("devDependencies", {})
@@ -100,21 +116,31 @@ class ReactDetector(FrameworkDetector):
 
         # ── Component detection ───────────────────────────────
         component_pattern = self._detect_components(
-            file_path, nodes, edges, source_text, has_jsx,
+            file_path,
+            nodes,
+            edges,
+            source_text,
+            has_jsx,
         )
         if component_pattern:
             patterns.append(component_pattern)
 
         # ── Hook detection ────────────────────────────────────
         hook_pattern = self._detect_hooks(
-            file_path, nodes, edges, source_text,
+            file_path,
+            nodes,
+            edges,
+            source_text,
         )
         if hook_pattern:
             patterns.append(hook_pattern)
 
         # ── Context detection ─────────────────────────────────
         context_pattern = self._detect_context(
-            file_path, nodes, edges, source_text,
+            file_path,
+            nodes,
+            edges,
+            source_text,
         )
         if context_pattern:
             patterns.append(context_pattern)
@@ -159,10 +185,9 @@ class ReactDetector(FrameworkDetector):
             return None
 
         func_nodes = [
-            n for n in nodes
-            if n.kind in (NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE)
-            and n.name
-            and n.name[0].isupper()
+            n
+            for n in nodes
+            if n.kind in (NodeKind.FUNCTION, NodeKind.CLASS, NodeKind.VARIABLE) and n.name and n.name[0].isupper()
         ]
 
         for fn in func_nodes:
@@ -183,10 +208,10 @@ class ReactDetector(FrameworkDetector):
                     has_render = any(
                         e.kind == EdgeKind.CONTAINS
                         and any(
-                            n2.name == "render" and n2.kind == NodeKind.METHOD
-                            for n2 in nodes if n2.id == e.target_id
+                            n2.name == "render" and n2.kind == NodeKind.METHOD for n2 in nodes if n2.id == e.target_id
                         )
-                        for e in edges if e.source_id == fn.id
+                        for e in edges
+                        if e.source_id == fn.id
                     )
                     if not has_render:
                         continue
@@ -214,33 +239,37 @@ class ReactDetector(FrameworkDetector):
             if fn_source:
                 for hook_match in _HOOK_CALL_RE.finditer(fn_source):
                     hook_name = hook_match.group(0).rstrip("(").strip()
-                    new_edges.append(Edge(
-                        source_id=component_node.id,
-                        target_id=f"__unresolved__:hook:{hook_name}",
-                        kind=EdgeKind.USES_HOOK,
-                        confidence=0.80,
-                        metadata={
-                            "framework": "react",
-                            "hook_name": hook_name,
-                            "builtin": hook_name in _BUILTIN_HOOKS,
-                        },
-                    ))
+                    new_edges.append(
+                        Edge(
+                            source_id=component_node.id,
+                            target_id=f"__unresolved__:hook:{hook_name}",
+                            kind=EdgeKind.USES_HOOK,
+                            confidence=0.80,
+                            metadata={
+                                "framework": "react",
+                                "hook_name": hook_name,
+                                "builtin": hook_name in _BUILTIN_HOOKS,
+                            },
+                        )
+                    )
 
             # Detect rendered child components
             if fn_source:
                 for jsx_match in _JSX_COMPONENT_RE.finditer(fn_source):
                     child_name = jsx_match.group("name")
                     if child_name != fn.name:  # Don't self-reference
-                        new_edges.append(Edge(
-                            source_id=component_node.id,
-                            target_id=f"__unresolved__:component:{child_name}",
-                            kind=EdgeKind.RENDERS,
-                            confidence=0.70,
-                            metadata={
-                                "framework": "react",
-                                "child_component": child_name,
-                            },
-                        ))
+                        new_edges.append(
+                            Edge(
+                                source_id=component_node.id,
+                                target_id=f"__unresolved__:component:{child_name}",
+                                kind=EdgeKind.RENDERS,
+                                confidence=0.70,
+                                metadata={
+                                    "framework": "react",
+                                    "child_component": child_name,
+                                },
+                            )
+                        )
 
         if not new_nodes:
             return None
@@ -264,7 +293,8 @@ class ReactDetector(FrameworkDetector):
         new_nodes: list[Node] = []
 
         func_nodes = [
-            n for n in nodes
+            n
+            for n in nodes
             if n.kind == NodeKind.FUNCTION
             and n.name
             and n.name.startswith("use")
@@ -331,23 +361,26 @@ class ReactDetector(FrameworkDetector):
                 for match in _USE_CONTEXT_RE.finditer(source_text):
                     context_name = match.group("context")
                     if context_name == var.name:
-                        line_no = source_text[:match.start()].count("\n") + 1
+                        line_no = source_text[: match.start()].count("\n") + 1
                         # Find the function containing this useContext call
                         consumer = self._find_enclosing_function(
-                            line_no, nodes,
+                            line_no,
+                            nodes,
                         )
                         if consumer:
-                            new_edges.append(Edge(
-                                source_id=consumer.id,
-                                target_id=var.id,
-                                kind=EdgeKind.CONSUMES_CONTEXT,
-                                confidence=0.85,
-                                line_number=line_no,
-                                metadata={
-                                    "framework": "react",
-                                    "context_name": var.name,
-                                },
-                            ))
+                            new_edges.append(
+                                Edge(
+                                    source_id=consumer.id,
+                                    target_id=var.id,
+                                    kind=EdgeKind.CONSUMES_CONTEXT,
+                                    confidence=0.85,
+                                    line_number=line_no,
+                                    metadata={
+                                        "framework": "react",
+                                        "context_name": var.name,
+                                    },
+                                )
+                            )
 
         # Find .Provider usage in JSX
         provider_re = re.compile(
@@ -355,7 +388,7 @@ class ReactDetector(FrameworkDetector):
         )
         for match in provider_re.finditer(source_text):
             context_name = match.group("context")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             provider_fn = self._find_enclosing_function(line_no, nodes)
             if provider_fn:
                 # Find the context variable
@@ -364,17 +397,19 @@ class ReactDetector(FrameworkDetector):
                     None,
                 )
                 target_id = ctx_var.id if ctx_var else f"__unresolved__:context:{context_name}"
-                new_edges.append(Edge(
-                    source_id=provider_fn.id,
-                    target_id=target_id,
-                    kind=EdgeKind.PROVIDES_CONTEXT,
-                    confidence=0.85,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "react",
-                        "context_name": context_name,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=provider_fn.id,
+                        target_id=target_id,
+                        kind=EdgeKind.PROVIDES_CONTEXT,
+                        confidence=0.85,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "react",
+                            "context_name": context_name,
+                        },
+                    )
+                )
 
         if not new_edges:
             return None
@@ -388,11 +423,14 @@ class ReactDetector(FrameworkDetector):
         )
 
     def _find_enclosing_function(
-        self, line_no: int, nodes: list[Node],
+        self,
+        line_no: int,
+        nodes: list[Node],
     ) -> Node | None:
         """Find the function/component that encloses a given line."""
         candidates = [
-            n for n in nodes
+            n
+            for n in nodes
             if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD, NodeKind.VARIABLE)
             and n.start_line is not None
             and n.end_line is not None
@@ -431,17 +469,19 @@ class ReactDetector(FrameworkDetector):
                 if edge.target_id.startswith("__unresolved__:hook:"):
                     hook_name = edge.target_id.split(":")[-1]
                     if hook_name in hook_map:
-                        new_edges.append(Edge(
-                            source_id=comp.id,
-                            target_id=hook_map[hook_name],
-                            kind=EdgeKind.USES_HOOK,
-                            confidence=0.85,
-                            metadata={
-                                "framework": "react",
-                                "hook_name": hook_name,
-                                "resolved": True,
-                            },
-                        ))
+                        new_edges.append(
+                            Edge(
+                                source_id=comp.id,
+                                target_id=hook_map[hook_name],
+                                kind=EdgeKind.USES_HOOK,
+                                confidence=0.85,
+                                metadata={
+                                    "framework": "react",
+                                    "hook_name": hook_name,
+                                    "resolved": True,
+                                },
+                            )
+                        )
 
         if not new_edges:
             return None

@@ -1,10 +1,8 @@
 """Comprehensive tests for the CodeRAG TUI monitoring dashboard."""
+
 from __future__ import annotations
 
-import asyncio
 import time
-from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
@@ -12,14 +10,12 @@ from coderag.pipeline.events import (
     EventEmitter,
     FileCompleted,
     FileError,
-    FileStarted,
     PhaseCompleted,
     PhaseProgress,
     PhaseStarted,
     PipelineCompleted,
     PipelinePhase,
     PipelineStarted,
-    PipelineEvent,
 )
 
 # Shorthand for common phases
@@ -42,7 +38,6 @@ def _make_app_no_worker(project_root="/tmp/test-project"):
     # Monkey-patch run_worker to be a no-op so on_mount doesn't start pipeline
     app.run_worker = lambda *a, **kw: None
     return app
-
 
 
 # ── EventEmitter Tests ────────────────────────────────────────────
@@ -205,11 +200,11 @@ class TestPipelineEvents:
 
 # ── Widget Unit Tests ─────────────────────────────────────────────
 
+from coderag.tui.widgets.filterable_log import FilterableLog
 from coderag.tui.widgets.metric_card import MetricCard
 from coderag.tui.widgets.pipeline_progress import PipelineProgress
-from coderag.tui.widgets.filterable_log import FilterableLog
-from coderag.tui.widgets.throughput_chart import ThroughputChart
 from coderag.tui.widgets.resource_monitor import ResourceMonitor
+from coderag.tui.widgets.throughput_chart import ThroughputChart
 
 
 class TestMetricCard:
@@ -353,59 +348,76 @@ class TestScreenImports:
 
     def test_import_dashboard_screen(self):
         from coderag.tui.screens.dashboard import DashboardScreen
+
         screen = DashboardScreen()
         assert screen is not None
 
     def test_import_logs_screen(self):
         from coderag.tui.screens.logs import LogsScreen
+
         screen = LogsScreen()
         assert screen is not None
 
     def test_import_details_screen(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen()
         assert screen is not None
 
     def test_import_graph_screen(self):
         from coderag.tui.screens.graph import GraphScreen
+
         screen = GraphScreen()
         assert screen is not None
 
     def test_import_help_screen(self):
         from coderag.tui.screens.help import HelpScreen
+
         screen = HelpScreen()
         assert screen is not None
 
     def test_screens_init_exports(self):
         from coderag.tui.screens import (
             DashboardScreen,
-            LogsScreen,
             DetailsScreen,
             GraphScreen,
             HelpScreen,
+            LogsScreen,
         )
-        assert all([
-            DashboardScreen, LogsScreen, DetailsScreen,
-            GraphScreen, HelpScreen,
-        ])
+
+        assert all(
+            [
+                DashboardScreen,
+                LogsScreen,
+                DetailsScreen,
+                GraphScreen,
+                HelpScreen,
+            ]
+        )
 
     def test_widgets_init_exports(self):
         from coderag.tui.widgets import (
+            FilterableLog,
             MetricCard,
             PipelineProgress,
-            FilterableLog,
-            ThroughputChart,
             ResourceMonitor,
+            ThroughputChart,
         )
-        assert all([
-            MetricCard, PipelineProgress, FilterableLog,
-            ThroughputChart, ResourceMonitor,
-        ])
+
+        assert all(
+            [
+                MetricCard,
+                PipelineProgress,
+                FilterableLog,
+                ThroughputChart,
+                ResourceMonitor,
+            ]
+        )
 
 
 # ── TUI App Tests (Headless via Textual Test Pilot) ───────────────
 
-from coderag.tui.app import CodeRAGApp, CodeRAGHeader, CodeRAGFooter
+from coderag.tui.app import CodeRAGApp, CodeRAGFooter, CodeRAGHeader
 
 
 class TestCodeRAGApp:
@@ -440,14 +452,15 @@ class TestCodeRAGAppHeadless:
     async def test_app_starts_and_shows_dashboard(self):
         """Test that the app starts and shows the dashboard screen."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             from coderag.tui.screens.dashboard import DashboardScreen
+
             assert isinstance(app.screen, DashboardScreen)
 
     async def test_dashboard_has_metric_cards(self):
         """Test that dashboard contains all 5 metric cards."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             cards = app.screen.query(MetricCard)
             assert len(cards) == 5
             assert app.screen.query_one("#metric-fps", MetricCard) is not None
@@ -459,35 +472,35 @@ class TestCodeRAGAppHeadless:
     async def test_dashboard_has_pipeline_progress(self):
         """Test that dashboard contains PipelineProgress widget."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             pp = app.screen.query_one(PipelineProgress)
             assert pp is not None
 
     async def test_dashboard_has_filterable_log(self):
         """Test that dashboard contains FilterableLog widget."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             log = app.screen.query_one(FilterableLog)
             assert log is not None
 
     async def test_dashboard_has_throughput_chart(self):
         """Test that dashboard contains ThroughputChart widget."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             chart = app.screen.query_one(ThroughputChart)
             assert chart is not None
 
     async def test_dashboard_has_resource_monitor(self):
         """Test that dashboard contains ResourceMonitor widget."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             rm = app.screen.query_one(ResourceMonitor)
             assert rm is not None
 
     async def test_header_and_footer_present(self):
         """Test that CodeRAGHeader and CodeRAGFooter are present."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             header = app.query_one(CodeRAGHeader)
             assert header is not None
             footer = app.query_one(CodeRAGFooter)
@@ -500,6 +513,7 @@ class TestCodeRAGAppHeadless:
             await pilot.press("2")
             await pilot.pause()
             from coderag.tui.screens.logs import LogsScreen
+
             assert isinstance(app.screen, LogsScreen)
 
     async def test_screen_navigation_to_details(self):
@@ -509,6 +523,7 @@ class TestCodeRAGAppHeadless:
             await pilot.press("3")
             await pilot.pause()
             from coderag.tui.screens.details import DetailsScreen
+
             assert isinstance(app.screen, DetailsScreen)
 
     async def test_screen_navigation_to_graph(self):
@@ -518,6 +533,7 @@ class TestCodeRAGAppHeadless:
             await pilot.press("4")
             await pilot.pause()
             from coderag.tui.screens.graph import GraphScreen
+
             assert isinstance(app.screen, GraphScreen)
 
     async def test_screen_navigation_back_to_dashboard(self):
@@ -529,6 +545,7 @@ class TestCodeRAGAppHeadless:
             await pilot.press("1")  # Back to dashboard
             await pilot.pause()
             from coderag.tui.screens.dashboard import DashboardScreen
+
             assert isinstance(app.screen, DashboardScreen)
 
     async def test_help_screen_toggle(self):
@@ -536,6 +553,7 @@ class TestCodeRAGAppHeadless:
         app = _make_app_no_worker()
         async with app.run_test(size=(120, 40)) as pilot:
             from coderag.tui.screens.help import HelpScreen
+
             await pilot.press("question_mark")
             await pilot.pause()
             assert isinstance(app.screen, HelpScreen)
@@ -546,12 +564,9 @@ class TestCodeRAGAppHeadless:
     async def test_post_log_updates_shared_buffer(self):
         """Test that _post_log adds to shared buffer."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             app._post_log("Test message", "INFO")
-            found = any(
-                text == "Test message" and level == "INFO"
-                for text, level in app._shared_log_buffer
-            )
+            found = any(text == "Test message" and level == "INFO" for text, level in app._shared_log_buffer)
             assert found
 
     async def test_metric_card_updates(self):
@@ -580,10 +595,7 @@ class TestCodeRAGAppHeadless:
             event = PipelineStarted(project_root="/tmp/test-project")
             app._handle_event(event)
             await pilot.pause()
-            found = any(
-                "Pipeline started" in text
-                for text, level in app._shared_log_buffer
-            )
+            found = any("Pipeline started" in text for text, level in app._shared_log_buffer)
             assert found
 
     async def test_handle_phase_started_event(self):
@@ -645,7 +657,7 @@ class TestCodeRAGAppHeadless:
     async def test_log_buffer_cap(self):
         """Test that log buffer is capped."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(120, 40)):
             for i in range(10500):
                 app._shared_log_buffer.append((f"msg {i}", "INFO"))
             # Trigger the cap logic
@@ -660,13 +672,15 @@ class TestCodeRAGAppHeadless:
                 await pilot.press(key)
                 await pilot.pause()
             from coderag.tui.screens.dashboard import DashboardScreen
+
             assert isinstance(app.screen, DashboardScreen)
 
     async def test_small_terminal_size(self):
         """Test that app works at minimum terminal size."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(80, 24)) as pilot:
+        async with app.run_test(size=(80, 24)):
             from coderag.tui.screens.dashboard import DashboardScreen
+
             assert isinstance(app.screen, DashboardScreen)
             # Should not crash at small size
             cards = app.screen.query(MetricCard)
@@ -675,8 +689,9 @@ class TestCodeRAGAppHeadless:
     async def test_large_terminal_size(self):
         """Test that app works at large terminal size."""
         app = _make_app_no_worker()
-        async with app.run_test(size=(200, 60)) as pilot:
+        async with app.run_test(size=(200, 60)):
             from coderag.tui.screens.dashboard import DashboardScreen
+
             assert isinstance(app.screen, DashboardScreen)
 
 
@@ -688,10 +703,12 @@ class TestCLIMonitorCommand:
 
     def test_monitor_command_exists(self):
         from coderag.cli.main import cli
+
         assert "monitor" in cli.commands
 
     def test_monitor_command_params(self):
         from coderag.cli.main import monitor
+
         param_names = [p.name for p in monitor.params]
         assert "path" in param_names
 
@@ -773,12 +790,14 @@ class TestTUIEvents:
 
     def test_import_tui_events(self):
         from coderag.tui.events import FileProcessed, LogMessage, PipelineFinished
+
         assert FileProcessed is not None
         assert LogMessage is not None
         assert PipelineFinished is not None
 
     def test_log_message_creation(self):
         from coderag.tui.events import LogMessage
+
         msg = LogMessage(text="test", level="ERROR", file_path="a.php")
         assert msg.text == "test"
         assert msg.level == "ERROR"
@@ -786,6 +805,7 @@ class TestTUIEvents:
 
     def test_file_processed_creation(self):
         from coderag.tui.events import FileProcessed
+
         msg = FileProcessed(
             file_path="a.php",
             language="php",
@@ -799,18 +819,21 @@ class TestTUIEvents:
 
     def test_pipeline_finished_creation(self):
         from coderag.tui.events import PipelineFinished
+
         msg = PipelineFinished(success=True, error="")
         assert msg.success is True
         assert msg.error == ""
 
     def test_pipeline_event_message_wraps_event(self):
         from coderag.tui.events import PipelineEventMessage
+
         event = PipelineStarted(project_root="/tmp")
         msg = PipelineEventMessage(event)
         assert msg.event is event
 
     def test_metric_update_creation(self):
         from coderag.tui.events import MetricUpdate
+
         msg = MetricUpdate(key="nodes", value=42)
         assert msg.key == "nodes"
         assert msg.value == 42
@@ -849,6 +872,7 @@ class TestEventFlow:
     def test_emitter_thread_safety(self):
         """Test that emitter works from multiple threads."""
         import threading
+
         emitter = EventEmitter()
         received = []
         lock = threading.Lock()
@@ -880,10 +904,12 @@ class TestSummaryScreen:
 
     def test_import(self):
         from coderag.tui.screens.summary import SummaryScreen
+
         assert SummaryScreen is not None
 
     def test_create_success(self):
         from coderag.tui.screens.summary import SummaryScreen
+
         s = SummaryScreen(
             success=True,
             duration_s=12.5,
@@ -903,6 +929,7 @@ class TestSummaryScreen:
 
     def test_create_failure(self):
         from coderag.tui.screens.summary import SummaryScreen
+
         s = SummaryScreen(
             success=False,
             duration_s=5.0,
@@ -918,6 +945,7 @@ class TestSummaryScreen:
 
     def test_default_values(self):
         from coderag.tui.screens.summary import SummaryScreen
+
         s = SummaryScreen()
         assert s._success is True
         assert s._duration_s == 0.0
@@ -930,6 +958,7 @@ class TestSummaryScreen:
 
     def test_screens_init_exports_summary(self):
         from coderag.tui import screens
+
         assert hasattr(screens, "SummaryScreen")
         assert "SummaryScreen" in screens.__all__
 
@@ -985,6 +1014,7 @@ class TestGGKeybindingHeadless:
             assert app._g_pending is True
             # Wait for timeout (500ms + buffer)
             import asyncio
+
             await asyncio.sleep(0.7)
             await pilot.pause()
             assert app._g_pending is False
@@ -1023,10 +1053,7 @@ class TestCommandMode:
             app._execute_command("nonexistent")
             await pilot.pause()
             # Check that warning was logged
-            found = any(
-                "Unknown command" in text
-                for text, level in app._shared_log_buffer
-            )
+            found = any("Unknown command" in text for text, level in app._shared_log_buffer)
             assert found
 
     @pytest.mark.asyncio
@@ -1037,10 +1064,7 @@ class TestCommandMode:
             await pilot.pause()
             app._execute_command("filter INFO")
             await pilot.pause()
-            found = any(
-                "Filter set to" in text
-                for text, level in app._shared_log_buffer
-            )
+            found = any("Filter set to" in text for text, level in app._shared_log_buffer)
             assert found
 
     @pytest.mark.asyncio
@@ -1053,6 +1077,7 @@ class TestCommandMode:
             app._execute_command("w")
             await pilot.pause()
             import os
+
             log_path = os.path.join(app.project_root, ".codegraph", "monitor.log")
             assert os.path.exists(log_path)
             with open(log_path) as f:
@@ -1078,6 +1103,7 @@ class TestOnFinished:
             app._on_finished(True, "")
             await pilot.pause()
             from coderag.tui.screens.summary import SummaryScreen
+
             assert isinstance(app.screen, SummaryScreen)
 
     @pytest.mark.asyncio
@@ -1089,6 +1115,7 @@ class TestOnFinished:
             app._on_finished(False, "some error")
             await pilot.pause()
             from coderag.tui.screens.summary import SummaryScreen
+
             assert isinstance(app.screen, SummaryScreen)
 
     @pytest.mark.asyncio
@@ -1100,10 +1127,12 @@ class TestOnFinished:
             app._on_finished(True, "")
             await pilot.pause()
             from coderag.tui.screens.summary import SummaryScreen
+
             assert isinstance(app.screen, SummaryScreen)
             # Dismiss via escape
             await pilot.press("escape")
             await pilot.pause()
             # Should be back on dashboard
             from coderag.tui.screens.dashboard import DashboardScreen
+
             assert isinstance(app.screen, DashboardScreen)

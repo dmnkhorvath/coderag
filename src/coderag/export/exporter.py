@@ -3,12 +3,12 @@
 Supports markdown, JSON, and tree formats with configurable scopes
 and token budgeting.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from coderag.core.models import EdgeKind, Node, NodeKind
@@ -23,24 +23,25 @@ CHARS_PER_TOKEN = 4
 @dataclass
 class ExportOptions:
     """Configuration for graph export."""
-    format: str = "markdown"       # markdown, json, tree
-    scope: str = "architecture"    # full, architecture, file, symbol
-    symbol: str | None = None      # symbol name (for symbol scope)
-    file_path: str | None = None   # file path (for file scope)
-    max_tokens: int = 8000         # token budget
-    include_source: bool = False   # include source snippets
-    include_git: bool = True       # include git metadata
-    depth: int = 2                 # traversal depth for symbol/file scope
-    top_n: int = 20                # top N items for architecture scope
+
+    format: str = "markdown"  # markdown, json, tree
+    scope: str = "architecture"  # full, architecture, file, symbol
+    symbol: str | None = None  # symbol name (for symbol scope)
+    file_path: str | None = None  # file path (for file scope)
+    max_tokens: int = 8000  # token budget
+    include_source: bool = False  # include source snippets
+    include_git: bool = True  # include git metadata
+    depth: int = 2  # traversal depth for symbol/file scope
+    top_n: int = 20  # top N items for architecture scope
+
 
 def _pluralize(kind: str) -> str:
     """Simple pluralization for node kind names."""
-    if kind.endswith('s'):
-        return kind + 'es'
-    if kind.endswith('y'):
-        return kind[:-1] + 'ies'
-    return kind + 's'
-
+    if kind.endswith("s"):
+        return kind + "es"
+    if kind.endswith("y"):
+        return kind[:-1] + "ies"
+    return kind + "s"
 
 
 class GraphExporter:
@@ -59,8 +60,7 @@ class GraphExporter:
         }
         fn = scope_fn.get(options.scope)
         if fn is None:
-            raise ValueError(f"Unknown scope: {options.scope}. "
-                             f"Valid: {list(scope_fn.keys())}")
+            raise ValueError(f"Unknown scope: {options.scope}. Valid: {list(scope_fn.keys())}")
         data = fn(options)
         return self._format(data, options)
 
@@ -101,10 +101,10 @@ class GraphExporter:
         all_nodes = self._store.find_nodes(limit=100000)
         sorted_nodes = sorted(all_nodes, key=lambda n: n.pagerank or 0, reverse=True)
 
-        top_classes = [n for n in sorted_nodes
-                       if n.kind in (NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.TRAIT)][:top_n]
-        top_functions = [n for n in sorted_nodes
-                         if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)][:top_n]
+        top_classes = [n for n in sorted_nodes if n.kind in (NodeKind.CLASS, NodeKind.INTERFACE, NodeKind.TRAIT)][
+            :top_n
+        ]
+        top_functions = [n for n in sorted_nodes if n.kind in (NodeKind.FUNCTION, NodeKind.METHOD)][:top_n]
 
         by_file: dict[str, list[Node]] = {}
         for node in all_nodes:
@@ -124,6 +124,7 @@ class GraphExporter:
         frameworks = []
         try:
             import json as _json
+
             fw_raw = self._store.get_metadata("frameworks")
             if fw_raw:
                 fw_list = _json.loads(fw_raw) if isinstance(fw_raw, str) else fw_raw
@@ -139,12 +140,14 @@ class GraphExporter:
             path = node.file_path or node.name
             if git.get("is_hot_file") and path not in seen_paths:
                 seen_paths.add(path)
-                hot_files.append({
-                    "path": path,
-                    "commits": git.get("commit_count", 0),
-                    "authors": git.get("unique_authors", 0),
-                    "churn": git.get("churn_ratio", 0),
-                })
+                hot_files.append(
+                    {
+                        "path": path,
+                        "commits": git.get("commit_count", 0),
+                        "authors": git.get("unique_authors", 0),
+                        "churn": git.get("churn_ratio", 0),
+                    }
+                )
         hot_files.sort(key=lambda x: x["commits"], reverse=True)
 
         return {
@@ -167,8 +170,7 @@ class GraphExporter:
         file_nodes = self._store.find_nodes(file_path=options.file_path, limit=10000)
         if not file_nodes:
             all_nodes = self._store.find_nodes(limit=100000)
-            file_nodes = [n for n in all_nodes
-                          if n.file_path and options.file_path in n.file_path]
+            file_nodes = [n for n in all_nodes if n.file_path and options.file_path in n.file_path]
 
         if not file_nodes:
             return {
@@ -184,7 +186,7 @@ class GraphExporter:
             neighbor_tuples = self._store.get_neighbors(node.id, max_depth=1)
             for n, edge, depth in neighbor_tuples:
                 if n.id not in node_ids:
-                    edge_kind = edge.kind.value if hasattr(edge.kind, 'value') else str(edge.kind)
+                    edge_kind = edge.kind.value if hasattr(edge.kind, "value") else str(edge.kind)
                     edges.append({"from": node.name, "to": n.name, "kind": edge_kind})
 
         file_nodes.sort(key=lambda n: n.start_line or 0)
@@ -234,13 +236,13 @@ class GraphExporter:
         }
         fn = fmt_fn.get(options.format)
         if fn is None:
-            raise ValueError(f"Unknown format: {options.format}. "
-                             f"Valid: {list(fmt_fn.keys())}")
+            raise ValueError(f"Unknown format: {options.format}. Valid: {list(fmt_fn.keys())}")
         result = fn(data, options)
         return self._apply_token_budget(result, options.max_tokens)
 
     def _format_json(self, data: dict, options: ExportOptions) -> str:
         """Format as JSON."""
+
         def _serialize(obj: Any) -> Any:
             if isinstance(obj, Node):
                 d = {
@@ -354,7 +356,7 @@ class GraphExporter:
             lines.append("## Key Functions/Methods (by PageRank)\n")
             lines.append("| Function | File | Language | PageRank |")
             lines.append("|----------|------|----------|----------|")
-            for node in top_fns[:options.top_n]:
+            for node in top_fns[: options.top_n]:
                 pr = f"{node.pagerank:.4f}" if node.pagerank else "—"
                 fp = node.file_path or "—"
                 lines.append(f"| `{node.qualified_name or node.name}` | {fp} | {node.language or '—'} | {pr} |")
@@ -383,8 +385,7 @@ class GraphExporter:
     def _md_full(self, data: dict, options: ExportOptions) -> list[str]:
         """Markdown full export."""
         lines = ["# Full Graph Export\n"]
-        lines.append(f"**Nodes:** {data.get('node_count', 0)} | "
-                     f"**Files:** {data.get('file_count', 0)}\n")
+        lines.append(f"**Nodes:** {data.get('node_count', 0)} | **Files:** {data.get('file_count', 0)}\n")
 
         by_kind = data.get("by_kind", {})
         if by_kind:
@@ -557,7 +558,7 @@ class GraphExporter:
         if len(text) <= max_chars:
             return text
 
-        truncated = text[:max_chars - 200]
+        truncated = text[: max_chars - 200]
         last_nl = truncated.rfind("\n")
         if last_nl > 0:
             truncated = truncated[:last_nl]

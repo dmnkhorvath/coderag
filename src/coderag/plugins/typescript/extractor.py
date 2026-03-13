@@ -6,6 +6,7 @@ Supports all JavaScript constructs plus TypeScript-specific features:
 interfaces, type aliases, enums, decorators, abstract classes,
 implements clauses, type annotations, and generics.
 """
+
 from __future__ import annotations
 
 import logging
@@ -50,7 +51,7 @@ def _node_text(node: tree_sitter.Node | None, source: bytes) -> str:
     """Extract UTF-8 text for a node."""
     if node is None:
         return ""
-    return source[node.start_byte:node.end_byte].decode("utf-8", errors="replace")
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
 def _find_preceding_docblock(node: tree_sitter.Node, source: bytes) -> str | None:
@@ -261,9 +262,15 @@ def _extract_decorators(node: tree_sitter.Node, source: bytes) -> list[dict[str,
         elif child.type not in ("comment",):
             # Stop once we pass decorators
             if child.type in (
-                "class", "class_body", "identifier", "type_identifier",
-                "type_parameters", "class_heritage", "abstract",
-                "export", "default",
+                "class",
+                "class_body",
+                "identifier",
+                "type_identifier",
+                "type_parameters",
+                "class_heritage",
+                "abstract",
+                "export",
+                "default",
             ):
                 break
     return decorators
@@ -311,12 +318,14 @@ class _ExtractionContext:
         self.edges.append(edge)
 
     def add_error(self, message: str, line: int = 0) -> None:
-        self.errors.append(ExtractionError(
-            file_path=self.file_path,
-            line_number=line,
-            message=message,
-            severity="error",
-        ))
+        self.errors.append(
+            ExtractionError(
+                file_path=self.file_path,
+                line_number=line,
+                message=message,
+                severity="error",
+            )
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -331,42 +340,46 @@ class TypeScriptExtractor(ASTExtractor):
     tree-sitter grammar at parse time.
     """
 
-    _SUPPORTED_NODE_KINDS = frozenset({
-        NodeKind.FILE,
-        NodeKind.MODULE,
-        NodeKind.CLASS,
-        NodeKind.METHOD,
-        NodeKind.PROPERTY,
-        NodeKind.FUNCTION,
-        NodeKind.VARIABLE,
-        NodeKind.CONSTANT,
-        NodeKind.IMPORT,
-        NodeKind.EXPORT,
-        NodeKind.COMPONENT,
-        # TypeScript-specific
-        NodeKind.INTERFACE,
-        NodeKind.TYPE_ALIAS,
-        NodeKind.ENUM,
-        NodeKind.DECORATOR,
-    })
+    _SUPPORTED_NODE_KINDS = frozenset(
+        {
+            NodeKind.FILE,
+            NodeKind.MODULE,
+            NodeKind.CLASS,
+            NodeKind.METHOD,
+            NodeKind.PROPERTY,
+            NodeKind.FUNCTION,
+            NodeKind.VARIABLE,
+            NodeKind.CONSTANT,
+            NodeKind.IMPORT,
+            NodeKind.EXPORT,
+            NodeKind.COMPONENT,
+            # TypeScript-specific
+            NodeKind.INTERFACE,
+            NodeKind.TYPE_ALIAS,
+            NodeKind.ENUM,
+            NodeKind.DECORATOR,
+        }
+    )
 
-    _SUPPORTED_EDGE_KINDS = frozenset({
-        EdgeKind.CONTAINS,
-        EdgeKind.EXTENDS,
-        EdgeKind.IMPORTS,
-        EdgeKind.EXPORTS,
-        EdgeKind.RE_EXPORTS,
-        EdgeKind.CALLS,
-        EdgeKind.INSTANTIATES,
-        EdgeKind.DYNAMIC_IMPORTS,
-        # TypeScript-specific
-        EdgeKind.IMPLEMENTS,
-        EdgeKind.HAS_TYPE,
-        EdgeKind.RETURNS_TYPE,
-        EdgeKind.IMPORTS_TYPE,
-        EdgeKind.RENDERS,
-        EdgeKind.DEPENDS_ON,
-    })
+    _SUPPORTED_EDGE_KINDS = frozenset(
+        {
+            EdgeKind.CONTAINS,
+            EdgeKind.EXTENDS,
+            EdgeKind.IMPORTS,
+            EdgeKind.EXPORTS,
+            EdgeKind.RE_EXPORTS,
+            EdgeKind.CALLS,
+            EdgeKind.INSTANTIATES,
+            EdgeKind.DYNAMIC_IMPORTS,
+            # TypeScript-specific
+            EdgeKind.IMPLEMENTS,
+            EdgeKind.HAS_TYPE,
+            EdgeKind.RETURNS_TYPE,
+            EdgeKind.IMPORTS_TYPE,
+            EdgeKind.RENDERS,
+            EdgeKind.DEPENDS_ON,
+        }
+    )
 
     # -- ASTExtractor interface: supported kinds ----------------------------
 
@@ -430,6 +443,7 @@ class TypeScriptExtractor(ASTExtractor):
             ctx.add_error("Tree-sitter reported parse errors", line=1)
 
         from dataclasses import replace as _dc_replace
+
         file_node = _dc_replace(file_node, end_line=root.end_point[0] + 1)
         ctx.add_node(file_node)
 
@@ -520,7 +534,7 @@ class TypeScriptExtractor(ASTExtractor):
         if source_node is None:
             # Could be `import type = require(...)` or similar
             return
-        module_path = _node_text(source_node, source).strip("\"\'\'`")
+        module_path = _node_text(source_node, source).strip("\"''`")
         if not module_path:
             return
 
@@ -531,8 +545,6 @@ class TypeScriptExtractor(ASTExtractor):
         # Collect imported names
         imported_names: list[dict[str, str]] = []
         has_default = False
-        has_namespace = False
-        namespace_name = ""
 
         for child in node.children:
             # Default import: `import Foo from "..."`
@@ -549,8 +561,6 @@ class TypeScriptExtractor(ASTExtractor):
                     if sub.type == "identifier":
                         ns_name = _node_text(sub, source)
                         imported_names.append({"name": "*", "alias": ns_name, "kind": "namespace"})
-                        has_namespace = True
-                        namespace_name = ns_name
                         ctx.import_bindings[ns_name] = (module_path, "*")
 
             # Named imports: `import { a, b as c } from "..."`
@@ -576,45 +586,51 @@ class TypeScriptExtractor(ASTExtractor):
                             spec_alias = parts[0]
                         if spec_name:
                             kind = "type" if (is_type_only or is_spec_type) else "named"
-                            imported_names.append({
-                                "name": spec_name,
-                                "alias": spec_alias,
-                                "kind": kind,
-                            })
+                            imported_names.append(
+                                {
+                                    "name": spec_name,
+                                    "alias": spec_alias,
+                                    "kind": kind,
+                                }
+                            )
                             ctx.import_bindings[spec_alias] = (module_path, spec_name)
 
         # Create IMPORT node
         edge_kind = EdgeKind.IMPORTS_TYPE if is_type_only else EdgeKind.IMPORTS
-        import_node_id = generate_node_id(ctx.file_path, node.start_point[0] + 1, NodeKind.VARIABLE, f"import:{module_path}")
+        generate_node_id(ctx.file_path, node.start_point[0] + 1, NodeKind.VARIABLE, f"import:{module_path}")
 
         # Create unresolved reference for the module
-        ctx.unresolved.append(UnresolvedReference(
-            source_node_id=ctx.nodes[0].id if ctx.nodes else "",
-            reference_name=module_path,
-            reference_kind=EdgeKind.IMPORTS_TYPE if is_type_only else EdgeKind.IMPORTS,
-            line_number=node.start_point[0] + 1,
-            context={
-                "imported_names": imported_names,
-                "is_type_only": is_type_only,
-            },
-        ))
+        ctx.unresolved.append(
+            UnresolvedReference(
+                source_node_id=ctx.nodes[0].id if ctx.nodes else "",
+                reference_name=module_path,
+                reference_kind=EdgeKind.IMPORTS_TYPE if is_type_only else EdgeKind.IMPORTS,
+                line_number=node.start_point[0] + 1,
+                context={
+                    "imported_names": imported_names,
+                    "is_type_only": is_type_only,
+                },
+            )
+        )
 
         # Create edges for each imported name
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
         for imp in imported_names:
             imp_kind = EdgeKind.IMPORTS_TYPE if imp.get("kind") == "type" else edge_kind
-            ctx.add_edge(Edge(
-                source_id=file_node_id,
-                target_id=f"unresolved:{module_path}:{imp["name"]}",
-                kind=imp_kind,
-                confidence=0.9,
-                metadata={
-                    "module_path": module_path,
-                    "imported_name": imp["name"],
-                    "local_alias": imp["alias"],
-                    "is_type_only": is_type_only or imp.get("kind") == "type",
-                },
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=file_node_id,
+                    target_id=f"unresolved:{module_path}:{imp['name']}",
+                    kind=imp_kind,
+                    confidence=0.9,
+                    metadata={
+                        "module_path": module_path,
+                        "imported_name": imp["name"],
+                        "local_alias": imp["alias"],
+                        "is_type_only": is_type_only or imp.get("kind") == "type",
+                    },
+                )
+            )
 
     # ===================================================================
     # EXPORTS
@@ -633,7 +649,7 @@ class TypeScriptExtractor(ASTExtractor):
           export class/function/interface/type/enum ...
         """
         source = ctx.source
-        full_text = _node_text(node, source)
+        _node_text(node, source)
         is_default = False
         is_type_export = False
         source_module: str | None = None
@@ -641,7 +657,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Check for re-export source
         source_node = _child_by_field(node, "source")
         if source_node is not None:
-            source_module = _node_text(source_node, source).strip("\"\'\'`")
+            source_module = _node_text(source_node, source).strip("\"''`")
 
         # Check for default / type keywords
         for child in node.children:
@@ -673,27 +689,31 @@ class TypeScriptExtractor(ASTExtractor):
                     reexported.append({"name": "*", "alias": "*"})
 
             # Create unresolved reference for re-export
-            ctx.unresolved.append(UnresolvedReference(
-                source_node_id=file_node_id,
-                reference_name=source_module,
-                reference_kind=EdgeKind.IMPORTS,
-                line_number=node.start_point[0] + 1,
-                context={"reexported_names": reexported},
-            ))
+            ctx.unresolved.append(
+                UnresolvedReference(
+                    source_node_id=file_node_id,
+                    reference_name=source_module,
+                    reference_kind=EdgeKind.IMPORTS,
+                    line_number=node.start_point[0] + 1,
+                    context={"reexported_names": reexported},
+                )
+            )
 
             for re in reexported:
-                ctx.add_edge(Edge(
-                    source_id=file_node_id,
-                    target_id=f"unresolved:{source_module}:{re["name"]}",
-                    kind=EdgeKind.EXPORTS,
-                    confidence=0.9,
-                    metadata={
-                        "source_module": source_module,
-                        "original_name": re["name"],
-                        "exported_as": re["alias"],
-                        "is_reexport": True,
-                    },
-                ))
+                ctx.add_edge(
+                    Edge(
+                        source_id=file_node_id,
+                        target_id=f"unresolved:{source_module}:{re['name']}",
+                        kind=EdgeKind.EXPORTS,
+                        confidence=0.9,
+                        metadata={
+                            "source_module": source_module,
+                            "original_name": re["name"],
+                            "exported_as": re["alias"],
+                            "is_reexport": True,
+                        },
+                    )
+                )
             return
 
         # Named export clause: export { a, b as c }
@@ -711,26 +731,32 @@ class TypeScriptExtractor(ASTExtractor):
                             ctx.named_exports.add(exported_name)
                             # Link to defined node if known
                             target = ctx.defined_names.get(local_name, f"unresolved:local:{local_name}")
-                            ctx.add_edge(Edge(
-                                source_id=file_node_id,
-                                target_id=target,
-                                kind=EdgeKind.EXPORTS,
-                                confidence=0.9,
-                                metadata={
-                                    "exported_name": exported_name,
-                                    "local_name": local_name,
-                                    "is_type_export": is_type_export,
-                                },
-                            ))
+                            ctx.add_edge(
+                                Edge(
+                                    source_id=file_node_id,
+                                    target_id=target,
+                                    kind=EdgeKind.EXPORTS,
+                                    confidence=0.9,
+                                    metadata={
+                                        "exported_name": exported_name,
+                                        "local_name": local_name,
+                                        "is_type_export": is_type_export,
+                                    },
+                                )
+                            )
                 return
 
         # Inline export: export class/function/interface/type/enum ...
         for child in node.children:
             if child.type in (
-                "class_declaration", "abstract_class_declaration",
-                "function_declaration", "generator_function_declaration",
-                "interface_declaration", "type_alias_declaration",
-                "enum_declaration", "lexical_declaration",
+                "class_declaration",
+                "abstract_class_declaration",
+                "function_declaration",
+                "generator_function_declaration",
+                "interface_declaration",
+                "type_alias_declaration",
+                "enum_declaration",
+                "lexical_declaration",
                 "variable_declaration",
             ):
                 # Visit the declaration normally
@@ -740,24 +766,28 @@ class TypeScriptExtractor(ASTExtractor):
                     last_node = ctx.nodes[-1]
                     if is_default:
                         ctx.default_export_name = last_node.name
-                        last_node = Node(**{
-                            **last_node.__dict__,
-                            "metadata": {**last_node.metadata, "is_default_export": True},
-                        })
+                        last_node = Node(
+                            **{
+                                **last_node.__dict__,
+                                "metadata": {**last_node.metadata, "is_default_export": True},
+                            }
+                        )
                         ctx.nodes[-1] = last_node
                     else:
                         ctx.named_exports.add(last_node.name)
-                    ctx.add_edge(Edge(
-                        source_id=file_node_id,
-                        target_id=last_node.id,
-                        kind=EdgeKind.EXPORTS,
-                        confidence=0.95,
-                        metadata={
-                            "exported_name": "default" if is_default else last_node.name,
-                            "is_default": is_default,
-                            "is_type_export": is_type_export,
-                        },
-                    ))
+                    ctx.add_edge(
+                        Edge(
+                            source_id=file_node_id,
+                            target_id=last_node.id,
+                            kind=EdgeKind.EXPORTS,
+                            confidence=0.95,
+                            metadata={
+                                "exported_name": "default" if is_default else last_node.name,
+                                "is_default": is_default,
+                                "is_type_export": is_type_export,
+                            },
+                        )
+                    )
                 return
 
         # Default export of expression: export default someVar
@@ -768,17 +798,19 @@ class TypeScriptExtractor(ASTExtractor):
                     if name not in ("export", "default", "type"):
                         ctx.default_export_name = name
                         target = ctx.defined_names.get(name, f"unresolved:local:{name}")
-                        ctx.add_edge(Edge(
-                            source_id=file_node_id,
-                            target_id=target,
-                            kind=EdgeKind.EXPORTS,
-                            confidence=0.9,
-                            metadata={
-                                "exported_name": "default",
-                                "local_name": name,
-                                "is_default": True,
-                            },
-                        ))
+                        ctx.add_edge(
+                            Edge(
+                                source_id=file_node_id,
+                                target_id=target,
+                                kind=EdgeKind.EXPORTS,
+                                confidence=0.9,
+                                metadata={
+                                    "exported_name": "default",
+                                    "local_name": name,
+                                    "is_default": True,
+                                },
+                            )
+                        )
                         return
 
     # ===================================================================
@@ -812,7 +844,7 @@ class TypeScriptExtractor(ASTExtractor):
         docstring = _find_preceding_docblock(node, source)
 
         # Build metadata
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
         meta: dict[str, Any] = {}
         if is_abstract:
             meta["is_abstract"] = True
@@ -838,12 +870,14 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Decorator edges
         # Heritage: extends and implements
@@ -877,46 +911,56 @@ class TypeScriptExtractor(ASTExtractor):
                         for sub in hc.children:
                             if sub.type in ("identifier", "type_identifier", "member_expression"):
                                 parent_name = _node_text(sub, source)
-                                ctx.add_edge(Edge(
-                                    source_id=class_node_id,
-                                    target_id=f"unresolved:class:{parent_name}",
-                                    kind=EdgeKind.EXTENDS,
-                                    confidence=0.9,
-                                    metadata={"parent_class": parent_name},
-                                ))
-                                ctx.unresolved.append(UnresolvedReference(
-                                    source_node_id=class_node_id,
-                                    reference_name=parent_name,
-                                    reference_kind=EdgeKind.EXTENDS,
-                                    line_number=hc.start_point[0] + 1,
-                                ))
+                                ctx.add_edge(
+                                    Edge(
+                                        source_id=class_node_id,
+                                        target_id=f"unresolved:class:{parent_name}",
+                                        kind=EdgeKind.EXTENDS,
+                                        confidence=0.9,
+                                        metadata={"parent_class": parent_name},
+                                    )
+                                )
+                                ctx.unresolved.append(
+                                    UnresolvedReference(
+                                        source_node_id=class_node_id,
+                                        reference_name=parent_name,
+                                        reference_kind=EdgeKind.EXTENDS,
+                                        line_number=hc.start_point[0] + 1,
+                                    )
+                                )
                                 break  # Only one extends in TS
 
                     # implements clause
                     elif hc.type == "implements_clause":
                         for sub in hc.children:
                             if sub.type in (
-                                "type_identifier", "identifier",
-                                "generic_type", "member_expression",
+                                "type_identifier",
+                                "identifier",
+                                "generic_type",
+                                "member_expression",
                             ):
                                 if sub.type == "generic_type":
                                     name_sub = _child_by_field(sub, "name")
                                     iface_name = _node_text(name_sub, source) if name_sub else _node_text(sub, source)
                                 else:
                                     iface_name = _node_text(sub, source)
-                                ctx.add_edge(Edge(
-                                    source_id=class_node_id,
-                                    target_id=f"unresolved:interface:{iface_name}",
-                                    kind=EdgeKind.IMPLEMENTS,
-                                    confidence=0.9,
-                                    metadata={"interface": iface_name},
-                                ))
-                                ctx.unresolved.append(UnresolvedReference(
-                                    source_node_id=class_node_id,
-                                    reference_name=iface_name,
-                                    reference_kind=EdgeKind.IMPLEMENTS,
-                                    line_number=hc.start_point[0] + 1,
-                                ))
+                                ctx.add_edge(
+                                    Edge(
+                                        source_id=class_node_id,
+                                        target_id=f"unresolved:interface:{iface_name}",
+                                        kind=EdgeKind.IMPLEMENTS,
+                                        confidence=0.9,
+                                        metadata={"interface": iface_name},
+                                    )
+                                )
+                                ctx.unresolved.append(
+                                    UnresolvedReference(
+                                        source_node_id=class_node_id,
+                                        reference_name=iface_name,
+                                        reference_kind=EdgeKind.IMPLEMENTS,
+                                        line_number=hc.start_point[0] + 1,
+                                    )
+                                )
 
     def _visit_class_body(
         self,
@@ -925,7 +969,6 @@ class TypeScriptExtractor(ASTExtractor):
         ctx: _ExtractionContext,
     ) -> None:
         """Walk class body and extract methods, properties, constructors."""
-        source = ctx.source
         for child in body.children:
             if child.type in ("method_definition", "method_signature"):
                 self._visit_method(child, class_node_id, ctx)
@@ -1002,7 +1045,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Docstring
         docstring = _find_preceding_docblock(node, source)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
 
         meta: dict[str, Any] = {}
         if params:
@@ -1048,22 +1091,26 @@ class TypeScriptExtractor(ASTExtractor):
         ctx.add_node(method_node)
 
         # CONTAINS edge from class
-        ctx.add_edge(Edge(
-            source_id=class_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=class_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Return type edge
         if return_type:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{return_type}",
-                kind=EdgeKind.RETURNS_TYPE,
-                confidence=0.8,
-                metadata={"return_type": return_type},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{return_type}",
+                    kind=EdgeKind.RETURNS_TYPE,
+                    confidence=0.8,
+                    metadata={"return_type": return_type},
+                )
+            )
 
         # Decorator edges
         # Scan method body for calls
@@ -1118,7 +1165,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Docstring
         docstring = _find_preceding_docblock(node, source)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
 
         meta: dict[str, Any] = {}
         if type_ann:
@@ -1159,24 +1206,29 @@ class TypeScriptExtractor(ASTExtractor):
         ctx.add_node(prop_node)
 
         # CONTAINS edge from class
-        ctx.add_edge(Edge(
-            source_id=class_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=class_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Type edge
         if type_ann:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{type_ann}",
-                kind=EdgeKind.HAS_TYPE,
-                confidence=0.8,
-                metadata={"type": type_ann},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{type_ann}",
+                    kind=EdgeKind.HAS_TYPE,
+                    confidence=0.8,
+                    metadata={"type": type_ann},
+                )
+            )
 
         # Decorator edges
+
     # ===================================================================
     # INTERFACES (TypeScript-specific)
     # ===================================================================
@@ -1202,7 +1254,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Docstring
         docstring = _find_preceding_docblock(node, source)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
 
         meta: dict[str, Any] = {}
         if type_params:
@@ -1225,12 +1277,14 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Extends clause (interfaces can extend multiple interfaces)
         for child in node.children:
@@ -1242,19 +1296,23 @@ class TypeScriptExtractor(ASTExtractor):
                             parent_name = _node_text(name_sub, source) if name_sub else _node_text(sub, source)
                         else:
                             parent_name = _node_text(sub, source)
-                        ctx.add_edge(Edge(
-                            source_id=node_id,
-                            target_id=f"unresolved:interface:{parent_name}",
-                            kind=EdgeKind.EXTENDS,
-                            confidence=0.9,
-                            metadata={"parent_interface": parent_name},
-                        ))
-                        ctx.unresolved.append(UnresolvedReference(
-                            source_node_id=node_id,
-                            reference_name=parent_name,
-                            reference_kind=EdgeKind.EXTENDS,
-                            line_number=child.start_point[0] + 1,
-                        ))
+                        ctx.add_edge(
+                            Edge(
+                                source_id=node_id,
+                                target_id=f"unresolved:interface:{parent_name}",
+                                kind=EdgeKind.EXTENDS,
+                                confidence=0.9,
+                                metadata={"parent_interface": parent_name},
+                            )
+                        )
+                        ctx.unresolved.append(
+                            UnresolvedReference(
+                                source_node_id=node_id,
+                                reference_name=parent_name,
+                                reference_kind=EdgeKind.EXTENDS,
+                                line_number=child.start_point[0] + 1,
+                            )
+                        )
 
         # Interface body — extract property and method signatures
         body = _child_by_field(node, "body")
@@ -1275,7 +1333,6 @@ class TypeScriptExtractor(ASTExtractor):
         ctx: _ExtractionContext,
     ) -> None:
         """Extract members from interface body."""
-        source = ctx.source
         for child in body.children:
             if child.type == "property_signature":
                 self._visit_interface_property(child, iface_node_id, ctx)
@@ -1328,21 +1385,25 @@ class TypeScriptExtractor(ASTExtractor):
         )
         ctx.add_node(prop_node)
 
-        ctx.add_edge(Edge(
-            source_id=iface_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=iface_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         if type_ann:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{type_ann}",
-                kind=EdgeKind.HAS_TYPE,
-                confidence=0.8,
-                metadata={"type": type_ann},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{type_ann}",
+                    kind=EdgeKind.HAS_TYPE,
+                    confidence=0.8,
+                    metadata={"type": type_ann},
+                )
+            )
 
     def _visit_interface_method(
         self,
@@ -1390,21 +1451,25 @@ class TypeScriptExtractor(ASTExtractor):
         )
         ctx.add_node(method_node)
 
-        ctx.add_edge(Edge(
-            source_id=iface_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=iface_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         if return_type:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{return_type}",
-                kind=EdgeKind.RETURNS_TYPE,
-                confidence=0.8,
-                metadata={"return_type": return_type},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{return_type}",
+                    kind=EdgeKind.RETURNS_TYPE,
+                    confidence=0.8,
+                    metadata={"return_type": return_type},
+                )
+            )
 
     # ===================================================================
     # TYPE ALIASES (TypeScript-specific)
@@ -1434,7 +1499,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Docstring
         docstring = _find_preceding_docblock(node, source)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
 
         meta: dict[str, Any] = {}
         if type_params:
@@ -1459,12 +1524,14 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
     # ===================================================================
     # ENUMS (TypeScript-specific)
@@ -1523,7 +1590,7 @@ class TypeScriptExtractor(ASTExtractor):
                     if member.get("name"):
                         members.append(member)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
 
         meta: dict[str, Any] = {}
         if is_const:
@@ -1548,12 +1615,14 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
     # ===================================================================
     # FUNCTIONS
@@ -1593,7 +1662,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Docstring
         docstring = _find_preceding_docblock(node, source)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
 
         meta: dict[str, Any] = {}
         if params:
@@ -1626,22 +1695,26 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Return type edge
         if return_type:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{return_type}",
-                kind=EdgeKind.RETURNS_TYPE,
-                confidence=0.8,
-                metadata={"return_type": return_type},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{return_type}",
+                    kind=EdgeKind.RETURNS_TYPE,
+                    confidence=0.8,
+                    metadata={"return_type": return_type},
+                )
+            )
 
         # Decorator edges
         # Scan body for calls and JSX
@@ -1655,7 +1728,9 @@ class TypeScriptExtractor(ASTExtractor):
     # ===================================================================
 
     def _visit_lexical_declaration(
-        self, node: tree_sitter.Node, ctx: _ExtractionContext,
+        self,
+        node: tree_sitter.Node,
+        ctx: _ExtractionContext,
     ) -> None:
         """Handle lexical_declaration (const/let) and variable_declaration (var).
 
@@ -1698,10 +1773,16 @@ class TypeScriptExtractor(ASTExtractor):
 
         # Check if value is an arrow function or function expression
         if value_node is not None and value_node.type in (
-            "arrow_function", "function_expression", "generator_function",
+            "arrow_function",
+            "function_expression",
+            "generator_function",
         ):
             self._visit_arrow_or_func_expr(
-                var_name, value_node, decl_kind, type_ann, ctx,
+                var_name,
+                value_node,
+                decl_kind,
+                type_ann,
+                ctx,
             )
             return
 
@@ -1716,7 +1797,7 @@ class TypeScriptExtractor(ASTExtractor):
         qualified = ctx.qualified(var_name)
         node_id = generate_node_id(ctx.file_path, node.start_point[0] + 1, kind, var_name)
 
-        _content_hash = compute_content_hash(source[node.start_byte:node.end_byte])
+        _content_hash = compute_content_hash(source[node.start_byte : node.end_byte])
         meta: dict[str, Any] = {
             "declaration_kind": decl_kind,
         }
@@ -1749,22 +1830,26 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Type edge
         if type_ann:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{type_ann}",
-                kind=EdgeKind.HAS_TYPE,
-                confidence=0.8,
-                metadata={"type": type_ann},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{type_ann}",
+                    kind=EdgeKind.HAS_TYPE,
+                    confidence=0.8,
+                    metadata={"type": type_ann},
+                )
+            )
 
     def _visit_arrow_or_func_expr(
         self,
@@ -1796,7 +1881,7 @@ class TypeScriptExtractor(ASTExtractor):
         # Docstring (from the lexical_declaration parent)
         docstring = _find_preceding_docblock(value_node.parent, source) if value_node.parent else None
 
-        _content_hash = compute_content_hash(source[value_node.start_byte:value_node.end_byte])
+        _content_hash = compute_content_hash(source[value_node.start_byte : value_node.end_byte])
         meta: dict[str, Any] = {
             "declaration_kind": decl_kind,
             "is_arrow": value_node.type == "arrow_function",
@@ -1831,22 +1916,26 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Return type edge
         if return_type:
-            ctx.add_edge(Edge(
-                source_id=node_id,
-                target_id=f"unresolved:type:{return_type}",
-                kind=EdgeKind.RETURNS_TYPE,
-                confidence=0.8,
-                metadata={"return_type": return_type},
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=node_id,
+                    target_id=f"unresolved:type:{return_type}",
+                    kind=EdgeKind.RETURNS_TYPE,
+                    confidence=0.8,
+                    metadata={"return_type": return_type},
+                )
+            )
 
         # Scan body for calls and JSX
         body_node = _child_by_field(value_node, "body")
@@ -1868,7 +1957,7 @@ class TypeScriptExtractor(ASTExtractor):
         type_params = _extract_type_parameters(value_node, source)
         docstring = _find_preceding_docblock(value_node.parent, source) if value_node.parent else None
 
-        _content_hash = compute_content_hash(source[value_node.start_byte:value_node.end_byte])
+        _content_hash = compute_content_hash(source[value_node.start_byte : value_node.end_byte])
         meta: dict[str, Any] = {
             "is_expression": True,
         }
@@ -1892,12 +1981,14 @@ class TypeScriptExtractor(ASTExtractor):
 
         # CONTAINS edge from file
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Heritage
         self._process_class_heritage(value_node, node_id, ctx)
@@ -1919,7 +2010,9 @@ class TypeScriptExtractor(ASTExtractor):
     # ===================================================================
 
     def _visit_expression_statement(
-        self, node: tree_sitter.Node, ctx: _ExtractionContext,
+        self,
+        node: tree_sitter.Node,
+        ctx: _ExtractionContext,
     ) -> None:
         """Handle expression_statement — detect CJS require, module.exports, calls."""
         source = ctx.source
@@ -1943,32 +2036,36 @@ class TypeScriptExtractor(ASTExtractor):
                         ctx.default_export_name = name
                         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
                         target = ctx.defined_names.get(name, f"unresolved:local:{name}")
-                        ctx.add_edge(Edge(
-                            source_id=file_node_id,
-                            target_id=target,
-                            kind=EdgeKind.EXPORTS,
-                            confidence=0.85,
-                            metadata={
-                                "exported_name": "default",
-                                "local_name": name,
-                                "is_cjs": True,
-                            },
-                        ))
+                        ctx.add_edge(
+                            Edge(
+                                source_id=file_node_id,
+                                target_id=target,
+                                kind=EdgeKind.EXPORTS,
+                                confidence=0.85,
+                                metadata={
+                                    "exported_name": "default",
+                                    "local_name": name,
+                                    "is_cjs": True,
+                                },
+                            )
+                        )
                 # exports.foo = ...
                 elif left_text.startswith("exports."):
                     export_name = left_text.split(".", 1)[1]
                     ctx.named_exports.add(export_name)
                     file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-                    ctx.add_edge(Edge(
-                        source_id=file_node_id,
-                        target_id=f"unresolved:local:{export_name}",
-                        kind=EdgeKind.EXPORTS,
-                        confidence=0.80,
-                        metadata={
-                            "exported_name": export_name,
-                            "is_cjs": True,
-                        },
-                    ))
+                    ctx.add_edge(
+                        Edge(
+                            source_id=file_node_id,
+                            target_id=f"unresolved:local:{export_name}",
+                            kind=EdgeKind.EXPORTS,
+                            confidence=0.80,
+                            metadata={
+                                "exported_name": export_name,
+                                "is_cjs": True,
+                            },
+                        )
+                    )
 
         # Detect top-level calls (e.g., app.use(), router.get())
         if expr.type == "call_expression":
@@ -1979,17 +2076,24 @@ class TypeScriptExtractor(ASTExtractor):
     # ===================================================================
 
     def _visit_ambient_declaration(
-        self, node: tree_sitter.Node, ctx: _ExtractionContext,
+        self,
+        node: tree_sitter.Node,
+        ctx: _ExtractionContext,
     ) -> None:
         """Handle ambient_declaration: declare const/let/var/function/class/enum/..."""
         # Ambient declarations contain the actual declaration as a child
         for child in node.children:
             if child.type in (
-                "class_declaration", "abstract_class_declaration",
-                "function_declaration", "function_signature",
-                "interface_declaration", "type_alias_declaration",
-                "enum_declaration", "lexical_declaration",
-                "variable_declaration", "module",
+                "class_declaration",
+                "abstract_class_declaration",
+                "function_declaration",
+                "function_signature",
+                "interface_declaration",
+                "type_alias_declaration",
+                "enum_declaration",
+                "lexical_declaration",
+                "variable_declaration",
+                "module",
             ):
                 self._visit(child, ctx)
                 # Mark the last node as ambient/declare
@@ -2014,14 +2118,16 @@ class TypeScriptExtractor(ASTExtractor):
     # ===================================================================
 
     def _visit_module_declaration(
-        self, node: tree_sitter.Node, ctx: _ExtractionContext,
+        self,
+        node: tree_sitter.Node,
+        ctx: _ExtractionContext,
     ) -> None:
         """Handle module (namespace) declarations."""
         source = ctx.source
         name_node = _child_by_field(node, "name")
         if name_node is None:
             return
-        mod_name = _node_text(name_node, source).strip("\"\'\'`")
+        mod_name = _node_text(name_node, source).strip("\"''`")
         if not mod_name:
             return
 
@@ -2041,12 +2147,14 @@ class TypeScriptExtractor(ASTExtractor):
         ctx.add_node(mod_node)
 
         file_node_id = ctx.nodes[0].id if ctx.nodes else ""
-        ctx.add_edge(Edge(
-            source_id=file_node_id,
-            target_id=node_id,
-            kind=EdgeKind.CONTAINS,
-            confidence=1.0,
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=file_node_id,
+                target_id=node_id,
+                kind=EdgeKind.CONTAINS,
+                confidence=1.0,
+            )
+        )
 
         # Visit body
         body = _child_by_field(node, "body")
@@ -2060,7 +2168,10 @@ class TypeScriptExtractor(ASTExtractor):
     # ===================================================================
 
     def _scan_calls(
-        self, node: tree_sitter.Node, parent_id: str, ctx: _ExtractionContext,
+        self,
+        node: tree_sitter.Node,
+        parent_id: str,
+        ctx: _ExtractionContext,
     ) -> None:
         """Recursively scan a subtree for call expressions and new expressions."""
         if node.type == "call_expression":
@@ -2071,9 +2182,13 @@ class TypeScriptExtractor(ASTExtractor):
         for child in node.children:
             # Don't recurse into nested function/class bodies
             if child.type in (
-                "arrow_function", "function_expression", "function_declaration",
-                "generator_function_declaration", "class_declaration",
-                "abstract_class_declaration", "class",
+                "arrow_function",
+                "function_expression",
+                "function_declaration",
+                "generator_function_declaration",
+                "class_declaration",
+                "abstract_class_declaration",
+                "class",
             ):
                 continue
             self._scan_calls(child, parent_id, ctx)
@@ -2095,8 +2210,7 @@ class TypeScriptExtractor(ASTExtractor):
             return
 
         # Skip common noise
-        if callee in ("console.log", "console.warn", "console.error",
-                       "console.info", "console.debug"):
+        if callee in ("console.log", "console.warn", "console.error", "console.info", "console.debug"):
             return
 
         # Detect require() calls
@@ -2105,27 +2219,31 @@ class TypeScriptExtractor(ASTExtractor):
             if args is not None:
                 for arg in args.children:
                     if arg.type == "string":
-                        module_path = _node_text(arg, source).strip("\"\'\'`")
-                        ctx.unresolved.append(UnresolvedReference(
-                            source_node_id=parent_id,
-                            reference_name=module_path,
-                            reference_kind=EdgeKind.IMPORTS,
-                            line_number=node.start_point[0] + 1,
-                        ))
+                        module_path = _node_text(arg, source).strip("\"''`")
+                        ctx.unresolved.append(
+                            UnresolvedReference(
+                                source_node_id=parent_id,
+                                reference_name=module_path,
+                                reference_kind=EdgeKind.IMPORTS,
+                                line_number=node.start_point[0] + 1,
+                            )
+                        )
             return
 
         # Create CALLS edge
         target = ctx.defined_names.get(callee, f"unresolved:call:{callee}")
-        ctx.add_edge(Edge(
-            source_id=parent_id,
-            target_id=target,
-            kind=EdgeKind.CALLS,
-            confidence=0.75,
-            metadata={
-                "callee": callee,
-                "line": node.start_point[0] + 1,
-            },
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=parent_id,
+                target_id=target,
+                kind=EdgeKind.CALLS,
+                confidence=0.75,
+                metadata={
+                    "callee": callee,
+                    "line": node.start_point[0] + 1,
+                },
+            )
+        )
 
     def _scan_new_expression(
         self,
@@ -2143,23 +2261,28 @@ class TypeScriptExtractor(ASTExtractor):
             return
 
         target = ctx.defined_names.get(class_name, f"unresolved:class:{class_name}")
-        ctx.add_edge(Edge(
-            source_id=parent_id,
-            target_id=target,
-            kind=EdgeKind.INSTANTIATES,
-            confidence=0.80,
-            metadata={
-                "class_name": class_name,
-                "line": node.start_point[0] + 1,
-            },
-        ))
+        ctx.add_edge(
+            Edge(
+                source_id=parent_id,
+                target_id=target,
+                kind=EdgeKind.INSTANTIATES,
+                confidence=0.80,
+                metadata={
+                    "class_name": class_name,
+                    "line": node.start_point[0] + 1,
+                },
+            )
+        )
 
     # ===================================================================
     # JSX SCANNING
     # ===================================================================
 
     def _scan_jsx(
-        self, node: tree_sitter.Node, parent_id: str, ctx: _ExtractionContext,
+        self,
+        node: tree_sitter.Node,
+        parent_id: str,
+        ctx: _ExtractionContext,
     ) -> None:
         """Recursively scan for JSX elements (component usage)."""
         if node.type in ("jsx_element", "jsx_self_closing_element"):
@@ -2168,9 +2291,13 @@ class TypeScriptExtractor(ASTExtractor):
         for child in node.children:
             # Don't recurse into nested function/class bodies
             if child.type in (
-                "arrow_function", "function_expression", "function_declaration",
-                "generator_function_declaration", "class_declaration",
-                "abstract_class_declaration", "class",
+                "arrow_function",
+                "function_expression",
+                "function_declaration",
+                "generator_function_declaration",
+                "class_declaration",
+                "abstract_class_declaration",
+                "class",
             ):
                 continue
             self._scan_jsx(child, parent_id, ctx)
@@ -2208,19 +2335,19 @@ class TypeScriptExtractor(ASTExtractor):
         if not component_name[0].isupper():
             return
 
-        target = ctx.defined_names.get(
-            component_name, f"unresolved:component:{component_name}"
+        target = ctx.defined_names.get(component_name, f"unresolved:component:{component_name}")
+        ctx.add_edge(
+            Edge(
+                source_id=parent_id,
+                target_id=target,
+                kind=EdgeKind.RENDERS,
+                confidence=0.85,
+                metadata={
+                    "component": component_name,
+                    "line": node.start_point[0] + 1,
+                },
+            )
         )
-        ctx.add_edge(Edge(
-            source_id=parent_id,
-            target_id=target,
-            kind=EdgeKind.RENDERS,
-            confidence=0.85,
-            metadata={
-                "component": component_name,
-                "line": node.start_point[0] + 1,
-            },
-        ))
 
         # Extract props
         props: list[str] = []
@@ -2237,14 +2364,16 @@ class TypeScriptExtractor(ASTExtractor):
                         props.append(_node_text(sub, source))
                         break
         if props:
-            ctx.add_edge(Edge(
-                source_id=parent_id,
-                target_id=target,
-                kind=EdgeKind.PASSES_PROP,
-                confidence=0.80,
-                metadata={
-                    "component": component_name,
-                    "props": props,
-                    "line": node.start_point[0] + 1,
-                },
-            ))
+            ctx.add_edge(
+                Edge(
+                    source_id=parent_id,
+                    target_id=target,
+                    kind=EdgeKind.PASSES_PROP,
+                    confidence=0.80,
+                    metadata={
+                        "component": component_name,
+                        "props": props,
+                        "line": node.start_point[0] + 1,
+                    },
+                )
+            )

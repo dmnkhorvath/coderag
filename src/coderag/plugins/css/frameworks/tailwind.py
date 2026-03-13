@@ -6,6 +6,7 @@ Detects Tailwind CSS projects (v3 and v4) and extracts:
 - @apply usage connecting CSS to Tailwind utilities
 - @source directives for content scanning paths
 """
+
 from __future__ import annotations
 
 import json
@@ -163,7 +164,7 @@ class TailwindDetector(FrameworkDetector):
         pkg_json = os.path.join(project_root, "package.json")
         if os.path.isfile(pkg_json):
             try:
-                with open(pkg_json, "r", encoding="utf-8") as f:
+                with open(pkg_json, encoding="utf-8") as f:
                     data = json.load(f)
                 deps = data.get("dependencies", {})
                 dev_deps = data.get("devDependencies", {})
@@ -176,10 +177,7 @@ class TailwindDetector(FrameworkDetector):
         for dirpath, _dirnames, filenames in os.walk(project_root):
             # Skip node_modules, .git, vendor
             rel = os.path.relpath(dirpath, project_root)
-            if any(
-                part in ("node_modules", ".git", "vendor", "dist", "build")
-                for part in rel.split(os.sep)
-            ):
+            if any(part in ("node_modules", ".git", "vendor", "dist", "build") for part in rel.split(os.sep)):
                 continue
             # Limit depth to 4
             if rel.count(os.sep) > 3:
@@ -189,7 +187,7 @@ class TailwindDetector(FrameworkDetector):
                     continue
                 fpath = os.path.join(dirpath, fname)
                 try:
-                    with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(fpath, encoding="utf-8", errors="ignore") as f:
                         head = f.read(4096)
                     if _IMPORT_TW_RE.search(head) or _TAILWIND_DIRECTIVE_RE.search(head):
                         return True
@@ -208,7 +206,7 @@ class TailwindDetector(FrameworkDetector):
         pkg_json = os.path.join(project_root, "package.json")
         if os.path.isfile(pkg_json):
             try:
-                with open(pkg_json, "r", encoding="utf-8") as f:
+                with open(pkg_json, encoding="utf-8") as f:
                     data = json.load(f)
                 for dep_key in ("dependencies", "devDependencies"):
                     ver = data.get(dep_key, {}).get("tailwindcss", "")
@@ -251,14 +249,16 @@ class TailwindDetector(FrameworkDetector):
         source_text = source.decode("utf-8", errors="replace")
 
         # Detect v4 indicators
-        is_v4 = bool(_IMPORT_TW_RE.search(source_text))
-        is_v3 = bool(_TAILWIND_DIRECTIVE_RE.search(source_text))
+        bool(_IMPORT_TW_RE.search(source_text))
+        bool(_TAILWIND_DIRECTIVE_RE.search(source_text))
         has_theme = bool(_THEME_BLOCK_RE.search(source_text))
 
         # ── @theme blocks (v4) ────────────────────────────────
         if has_theme:
             theme_pattern = self._extract_theme_tokens(
-                file_path, source_text, "v4",
+                file_path,
+                source_text,
+                "v4",
             )
             if theme_pattern:
                 patterns.append(theme_pattern)
@@ -270,14 +270,17 @@ class TailwindDetector(FrameworkDetector):
 
         # ── @apply directives ─────────────────────────────────
         apply_pattern = self._extract_apply_edges(
-            file_path, source_text, nodes,
+            file_path,
+            source_text,
+            nodes,
         )
         if apply_pattern:
             patterns.append(apply_pattern)
 
         # ── @source directives (v4) ───────────────────────────
         source_pattern = self._extract_source_directives(
-            file_path, source_text,
+            file_path,
+            source_text,
         )
         if source_pattern:
             patterns.append(source_pattern)
@@ -348,25 +351,26 @@ class TailwindDetector(FrameworkDetector):
 
         # Find the file node ID for edge creation
         file_node_id = generate_node_id(
-            file_path, 1, NodeKind.FILE, os.path.basename(file_path),
+            file_path,
+            1,
+            NodeKind.FILE,
+            os.path.basename(file_path),
         )
 
         for theme_match in _THEME_BLOCK_RE.finditer(source_text):
             body = theme_match.group("body")
-            block_start_line = source_text[:theme_match.start()].count("\n") + 1
+            block_start_line = source_text[: theme_match.start()].count("\n") + 1
 
             for prop_match in _CSS_CUSTOM_PROP_RE.finditer(body):
                 prop_name = prop_match.group("name")
                 prop_value = prop_match.group("value").strip()
-                prop_line = (
-                    block_start_line
-                    + body[:prop_match.start()].count("\n")
-                )
+                prop_line = block_start_line + body[: prop_match.start()].count("\n")
                 namespace = _detect_token_namespace(prop_name)
 
                 token_node = Node(
                     id=generate_node_id(
-                        file_path, prop_line,
+                        file_path,
+                        prop_line,
                         NodeKind.TAILWIND_THEME_TOKEN,
                         f"--{prop_name}",
                     ),
@@ -387,17 +391,19 @@ class TailwindDetector(FrameworkDetector):
                 new_nodes.append(token_node)
 
                 # Edge: @theme block defines this token
-                new_edges.append(Edge(
-                    source_id=file_node_id,
-                    target_id=token_node.id,
-                    kind=EdgeKind.TAILWIND_THEME_DEFINES,
-                    confidence=1.0,
-                    line_number=prop_line,
-                    metadata={
-                        "framework": "tailwind",
-                        "namespace": namespace,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=file_node_id,
+                        target_id=token_node.id,
+                        kind=EdgeKind.TAILWIND_THEME_DEFINES,
+                        confidence=1.0,
+                        line_number=prop_line,
+                        metadata={
+                            "framework": "tailwind",
+                            "namespace": namespace,
+                        },
+                    )
+                )
 
         if not new_nodes:
             return None
@@ -421,12 +427,14 @@ class TailwindDetector(FrameworkDetector):
         for match in _UTILITY_BLOCK_RE.finditer(source_text):
             name = match.group("name")
             body = match.group("body").strip()
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             utility_node = Node(
                 id=generate_node_id(
-                    file_path, line_no,
-                    NodeKind.TAILWIND_UTILITY, name,
+                    file_path,
+                    line_no,
+                    NodeKind.TAILWIND_UTILITY,
+                    name,
                 ),
                 kind=NodeKind.TAILWIND_UTILITY,
                 name=name,
@@ -467,22 +475,22 @@ class TailwindDetector(FrameworkDetector):
         new_edges: list[Edge] = []
 
         # Build a map of CSS class nodes in this file for source_id
-        class_nodes = [
-            n for n in nodes
-            if n.kind == NodeKind.CSS_CLASS and n.file_path == file_path
-        ]
+        class_nodes = [n for n in nodes if n.kind == NodeKind.CSS_CLASS and n.file_path == file_path]
         class_by_line: dict[int, Node] = {}
         for cn in class_nodes:
             if cn.start_line:
                 class_by_line[cn.start_line] = cn
 
         file_node_id = generate_node_id(
-            file_path, 1, NodeKind.FILE, os.path.basename(file_path),
+            file_path,
+            1,
+            NodeKind.FILE,
+            os.path.basename(file_path),
         )
 
         for match in _APPLY_RE.finditer(source_text):
             classes_str = match.group("classes").strip()
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
             utility_classes = classes_str.split()
 
             # Find the enclosing CSS class (nearest class node above this line)
@@ -493,20 +501,24 @@ class TailwindDetector(FrameworkDetector):
                     break
 
             for util_class in utility_classes:
-                new_edges.append(Edge(
-                    source_id=source_id,
-                    target_id=generate_node_id(
-                        file_path, line_no,
-                        NodeKind.TAILWIND_UTILITY, util_class,
-                    ),
-                    kind=EdgeKind.TAILWIND_APPLIES,
-                    confidence=0.9,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "tailwind",
-                        "utility_class": util_class,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=source_id,
+                        target_id=generate_node_id(
+                            file_path,
+                            line_no,
+                            NodeKind.TAILWIND_UTILITY,
+                            util_class,
+                        ),
+                        kind=EdgeKind.TAILWIND_APPLIES,
+                        confidence=0.9,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "tailwind",
+                            "utility_class": util_class,
+                        },
+                    )
+                )
 
         if not new_edges:
             return None
@@ -528,30 +540,37 @@ class TailwindDetector(FrameworkDetector):
         new_edges: list[Edge] = []
 
         file_node_id = generate_node_id(
-            file_path, 1, NodeKind.FILE, os.path.basename(file_path),
+            file_path,
+            1,
+            NodeKind.FILE,
+            os.path.basename(file_path),
         )
 
         for match in _SOURCE_DIRECTIVE_RE.finditer(source_text):
             path = match.group("path")
-            line_no = source_text[:match.start()].count("\n") + 1
+            line_no = source_text[: match.start()].count("\n") + 1
 
             # Create a virtual target node ID for the source path
             target_id = generate_node_id(
-                file_path, line_no,
-                NodeKind.DIRECTORY, path,
+                file_path,
+                line_no,
+                NodeKind.DIRECTORY,
+                path,
             )
 
-            new_edges.append(Edge(
-                source_id=file_node_id,
-                target_id=target_id,
-                kind=EdgeKind.TAILWIND_SOURCE_SCANS,
-                confidence=1.0,
-                line_number=line_no,
-                metadata={
-                    "framework": "tailwind",
-                    "source_path": path,
-                },
-            ))
+            new_edges.append(
+                Edge(
+                    source_id=file_node_id,
+                    target_id=target_id,
+                    kind=EdgeKind.TAILWIND_SOURCE_SCANS,
+                    confidence=1.0,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "tailwind",
+                        "source_path": path,
+                    },
+                )
+            )
 
         if not new_edges:
             return None
@@ -575,7 +594,7 @@ class TailwindDetector(FrameworkDetector):
         and content paths.
         """
         try:
-            with open(config_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(config_path, encoding="utf-8", errors="ignore") as f:
                 config_text = f.read()
         except OSError:
             return None
@@ -585,32 +604,39 @@ class TailwindDetector(FrameworkDetector):
         new_edges: list[Edge] = []
 
         file_node_id = generate_node_id(
-            rel_config, 1, NodeKind.FILE, os.path.basename(rel_config),
+            rel_config,
+            1,
+            NodeKind.FILE,
+            os.path.basename(rel_config),
         )
 
         # ── Extract content paths ─────────────────────────────
         content_match = _CONTENT_ARRAY_RE.search(config_text)
         if content_match:
             items_str = content_match.group("items")
-            line_no = config_text[:content_match.start()].count("\n") + 1
+            line_no = config_text[: content_match.start()].count("\n") + 1
             for str_match in _STRING_LITERAL_RE.finditer(items_str):
                 path = str_match.group("value")
                 target_id = generate_node_id(
-                    rel_config, line_no,
-                    NodeKind.DIRECTORY, path,
+                    rel_config,
+                    line_no,
+                    NodeKind.DIRECTORY,
+                    path,
                 )
-                new_edges.append(Edge(
-                    source_id=file_node_id,
-                    target_id=target_id,
-                    kind=EdgeKind.TAILWIND_SOURCE_SCANS,
-                    confidence=1.0,
-                    line_number=line_no,
-                    metadata={
-                        "framework": "tailwind",
-                        "source_path": path,
-                        "config_version": "v3",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=file_node_id,
+                        target_id=target_id,
+                        kind=EdgeKind.TAILWIND_SOURCE_SCANS,
+                        confidence=1.0,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "tailwind",
+                            "source_path": path,
+                            "config_version": "v3",
+                        },
+                    )
+                )
 
         # ── Extract theme.extend tokens ───────────────────────
         # Try to find theme.extend block
@@ -618,14 +644,14 @@ class TailwindDetector(FrameworkDetector):
         for section_match in _THEME_SECTION_RE.finditer(config_text):
             section = section_match.group("section")
             body = section_match.group("body")
-            section_line = config_text[:section_match.start()].count("\n") + 1
+            section_line = config_text[: section_match.start()].count("\n") + 1
             namespace = _V3_SECTION_NAMESPACE.get(section, "other")
 
             # Extract key-value pairs
             for kv_match in _KV_PAIR_RE.finditer(body):
                 key = kv_match.group("key")
                 value = kv_match.group("value")
-                prop_line = section_line + body[:kv_match.start()].count("\n")
+                prop_line = section_line + body[: kv_match.start()].count("\n")
 
                 # Map v3 config key to CSS custom property name
                 if namespace == "color":
@@ -641,7 +667,8 @@ class TailwindDetector(FrameworkDetector):
 
                 token_node = Node(
                     id=generate_node_id(
-                        rel_config, prop_line,
+                        rel_config,
+                        prop_line,
                         NodeKind.TAILWIND_THEME_TOKEN,
                         f"--{prop_name}",
                     ),
@@ -662,30 +689,29 @@ class TailwindDetector(FrameworkDetector):
                 )
                 new_nodes.append(token_node)
 
-                new_edges.append(Edge(
-                    source_id=file_node_id,
-                    target_id=token_node.id,
-                    kind=EdgeKind.TAILWIND_THEME_DEFINES,
-                    confidence=1.0,
-                    line_number=prop_line,
-                    metadata={
-                        "framework": "tailwind",
-                        "namespace": namespace,
-                        "config_version": "v3",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=file_node_id,
+                        target_id=token_node.id,
+                        kind=EdgeKind.TAILWIND_THEME_DEFINES,
+                        confidence=1.0,
+                        line_number=prop_line,
+                        metadata={
+                            "framework": "tailwind",
+                            "namespace": namespace,
+                            "config_version": "v3",
+                        },
+                    )
+                )
 
             # Extract array values (e.g., fontFamily: { display: ["Satoshi", "sans-serif"] })
             for arr_match in _KV_ARRAY_RE.finditer(body):
                 key = arr_match.group("key")
                 arr_value = arr_match.group("value").strip()
-                prop_line = section_line + body[:arr_match.start()].count("\n")
+                prop_line = section_line + body[: arr_match.start()].count("\n")
 
                 # Collect string values from array
-                values = [
-                    m.group("value")
-                    for m in _STRING_LITERAL_RE.finditer(arr_value)
-                ]
+                values = [m.group("value") for m in _STRING_LITERAL_RE.finditer(arr_value)]
                 value_str = ", ".join(values) if values else arr_value
 
                 if namespace == "font":
@@ -695,7 +721,8 @@ class TailwindDetector(FrameworkDetector):
 
                 token_node = Node(
                     id=generate_node_id(
-                        rel_config, prop_line,
+                        rel_config,
+                        prop_line,
                         NodeKind.TAILWIND_THEME_TOKEN,
                         f"--{prop_name}",
                     ),
@@ -716,18 +743,20 @@ class TailwindDetector(FrameworkDetector):
                 )
                 new_nodes.append(token_node)
 
-                new_edges.append(Edge(
-                    source_id=file_node_id,
-                    target_id=token_node.id,
-                    kind=EdgeKind.TAILWIND_THEME_DEFINES,
-                    confidence=1.0,
-                    line_number=prop_line,
-                    metadata={
-                        "framework": "tailwind",
-                        "namespace": namespace,
-                        "config_version": "v3",
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=file_node_id,
+                        target_id=token_node.id,
+                        kind=EdgeKind.TAILWIND_THEME_DEFINES,
+                        confidence=1.0,
+                        line_number=prop_line,
+                        metadata={
+                            "framework": "tailwind",
+                            "namespace": namespace,
+                            "config_version": "v3",
+                        },
+                    )
+                )
 
         if not new_nodes and not new_edges:
             return None
@@ -740,10 +769,7 @@ class TailwindDetector(FrameworkDetector):
             edges=new_edges,
             metadata={
                 "token_count": len(new_nodes),
-                "content_path_count": sum(
-                    1 for e in new_edges
-                    if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS
-                ),
+                "content_path_count": sum(1 for e in new_edges if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS),
                 "config_file": rel_config,
             },
         )

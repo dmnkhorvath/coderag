@@ -3,17 +3,19 @@
 Provides an EventEmitter that the TUI (or any observer) can subscribe to.
 The emitter is optional — headless CLI works without it.
 """
+
 from __future__ import annotations
 
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Callable
+from enum import StrEnum
 
 
-class PipelinePhase(str, Enum):
+class PipelinePhase(StrEnum):
     """Phases of the extraction pipeline."""
+
     DISCOVERY = "discovery"
     HASHING = "hashing"
     EXTRACTION = "extraction"
@@ -27,24 +29,29 @@ class PipelinePhase(str, Enum):
 
 # ── Base Event ────────────────────────────────────────────────
 
+
 @dataclass
 class PipelineEvent:
     """Base class for all pipeline events."""
+
     phase: PipelinePhase
     timestamp: float = field(default_factory=time.time)
 
 
 # ── Phase-level events ────────────────────────────────────────
 
+
 @dataclass
 class PhaseStarted(PipelineEvent):
     """Emitted when a pipeline phase begins."""
+
     total_items: int = 0
 
 
 @dataclass
 class PhaseProgress(PipelineEvent):
     """Emitted to report progress within a phase."""
+
     current: int = 0
     total: int = 0
     message: str = ""
@@ -54,15 +61,18 @@ class PhaseProgress(PipelineEvent):
 @dataclass
 class PhaseCompleted(PipelineEvent):
     """Emitted when a pipeline phase finishes."""
+
     summary: dict = field(default_factory=dict)
     duration_ms: float = 0.0
 
 
 # ── File-level events ─────────────────────────────────────────
 
+
 @dataclass
 class FileStarted(PipelineEvent):
     """Emitted when extraction begins on a file."""
+
     file_path: str = ""
     language: str = ""
 
@@ -70,6 +80,7 @@ class FileStarted(PipelineEvent):
 @dataclass
 class FileCompleted(PipelineEvent):
     """Emitted when extraction finishes on a file."""
+
     file_path: str = ""
     language: str = ""
     nodes_count: int = 0
@@ -80,15 +91,18 @@ class FileCompleted(PipelineEvent):
 @dataclass
 class FileError(PipelineEvent):
     """Emitted when extraction fails on a file."""
+
     file_path: str = ""
     error: str = ""
 
 
 # ── Pipeline-level events ─────────────────────────────────────
 
+
 @dataclass
 class PipelineStarted(PipelineEvent):
     """Emitted once when the entire pipeline begins."""
+
     project_root: str = ""
     phase: PipelinePhase = PipelinePhase.DISCOVERY
 
@@ -96,6 +110,7 @@ class PipelineStarted(PipelineEvent):
 @dataclass
 class PipelineCompleted(PipelineEvent):
     """Emitted once when the entire pipeline finishes."""
+
     total_files: int = 0
     total_nodes: int = 0
     total_edges: int = 0
@@ -105,6 +120,7 @@ class PipelineCompleted(PipelineEvent):
 
 
 # ── EventEmitter ──────────────────────────────────────────────
+
 
 class EventEmitter:
     """Thread-safe event emitter for pipeline events.

@@ -86,7 +86,6 @@ _DEFAULT_SEMANTIC: dict[str, Any] = {
 }
 
 
-
 @dataclass
 class PerformanceConfig:
     """Performance tuning configuration.
@@ -110,6 +109,7 @@ class PerformanceConfig:
         """Resolve extraction worker count (CPU-bound tasks)."""
         if self.extraction_workers == "auto":
             import os
+
             return min(os.cpu_count() or 4, 8)
         return int(self.extraction_workers)
 
@@ -118,11 +118,12 @@ class PerformanceConfig:
         """Resolve I/O worker count (I/O-bound tasks)."""
         if self.io_workers == "auto":
             import os
+
             return min((os.cpu_count() or 4) * 2, 16)
         return int(self.io_workers)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PerformanceConfig":
+    def from_dict(cls, data: dict[str, Any]) -> PerformanceConfig:
         """Create from a performance config dictionary."""
         return cls(
             extraction_workers=data.get("extraction_workers", "auto"),
@@ -135,6 +136,7 @@ class PerformanceConfig:
             max_file_size_bytes=data.get("max_file_size_bytes", 1_000_000),
             use_gpu=data.get("use_gpu", "auto"),
         )
+
 
 # =============================================================================
 # CONFIGURATION DATACLASS
@@ -164,30 +166,14 @@ class CodeGraphConfig:
     project_name: str = ""
     project_root: str = ""
     db_path: str = ".codegraph/graph.db"
-    languages: dict[str, dict[str, Any]] = field(
-        default_factory=lambda: dict(_DEFAULT_LANGUAGES)
-    )
-    ignore_patterns: list[str] = field(
-        default_factory=lambda: list(_DEFAULT_IGNORE_PATTERNS)
-    )
-    framework_detection: dict[str, Any] = field(
-        default_factory=lambda: dict(_DEFAULT_FRAMEWORK_DETECTION)
-    )
-    cross_language: dict[str, Any] = field(
-        default_factory=lambda: dict(_DEFAULT_CROSS_LANGUAGE)
-    )
-    enrichment: dict[str, Any] = field(
-        default_factory=lambda: dict(_DEFAULT_ENRICHMENT)
-    )
-    output: dict[str, Any] = field(
-        default_factory=lambda: dict(_DEFAULT_OUTPUT)
-    )
-    performance: dict[str, Any] = field(
-        default_factory=lambda: dict(_DEFAULT_PERFORMANCE)
-    )
-    semantic: dict[str, Any] = field(
-        default_factory=lambda: dict(_DEFAULT_SEMANTIC)
-    )
+    languages: dict[str, dict[str, Any]] = field(default_factory=lambda: dict(_DEFAULT_LANGUAGES))
+    ignore_patterns: list[str] = field(default_factory=lambda: list(_DEFAULT_IGNORE_PATTERNS))
+    framework_detection: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_FRAMEWORK_DETECTION))
+    cross_language: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_CROSS_LANGUAGE))
+    enrichment: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_ENRICHMENT))
+    output: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_OUTPUT))
+    performance: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_PERFORMANCE))
+    semantic: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_SEMANTIC))
 
     # ── Factory Methods ───────────────────────────────────────
 
@@ -213,7 +199,7 @@ class CodeGraphConfig:
             raise FileNotFoundError(f"Configuration file not found: {yaml_file}")
 
         try:
-            with open(yaml_file, "r", encoding="utf-8") as fh:
+            with open(yaml_file, encoding="utf-8") as fh:
                 raw = yaml.safe_load(fh)
         except yaml.YAMLError as exc:
             raise ValueError(f"Malformed YAML in {yaml_file}: {exc}") from exc
@@ -221,9 +207,7 @@ class CodeGraphConfig:
         if raw is None:
             raw = {}
         if not isinstance(raw, dict):
-            raise ValueError(
-                f"Expected a YAML mapping at top level, got {type(raw).__name__}"
-            )
+            raise ValueError(f"Expected a YAML mapping at top level, got {type(raw).__name__}")
 
         # Resolve project root relative to the config file location
         project_root = raw.get("project_root", "")
@@ -288,11 +272,7 @@ class CodeGraphConfig:
     @property
     def enabled_languages(self) -> list[str]:
         """List of language names that are enabled."""
-        return [
-            lang
-            for lang, cfg in self.languages.items()
-            if cfg.get("enabled", True)
-        ]
+        return [lang for lang, cfg in self.languages.items() if cfg.get("enabled", True)]
 
     @property
     def max_workers(self) -> int:
@@ -335,11 +315,9 @@ class CodeGraphConfig:
         return int(self.semantic.get("batch_size", 128))
 
     @property
-    def perf_config(self) -> "PerformanceConfig":
+    def perf_config(self) -> PerformanceConfig:
         """Get typed performance configuration."""
         return PerformanceConfig.from_dict(self.performance)
-
-
 
     # ── Validation ────────────────────────────────────────────
 
@@ -350,9 +328,7 @@ class CodeGraphConfig:
             ValueError: If any configuration value is invalid.
         """
         if self.project_root and not Path(self.project_root).is_dir():
-            logger.warning(
-                "Project root does not exist: %s", self.project_root
-            )
+            logger.warning("Project root does not exist: %s", self.project_root)
 
         perf = self.performance
         if perf.get("max_workers", 4) < 1:
@@ -371,9 +347,7 @@ class CodeGraphConfig:
         cl = self.cross_language
         min_conf = cl.get("min_confidence", 0.3)
         if not (0.0 <= min_conf <= 1.0):
-            raise ValueError(
-                f"cross_language.min_confidence must be 0.0-1.0, got {min_conf}"
-            )
+            raise ValueError(f"cross_language.min_confidence must be 0.0-1.0, got {min_conf}")
 
     # ── Serialization ─────────────────────────────────────────
 
@@ -434,11 +408,7 @@ def _deep_merge(
     """
     result = dict(base)
     for key, value in override.items():
-        if (
-            key in result
-            and isinstance(result[key], dict)
-            and isinstance(value, dict)
-        ):
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = _deep_merge(result[key], value)
         else:
             result[key] = value

@@ -5,17 +5,16 @@ CodeRAG Markdown Output Formatter
 Formats graph nodes, edges, and summaries as rich Markdown
 for terminal display and file export.
 """
+
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from rich.console import Console
 from rich.markdown import Markdown
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
-from rich.tree import Tree
 
 from coderag.core.models import (
     DetailLevel,
@@ -59,8 +58,8 @@ class MarkdownFormatter:
         # SUMMARY and above
         lines.append(f"### {node.kind.value.title()}: `{node.qualified_name}`")
         lines.append("")
-        lines.append(f"| Property | Value |")
-        lines.append(f"|----------|-------|")
+        lines.append("| Property | Value |")
+        lines.append("|----------|-------|")
         lines.append(f"| **Name** | `{node.name}` |")
         lines.append(f"| **Kind** | {node.kind.value} |")
         lines.append(f"| **File** | `{node.file_path}` |")
@@ -74,9 +73,9 @@ class MarkdownFormatter:
             if "signature" in node.metadata:
                 lines.append(f"| **Signature** | `{node.metadata['signature']}` |")
             if "is_abstract" in node.metadata and node.metadata["is_abstract"]:
-                lines.append(f"| **Abstract** | Yes |")
+                lines.append("| **Abstract** | Yes |")
             if "is_static" in node.metadata and node.metadata["is_static"]:
-                lines.append(f"| **Static** | Yes |")
+                lines.append("| **Static** | Yes |")
 
         if node.pagerank > 0:
             lines.append(f"| **PageRank** | {node.pagerank:.6f} |")
@@ -88,20 +87,23 @@ class MarkdownFormatter:
             if node.docblock:
                 lines.append("")
                 lines.append("**Documentation:**")
-                lines.append(f"```")
+                lines.append("```")
                 lines.append(node.docblock)
-                lines.append(f"```")
+                lines.append("```")
 
             # Include all metadata
             if node.metadata:
-                extra = {k: v for k, v in node.metadata.items()
-                         if k not in ("visibility", "signature", "is_abstract", "is_static")}
+                extra = {
+                    k: v
+                    for k, v in node.metadata.items()
+                    if k not in ("visibility", "signature", "is_abstract", "is_static")
+                }
                 if extra:
                     lines.append("")
                     lines.append("**Metadata:**")
-                    lines.append(f"```json")
+                    lines.append("```json")
                     lines.append(json.dumps(extra, indent=2, default=str))
-                    lines.append(f"```")
+                    lines.append("```")
 
         if detail == DetailLevel.COMPREHENSIVE:
             # Include source text
@@ -111,7 +113,7 @@ class MarkdownFormatter:
                 lang = node.language if node.language else ""
                 lines.append(f"```{lang}")
                 lines.append(node.source_text)
-                lines.append(f"```")
+                lines.append("```")
 
         return "\n".join(lines)
 
@@ -194,8 +196,8 @@ class MarkdownFormatter:
 
         lines.append("## CodeRAG — Graph Summary")
         lines.append("")
-        lines.append(f"| Property | Value |")
-        lines.append(f"|----------|-------|")
+        lines.append("| Property | Value |")
+        lines.append("|----------|-------|")
         if summary.project_name:
             lines.append(f"| **Project** | {summary.project_name} |")
         if summary.project_root:
@@ -287,8 +289,7 @@ class MarkdownFormatter:
         for i, node in enumerate(nodes, 1):
             kind = node.kind.value if isinstance(node.kind, NodeKind) else node.kind
             lines.append(
-                f"| {i} | {kind} | `{node.qualified_name}` "
-                f"| `{node.file_path}` | {node.start_line}–{node.end_line} |"
+                f"| {i} | {kind} | `{node.qualified_name}` | `{node.file_path}` | {node.start_line}–{node.end_line} |"
             )
 
         lines.append("")
@@ -583,9 +584,9 @@ class MarkdownFormatter:
                 lines.append("")
                 lines.append("### Documentation")
                 lines.append("")
-                lines.append(f"```")
+                lines.append("```")
                 lines.append(node.docblock)
-                lines.append(f"```")
+                lines.append("```")
 
         if detail == DetailLevel.COMPREHENSIVE and node.source_text:
             lines.append("")
@@ -611,8 +612,7 @@ class MarkdownFormatter:
                     if target:
                         tk = target.kind.value if isinstance(target.kind, NodeKind) else target.kind
                         lines.append(
-                            f"- **{ek}** → `{target.qualified_name}` "
-                            f"({tk}, `{target.file_path}:{target.start_line}`)"
+                            f"- **{ek}** → `{target.qualified_name}` ({tk}, `{target.file_path}:{target.start_line}`)"
                         )
                     else:
                         lines.append(f"- **{ek}** → `{edge.target_id}`")
@@ -627,8 +627,7 @@ class MarkdownFormatter:
                     if source:
                         sk = source.kind.value if isinstance(source.kind, NodeKind) else source.kind
                         lines.append(
-                            f"- **{ek}** ← `{source.qualified_name}` "
-                            f"({sk}, `{source.file_path}:{source.start_line}`)"
+                            f"- **{ek}** ← `{source.qualified_name}` ({sk}, `{source.file_path}:{source.start_line}`)"
                         )
                     else:
                         lines.append(f"- **{ek}** ← `{edge.source_id}`")
@@ -738,10 +737,7 @@ class MarkdownFormatter:
             lines.append("|---|------|------|------|-------|")
             for i, (node, score) in enumerate(important_nodes[:20], 1):
                 kind = node.kind.value if isinstance(node.kind, NodeKind) else node.kind
-                lines.append(
-                    f"| {i} | {kind} | `{node.qualified_name}` "
-                    f"| `{node.file_path}` | {score:.6f} |"
-                )
+                lines.append(f"| {i} | {kind} | `{node.qualified_name}` | `{node.file_path}` | {score:.6f} |")
             lines.append("")
 
         # Entry points
@@ -779,10 +775,10 @@ class MarkdownFormatter:
                     k = n.kind.value if isinstance(n.kind, NodeKind) else n.kind
                     kind_counts[k] = kind_counts.get(k, 0) + 1
 
-                lines.append("Composition: " + ", ".join(
-                    f"{count} {kind}" for kind, count in
-                    sorted(kind_counts.items(), key=lambda x: -x[1])
-                ))
+                lines.append(
+                    "Composition: "
+                    + ", ".join(f"{count} {kind}" for kind, count in sorted(kind_counts.items(), key=lambda x: -x[1]))
+                )
                 lines.append("")
 
                 # Show a few representative nodes

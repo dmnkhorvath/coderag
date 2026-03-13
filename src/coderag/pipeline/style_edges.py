@@ -12,6 +12,7 @@ Edge types created:
 - js_reads_css_variable: JS code calls getPropertyValue with a CSS variable
 - tailwind_class_uses_token: Tailwind utility class maps to a theme token
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +25,6 @@ from coderag.core.models import (
     EdgeKind,
     Node,
     NodeKind,
-    generate_node_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -66,22 +66,52 @@ _STYLE_SET_RE = re.compile(
 # Tailwind utility class prefix → theme namespace mapping
 TAILWIND_PREFIX_MAP: dict[str, str] = {
     # Colors
-    "bg": "color", "text": "color", "border": "color",
-    "ring": "color", "divide": "color", "outline": "color",
-    "shadow": "color", "accent": "color", "caret": "color",
-    "fill": "color", "stroke": "color", "decoration": "color",
-    "placeholder": "color", "from": "color", "via": "color", "to": "color",
+    "bg": "color",
+    "text": "color",
+    "border": "color",
+    "ring": "color",
+    "divide": "color",
+    "outline": "color",
+    "shadow": "color",
+    "accent": "color",
+    "caret": "color",
+    "fill": "color",
+    "stroke": "color",
+    "decoration": "color",
+    "placeholder": "color",
+    "from": "color",
+    "via": "color",
+    "to": "color",
     # Spacing
-    "p": "spacing", "px": "spacing", "py": "spacing",
-    "pt": "spacing", "pr": "spacing", "pb": "spacing", "pl": "spacing",
-    "m": "spacing", "mx": "spacing", "my": "spacing",
-    "mt": "spacing", "mr": "spacing", "mb": "spacing", "ml": "spacing",
-    "gap": "spacing", "space-x": "spacing", "space-y": "spacing",
-    "w": "spacing", "h": "spacing", "size": "spacing",
-    "inset": "spacing", "top": "spacing", "right": "spacing",
-    "bottom": "spacing", "left": "spacing",
+    "p": "spacing",
+    "px": "spacing",
+    "py": "spacing",
+    "pt": "spacing",
+    "pr": "spacing",
+    "pb": "spacing",
+    "pl": "spacing",
+    "m": "spacing",
+    "mx": "spacing",
+    "my": "spacing",
+    "mt": "spacing",
+    "mr": "spacing",
+    "mb": "spacing",
+    "ml": "spacing",
+    "gap": "spacing",
+    "space-x": "spacing",
+    "space-y": "spacing",
+    "w": "spacing",
+    "h": "spacing",
+    "size": "spacing",
+    "inset": "spacing",
+    "top": "spacing",
+    "right": "spacing",
+    "bottom": "spacing",
+    "left": "spacing",
     # Fonts
-    "font": "font", "leading": "font", "tracking": "font",
+    "font": "font",
+    "leading": "font",
+    "tracking": "font",
 }
 
 # File extensions for JS/TS/JSX/TSX
@@ -172,23 +202,21 @@ class StyleEdgeMatcher:
             if edge.target_id in css_file_ids:
                 # Determine if it's a CSS module import
                 is_module = ".module." in edge.target_id
-                edge_kind = (
-                    EdgeKind.CSS_MODULE_IMPORT
-                    if is_module
-                    else EdgeKind.IMPORTS_STYLESHEET
-                )
+                edge_kind = EdgeKind.CSS_MODULE_IMPORT if is_module else EdgeKind.IMPORTS_STYLESHEET
 
-                new_edges.append(Edge(
-                    source_id=edge.source_id,
-                    target_id=edge.target_id,
-                    kind=edge_kind,
-                    confidence=1.0,
-                    line_number=edge.line_number,
-                    metadata={
-                        "original_edge_kind": "imports",
-                        "is_css_module": is_module,
-                    },
-                ))
+                new_edges.append(
+                    Edge(
+                        source_id=edge.source_id,
+                        target_id=edge.target_id,
+                        kind=edge_kind,
+                        confidence=1.0,
+                        line_number=edge.line_number,
+                        metadata={
+                            "original_edge_kind": "imports",
+                            "is_css_module": is_module,
+                        },
+                    )
+                )
 
         if new_edges:
             self._store.upsert_edges(new_edges)
@@ -255,24 +283,22 @@ class StyleEdgeMatcher:
                     continue
 
                 # Only scan JSX/TSX files or files that might contain JSX
-                abs_path = (
-                    file_path
-                    if os.path.isabs(file_path)
-                    else os.path.join(self._project_root, file_path)
-                )
+                abs_path = file_path if os.path.isabs(file_path) else os.path.join(self._project_root, file_path)
 
                 try:
-                    with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(abs_path, encoding="utf-8", errors="ignore") as f:
                         source = f.read()
                 except OSError:
                     continue
 
                 # Skip files without className or class= usage
-                if "className" not in source and 'class=' not in source:
+                if "className" not in source and "class=" not in source:
                     continue
 
                 file_edges = self._scan_classname_usage(
-                    file_node, source, class_lookup,
+                    file_node,
+                    source,
+                    class_lookup,
                 )
                 new_edges.extend(file_edges)
 
@@ -298,7 +324,7 @@ class StyleEdgeMatcher:
         for pattern in (_CLASSNAME_RE, _CLASSNAME_TEMPLATE_RE):
             for match in pattern.finditer(source):
                 classes_str = match.group("classes")
-                line_no = source[:match.start()].count("\n") + 1
+                line_no = source[: match.start()].count("\n") + 1
 
                 # Split by whitespace and filter template expressions
                 for class_name in classes_str.split():
@@ -315,16 +341,18 @@ class StyleEdgeMatcher:
                             key = (file_node.id, css_node.id)
                             if key not in seen:
                                 seen.add(key)
-                                edges.append(Edge(
-                                    source_id=file_node.id,
-                                    target_id=css_node.id,
-                                    kind=EdgeKind.USES_CSS_CLASS,
-                                    confidence=0.7,
-                                    line_number=line_no,
-                                    metadata={
-                                        "class_name": clean,
-                                    },
-                                ))
+                                edges.append(
+                                    Edge(
+                                        source_id=file_node.id,
+                                        target_id=css_node.id,
+                                        kind=EdgeKind.USES_CSS_CLASS,
+                                        confidence=0.7,
+                                        line_number=line_no,
+                                        metadata={
+                                            "class_name": clean,
+                                        },
+                                    )
+                                )
 
         return edges
 
@@ -370,14 +398,10 @@ class StyleEdgeMatcher:
                 if not file_path:
                     continue
 
-                abs_path = (
-                    file_path
-                    if os.path.isabs(file_path)
-                    else os.path.join(self._project_root, file_path)
-                )
+                abs_path = file_path if os.path.isabs(file_path) else os.path.join(self._project_root, file_path)
 
                 try:
-                    with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(abs_path, encoding="utf-8", errors="ignore") as f:
                         source = f.read()
                 except OSError:
                     continue
@@ -394,20 +418,22 @@ class StyleEdgeMatcher:
                 ):
                     for match in pattern.finditer(source):
                         var_name = match.group("var")
-                        line_no = source[:match.start()].count("\n") + 1
+                        line_no = source[: match.start()].count("\n") + 1
 
                         if var_name in var_lookup:
                             for css_node in var_lookup[var_name]:
-                                new_edges.append(Edge(
-                                    source_id=file_node.id,
-                                    target_id=css_node.id,
-                                    kind=edge_kind,
-                                    confidence=0.85,
-                                    line_number=line_no,
-                                    metadata={
-                                        "variable_name": var_name,
-                                    },
-                                ))
+                                new_edges.append(
+                                    Edge(
+                                        source_id=file_node.id,
+                                        target_id=css_node.id,
+                                        kind=edge_kind,
+                                        confidence=0.85,
+                                        line_number=line_no,
+                                        metadata={
+                                            "variable_name": var_name,
+                                        },
+                                    )
+                                )
 
         if new_edges:
             self._store.upsert_edges(new_edges)
@@ -466,23 +492,21 @@ class StyleEdgeMatcher:
                 if not file_path:
                     continue
 
-                abs_path = (
-                    file_path
-                    if os.path.isabs(file_path)
-                    else os.path.join(self._project_root, file_path)
-                )
+                abs_path = file_path if os.path.isabs(file_path) else os.path.join(self._project_root, file_path)
 
                 try:
-                    with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                    with open(abs_path, encoding="utf-8", errors="ignore") as f:
                         source = f.read()
                 except OSError:
                     continue
 
-                if "className" not in source and 'class=' not in source:
+                if "className" not in source and "class=" not in source:
                     continue
 
                 file_edges = self._scan_tailwind_classes(
-                    file_node, source, token_lookup,
+                    file_node,
+                    source,
+                    token_lookup,
                 )
                 new_edges.extend(file_edges)
 
@@ -497,14 +521,10 @@ class StyleEdgeMatcher:
             if not file_path:
                 continue
 
-            abs_path = (
-                file_path
-                if os.path.isabs(file_path)
-                else os.path.join(self._project_root, file_path)
-            )
+            abs_path = file_path if os.path.isabs(file_path) else os.path.join(self._project_root, file_path)
 
             try:
-                with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(abs_path, encoding="utf-8", errors="ignore") as f:
                     source = f.read()
             except OSError:
                 continue
@@ -516,10 +536,13 @@ class StyleEdgeMatcher:
             apply_re = re.compile(r"@apply\s+([^;]+);")
             for match in apply_re.finditer(source):
                 classes_str = match.group(1).strip()
-                line_no = source[:match.start()].count("\n") + 1
+                line_no = source[: match.start()].count("\n") + 1
                 for cls in classes_str.split():
                     edges = self._match_single_tw_class(
-                        cls, file_node.id, line_no, token_lookup,
+                        cls,
+                        file_node.id,
+                        line_no,
+                        token_lookup,
                     )
                     new_edges.extend(edges)
 
@@ -545,7 +568,7 @@ class StyleEdgeMatcher:
         for pattern in (_CLASSNAME_RE, _CLASSNAME_TEMPLATE_RE):
             for match in pattern.finditer(source):
                 classes_str = match.group("classes")
-                line_no = source[:match.start()].count("\n") + 1
+                line_no = source[: match.start()].count("\n") + 1
 
                 for cls in classes_str.split():
                     if "$" in cls or "{" in cls:
@@ -558,7 +581,10 @@ class StyleEdgeMatcher:
                         clean = clean[1:]
 
                     matched = self._match_single_tw_class(
-                        clean, file_node.id, line_no, token_lookup,
+                        clean,
+                        file_node.id,
+                        line_no,
+                        token_lookup,
                     )
                     for edge in matched:
                         key = (edge.source_id, edge.target_id)
@@ -599,19 +625,21 @@ class StyleEdgeMatcher:
                     tokens = token_lookup.get(("any", f"{namespace}-{value}"), [])
 
                 for token_node in tokens:
-                    edges.append(Edge(
-                        source_id=source_id,
-                        target_id=token_node.id,
-                        kind=EdgeKind.TAILWIND_CLASS_USES_TOKEN,
-                        confidence=0.8,
-                        line_number=line_no,
-                        metadata={
-                            "utility_class": class_name,
-                            "prefix": prefix,
-                            "namespace": namespace,
-                            "token_value": value,
-                        },
-                    ))
+                    edges.append(
+                        Edge(
+                            source_id=source_id,
+                            target_id=token_node.id,
+                            kind=EdgeKind.TAILWIND_CLASS_USES_TOKEN,
+                            confidence=0.8,
+                            line_number=line_no,
+                            metadata={
+                                "utility_class": class_name,
+                                "prefix": prefix,
+                                "namespace": namespace,
+                                "token_value": value,
+                            },
+                        )
+                    )
                 if tokens:
                     break  # Found a match, stop trying longer prefixes
 

@@ -15,7 +15,8 @@ import importlib
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from coderag.core.models import (
     Edge,
@@ -392,8 +393,7 @@ class PluginRegistry:
             if ext in self._extension_map:
                 existing = self._extension_map[ext]
                 logger.warning(
-                    "Extension '%s' already claimed by plugin '%s', "
-                    "overriding with '%s'",
+                    "Extension '%s' already claimed by plugin '%s', overriding with '%s'",
                     ext,
                     existing,
                     name,
@@ -430,9 +430,7 @@ class PluginRegistry:
         elif isinstance(eps, dict):
             plugin_eps = eps.get(self.ENTRY_POINT_GROUP, [])
         else:
-            plugin_eps = [
-                ep for ep in eps if getattr(ep, "group", None) == self.ENTRY_POINT_GROUP
-            ]
+            plugin_eps = [ep for ep in eps if getattr(ep, "group", None) == self.ENTRY_POINT_GROUP]
 
         for ep in plugin_eps:
             try:
@@ -442,9 +440,7 @@ class PluginRegistry:
                 discovered.append(plugin.name)
                 logger.info("Discovered plugin '%s' from entry point", plugin.name)
             except Exception:
-                logger.exception(
-                    "Failed to load plugin from entry point '%s'", ep.name
-                )
+                logger.exception("Failed to load plugin from entry point '%s'", ep.name)
 
         return discovered
 
@@ -491,9 +487,7 @@ class PluginRegistry:
             except ImportError:
                 logger.debug("Built-in plugin module '%s' not found", module_path)
             except Exception:
-                logger.exception(
-                    "Failed to load built-in plugin from '%s'", module_path
-                )
+                logger.exception("Failed to load built-in plugin from '%s'", module_path)
 
         return discovered
 

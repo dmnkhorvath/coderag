@@ -3,6 +3,7 @@
 For P0 this provides basic namespace→directory mapping and
 composer.json autoload support.
 """
+
 from __future__ import annotations
 
 import json
@@ -116,7 +117,7 @@ class PHPResolver(ModuleResolver):
             return
 
         try:
-            with open(composer_path, "r") as f:
+            with open(composer_path) as f:
                 data = json.load(f)
             autoload = data.get("autoload", {})
             psr4 = autoload.get("psr-4", {})
@@ -142,7 +143,7 @@ class PHPResolver(ModuleResolver):
         for prefix in sorted(self._psr4_map, key=len, reverse=True):
             norm_prefix = prefix.rstrip("\\")
             if fqn.startswith(norm_prefix):
-                remainder = fqn[len(norm_prefix):].lstrip("\\")
+                remainder = fqn[len(norm_prefix) :].lstrip("\\")
                 for base_dir in self._psr4_map[prefix]:
                     candidate = os.path.join(
                         self._project_root,

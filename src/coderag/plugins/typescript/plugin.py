@@ -1,4 +1,5 @@
 """TypeScript language plugin for CodeRAG."""
+
 from __future__ import annotations
 
 import logging
@@ -62,7 +63,6 @@ class TypeScriptPlugin(LanguagePlugin):
         # React detector works for TSX files too
 
         from coderag.plugins.javascript.frameworks.react import ReactDetector
-
         from coderag.plugins.typescript.frameworks.angular import AngularDetector
 
         return [ReactDetector(), AngularDetector()]

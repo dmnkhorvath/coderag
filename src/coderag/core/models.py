@@ -18,13 +18,12 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # =============================================================================
 # ENUMERATIONS
 # =============================================================================
 
 
-class NodeKind(str, enum.Enum):
+class NodeKind(enum.StrEnum):
     """All recognized node types in the knowledge graph.
 
     Each node in the graph has exactly one kind. Kinds are organized
@@ -88,7 +87,7 @@ class NodeKind(str, enum.Enum):
     TAILWIND_UTILITY = "tailwind_utility"
 
 
-class EdgeKind(str, enum.Enum):
+class EdgeKind(enum.StrEnum):
     """All recognized edge types in the knowledge graph.
 
     Each edge has a source node, target node, kind, and confidence score.
@@ -168,8 +167,9 @@ class EdgeKind(str, enum.Enum):
     TAILWIND_CLASS_USES_TOKEN = "tailwind_class_uses_token"
 
 
-class Language(str, enum.Enum):
+class Language(enum.StrEnum):
     """Supported programming languages."""
+
     PHP = "php"
     JAVASCRIPT = "javascript"
     TYPESCRIPT = "typescript"
@@ -178,16 +178,18 @@ class Language(str, enum.Enum):
     SCSS = "scss"
 
 
-class DetailLevel(str, enum.Enum):
+class DetailLevel(enum.StrEnum):
     """Level of detail for context assembly output."""
+
     SIGNATURE = "signature"
     SUMMARY = "summary"
     DETAILED = "detailed"
     COMPREHENSIVE = "comprehensive"
 
 
-class ResolutionStrategy(str, enum.Enum):
+class ResolutionStrategy(enum.StrEnum):
     """How an import was resolved."""
+
     EXACT = "exact"
     EXTENSION = "extension"
     INDEX = "index"
@@ -233,6 +235,7 @@ class Node:
         pagerank: PageRank score computed during enrichment.
         community_id: Community / cluster ID from community detection.
     """
+
     id: str
     kind: NodeKind
     name: str
@@ -264,6 +267,7 @@ class Edge:
         line_number: Line where the relationship occurs in source.
         metadata: Arbitrary key-value metadata (JSON-serializable).
     """
+
     source_id: str
     target_id: str
     kind: EdgeKind
@@ -273,9 +277,7 @@ class Edge:
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
-            raise ValueError(
-                f"Confidence must be between 0.0 and 1.0, got {self.confidence}"
-            )
+            raise ValueError(f"Confidence must be between 0.0 and 1.0, got {self.confidence}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,6 +294,7 @@ class UnresolvedReference:
         line_number: Line where the reference occurs.
         context: Additional context for resolution.
     """
+
     source_node_id: str
     reference_name: str
     reference_kind: EdgeKind
@@ -310,6 +313,7 @@ class ExtractionError:
         severity: ``"error"`` or ``"warning"``.
         node_type: Tree-sitter node type that caused the error.
     """
+
     file_path: str
     line_number: int | None
     message: str
@@ -333,6 +337,7 @@ class ExtractionResult:
         errors: Parse errors or extraction warnings.
         parse_time_ms: Time spent parsing the file in milliseconds.
     """
+
     file_path: str
     language: str
     nodes: list[Node] = field(default_factory=list)
@@ -357,6 +362,7 @@ class ResolutionResult:
         package_name: Name of the external package (if is_external).
         exported_symbols: Specific symbols imported (if known).
     """
+
     resolved_path: str | None
     confidence: float
     resolution_strategy: ResolutionStrategy
@@ -380,6 +386,7 @@ class FrameworkPattern:
         edges: Additional framework-specific edges to add to the graph.
         metadata: Framework-specific metadata.
     """
+
     framework_name: str
     framework_version: str | None = None
     pattern_type: str = ""
@@ -403,6 +410,7 @@ class CrossLanguageMatch:
         match_strategy: How the match was determined.
         evidence: Evidence supporting the match.
     """
+
     source_node_id: str
     target_node_id: str
     edge_kind: EdgeKind
@@ -427,6 +435,7 @@ class APIEndpoint:
         parameters: List of URL parameter names.
         response_type: Expected response type/resource (if known).
     """
+
     node_id: str
     http_method: str
     url_pattern: str
@@ -452,6 +461,7 @@ class APICall:
         line_number: Line number of the call.
         confidence: Confidence in URL extraction.
     """
+
     node_id: str
     http_method: str | None
     url_pattern: str
@@ -476,6 +486,7 @@ class FileInfo:
         size_bytes: File size in bytes.
         is_changed: Whether the file has changed since last parse.
     """
+
     path: str
     relative_path: str
     language: str
@@ -511,6 +522,7 @@ class PipelineSummary:
         total_parse_time_ms: Total time spent parsing files.
         total_pipeline_time_ms: Total pipeline execution time.
     """
+
     total_files: int = 0
     files_parsed: int = 0
     files_skipped: int = 0
@@ -539,6 +551,7 @@ class GraphSummary:
 
     Used by the info command and MCP summary resource.
     """
+
     project_name: str
     project_root: str
     db_path: str
@@ -570,6 +583,7 @@ class ContextResult:
         included_files: Set of files represented in the context.
         metadata: Additional metadata about the assembly.
     """
+
     text: str
     tokens_used: int
     token_budget: int

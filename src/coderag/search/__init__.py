@@ -8,6 +8,7 @@ search.  Requires optional dependencies::
 When the dependencies are not installed every public symbol is still
 importable but constructing the concrete classes raises a helpful error.
 """
+
 from __future__ import annotations
 
 import logging
@@ -22,13 +23,13 @@ _SEMANTIC_AVAILABLE = False
 _IMPORT_ERROR: str | None = None
 
 try:
-    import sentence_transformers  # noqa: F401
     import faiss  # noqa: F401
+    import sentence_transformers  # noqa: F401
+
     _SEMANTIC_AVAILABLE = True
 except ImportError as exc:
     _IMPORT_ERROR = (
-        f"Semantic search dependencies not installed ({exc}). "
-        "Install them with:  pip install coderag[semantic]"
+        f"Semantic search dependencies not installed ({exc}). Install them with:  pip install coderag[semantic]"
     )
 
 
@@ -51,19 +52,24 @@ def require_semantic() -> None:
 # Lazy public API
 # ---------------------------------------------------------------------------
 
+
 def __getattr__(name: str):
     """Lazy import so the package is always importable."""
     if name == "CodeEmbedder":
         from coderag.search.embedder import CodeEmbedder
+
         return CodeEmbedder
     if name == "VectorStore":
         from coderag.search.vector_store import VectorStore
+
         return VectorStore
     if name == "HybridSearcher":
         from coderag.search.hybrid import HybridSearcher
+
         return HybridSearcher
     if name == "SearchResult":
         from coderag.search.hybrid import SearchResult
+
         return SearchResult
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
