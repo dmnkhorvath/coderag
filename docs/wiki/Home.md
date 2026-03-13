@@ -2,7 +2,7 @@
 
 **Build knowledge graphs from your codebase for LLM context retrieval**
 
-CodeRAG parses PHP, JavaScript, and TypeScript codebases into rich knowledge graphs with framework detection, cross-language analysis, and MCP server integration for AI-powered code understanding.
+CodeRAG parses PHP, JavaScript, TypeScript, Python, CSS, and SCSS codebases into rich knowledge graphs with framework detection, cross-language analysis, and MCP server integration for AI-powered code understanding.
 
 ---
 
@@ -19,13 +19,16 @@ CodeRAG parses PHP, JavaScript, and TypeScript codebases into rich knowledge gra
 
 ## ✨ Key Features
 
-- **Multi-language** — PHP, JavaScript, TypeScript with Tree-sitter AST parsing
-- **25 node types & 30 edge types** for comprehensive code modeling
-- **5 framework detectors** — Laravel, React, Express.js, Next.js, Vue
+- **Multi-language** — PHP, JavaScript, TypeScript, Python, CSS, SCSS with Tree-sitter AST parsing
+- **41 node types & 50 edge types** for comprehensive code modeling
+- **11 framework detectors** — Laravel, Symfony, React, Express.js, Next.js, Vue, Angular, Django, Flask, FastAPI, Tailwind CSS
 - **8 MCP tools** for AI agents to query the knowledge graph
 - **Cross-language analysis** — PHP routes ↔ JavaScript API calls
 - **Git metadata enrichment** — change frequency, co-change, ownership
 - **Token-budgeted exports** — sized to fit LLM context windows
+- 🔄 **Live file watching** — auto-reparse on file changes (`coderag watch`)
+- 🔍 **Full CLI parity** — all 8 MCP tools available as CLI commands
+- ⚡ **Parallel pipeline** — phases 3-5 and 7 run in parallel for faster parsing
 
 ## 🔗 Links
 

@@ -178,3 +178,141 @@ coderag serve . --no-reload                     # Disable hot-reload
 ```
 
 See the **[MCP Server Setup](MCP-Server-Setup)** page for detailed configuration.
+
+---
+
+### `coderag find-usages`
+
+Find all usages of a symbol across the codebase.
+
+```bash
+coderag find-usages UserService                          # Find all usages
+coderag find-usages UserService --types calls,imports     # Filter by type
+coderag find-usages UserService --depth 2 --format json   # Transitive, JSON output
+```
+
+| Option | Description |
+|--------|-------------|
+| `--types` | Comma-separated usage types: calls, imports, extends, implements, instantiates, type_references, all |
+| `--depth` | Transitive traversal depth (default: 1) |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+---
+
+### `coderag impact`
+
+Analyze the blast radius of changing a symbol.
+
+```bash
+coderag impact UserService                    # Blast radius analysis
+coderag impact UserService --depth 3          # Deeper analysis
+coderag impact UserService --format json      # JSON output
+```
+
+| Option | Description |
+|--------|-------------|
+| `--depth` | Impact analysis depth, 1-5 (default: 3) |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+---
+
+### `coderag file-context`
+
+Get LLM-optimized context for a specific file.
+
+```bash
+coderag file-context app/Services/UserService.php           # File overview
+coderag file-context app/Services/UserService.php --no-source  # Without source code
+```
+
+| Option | Description |
+|--------|-------------|
+| `--no-source` | Exclude source code snippets |
+| `--budget` | Token budget (default: 4000) |
+
+---
+
+### `coderag routes`
+
+Find API routes by pattern with optional filtering.
+
+```bash
+coderag routes "/api/users/*"                  # Find routes by pattern
+coderag routes "/api/*" --method GET           # Filter by HTTP method
+coderag routes "/api/*" --no-frontend          # Exclude frontend callers
+```
+
+| Option | Description |
+|--------|-------------|
+| `--method` | Filter by HTTP method: GET, POST, PUT, PATCH, DELETE, ANY |
+| `--no-frontend` | Exclude frontend API callers |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+---
+
+### `coderag deps`
+
+Show the dependency graph for a symbol.
+
+```bash
+coderag deps UserService                       # Show dependency graph
+coderag deps UserService --direction dependents # Only show dependents
+coderag deps UserService --depth 3             # Deeper traversal
+```
+
+| Option | Description |
+|--------|-------------|
+| `--direction` | dependencies, dependents, or both (default: both) |
+| `--depth` | Traversal depth, 1-5 (default: 2) |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+---
+
+### `coderag embed`
+
+Generate vector embeddings for the knowledge graph.
+
+```bash
+coderag embed .                                # Embed current project
+coderag embed . --model text-embedding-3-small # Use specific model
+```
+
+| Option | Description |
+|--------|-------------|
+| `--model` | Embedding model name |
+| `--batch-size` | Batch size for embedding API calls (default: 100) |
+
+---
+
+### `coderag watch`
+
+Watch the filesystem for changes and auto-reparse.
+
+```bash
+coderag watch .                                # Watch current directory
+coderag watch /path/to/project --debounce 2.0  # Custom debounce
+coderag watch . --no-incremental               # Full reparse on changes
+```
+
+| Option | Description |
+|--------|-------------|
+| `--debounce` | Debounce delay in seconds (default: 1.0) |
+| `--no-incremental` | Full reparse instead of incremental |
+
+---
+
+### `coderag monitor`
+
+Launch the TUI monitoring dashboard.
+
+```bash
+coderag monitor /path/to/project               # Start TUI monitor
+coderag monitor /path/to/project --verbose     # Verbose logging
+```
+
+| Option | Description |
+|--------|-------------|
+| `--verbose` | Enable verbose logging in the TUI |
+
+See the **[TUI Monitor](TUI-Monitor)** page for detailed usage.
+

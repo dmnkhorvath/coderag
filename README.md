@@ -6,7 +6,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests: 165 passing](https://img.shields.io/badge/tests-271%20passing-brightgreen.svg)](#-testing)
+[![Tests: 1,308 passing](https://img.shields.io/badge/tests-1%2C308%20passing-brightgreen.svg)](#-testing)
 [![Lines: 32K+](https://img.shields.io/badge/lines-32K%2B-informational.svg)](#-codebase-stats)
 [![CI](https://github.com/dmnkhorvath/coderag/actions/workflows/ci.yml/badge.svg)](https://github.com/dmnkhorvath/coderag/actions/workflows/ci.yml)
 
@@ -136,6 +136,12 @@ Press `:` to enter command mode (vim-style):
 - **Command mode** — Vim `:` command input for quit, save, filter, and settings
 - **Responsive layout** — Adapts to terminal sizes from 80×24 to 200×60+
 - **Dark theme** — Custom emerald/cyan accent color scheme optimized for terminals
+
+### ⚡ Performance & Developer Experience
+
+- 🔄 **Live file watching** with auto-reparse (`coderag watch`)
+- ⚡ **Parallel pipeline** — phases 3-5 and 7 run in parallel
+- 🔍 **Full CLI parity** — all 8 MCP tools available as CLI commands
 
 ---
 
@@ -331,6 +337,99 @@ coderag serve . --db custom/graph.db            # Custom database path
 coderag serve . --no-reload                     # Disable hot-reload
 ```
 
+### `coderag find-usages`
+
+Find all usages of a symbol across the codebase.
+
+```bash
+coderag find-usages UserService                          # Find all usages
+coderag find-usages UserService --types calls,imports     # Filter by type
+coderag find-usages UserService --depth 2 --format json   # Transitive, JSON output
+```
+
+| Option | Description |
+|--------|-------------|
+| `--types` | Comma-separated usage types: calls, imports, extends, implements, instantiates, type_references, all |
+| `--depth` | Transitive traversal depth (default: 1) |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+### `coderag impact`
+
+Analyze the blast radius of changing a symbol.
+
+```bash
+coderag impact UserService                    # Blast radius analysis
+coderag impact UserService --depth 3          # Deeper analysis
+coderag impact UserService --format json      # JSON output
+```
+
+| Option | Description |
+|--------|-------------|
+| `--depth` | Impact analysis depth, 1-5 (default: 3) |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+### `coderag file-context`
+
+Get LLM-optimized context for a specific file.
+
+```bash
+coderag file-context app/Services/UserService.php           # File overview
+coderag file-context app/Services/UserService.php --no-source  # Without source code
+```
+
+| Option | Description |
+|--------|-------------|
+| `--no-source` | Exclude source code snippets |
+| `--budget` | Token budget (default: 4000) |
+
+### `coderag routes`
+
+Find API routes by pattern with optional filtering.
+
+```bash
+coderag routes "/api/users/*"                  # Find routes by pattern
+coderag routes "/api/*" --method GET           # Filter by HTTP method
+coderag routes "/api/*" --no-frontend          # Exclude frontend callers
+```
+
+| Option | Description |
+|--------|-------------|
+| `--method` | Filter by HTTP method: GET, POST, PUT, PATCH, DELETE, ANY |
+| `--no-frontend` | Exclude frontend API callers |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+### `coderag deps`
+
+Show the dependency graph for a symbol.
+
+```bash
+coderag deps UserService                       # Show dependency graph
+coderag deps UserService --direction dependents # Only show dependents
+coderag deps UserService --depth 3             # Deeper traversal
+```
+
+| Option | Description |
+|--------|-------------|
+| `--direction` | dependencies, dependents, or both (default: both) |
+| `--depth` | Traversal depth, 1-5 (default: 2) |
+| `-f, --format` | Output format: markdown, json (default: markdown) |
+
+### `coderag watch`
+
+Watch the filesystem for changes and auto-reparse.
+
+```bash
+coderag watch .                                # Watch current directory
+coderag watch /path/to/project --debounce 2.0  # Custom debounce
+coderag watch . --no-incremental               # Full reparse on changes
+```
+
+| Option | Description |
+|--------|-------------|
+| `--debounce` | Debounce delay in seconds (default: 1.0) |
+| `--no-incremental` | Full reparse instead of incremental |
+
+
 ---
 
 ## 🤖 MCP Server
@@ -518,17 +617,20 @@ Generate a default config with `coderag init`.
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        CLI Layer                             │
-│   parse │ query │ info │ export │ serve │ enrich │ init     │
+│  parse │ info │ query │ analyze │ find-usages │ impact     │
+│  file-context │ routes │ deps │ architecture │ frameworks  │
+│  cross-language │ export │ enrich │ embed │ serve │ watch   │
+│  monitor │ init                                             │
 ├─────────────────────────────────────────────────────────────┤
 │                    Pipeline Orchestrator                      │
 │  Phase 1: Discovery    → File scanning with ignore patterns  │
 │  Phase 2: Hashing      → Content-hash for incremental mode   │
 │  Phase 3: Extraction   → Tree-sitter AST parsing (parallel)  │
-│  Phase 4: Resolution   → Cross-file reference resolution     │
-│  Phase 5: Frameworks   → Framework pattern detection         │
+│  Phase 4: Resolution   → Cross-file reference resolution (parallel)     │
+│  Phase 5: Frameworks   → Framework pattern detection (parallel)         │
 │  Phase 6: Cross-lang   → PHP route ↔ JS API call matching    │
 │  Phase 6b: Style edges → Component ↔ stylesheet matching     │
-│  Phase 7: Enrichment   → Git metadata + PHPStan types        │
+│  Phase 7: Enrichment   → Git metadata + PHPStan types (parallel)        │
 │  Phase 8: Persistence  → SQLite batch upsert                 │
 ├─────────────────────────────────────────────────────────────┤
 │                    Plugin System                              │
@@ -693,7 +795,7 @@ python -m pytest tests/ --cov=coderag --cov-report=term-missing
 python -m pytest tests/test_enrichment.py -v
 ```
 
-**Test suite:** 165 tests across 10 test files covering models, config, storage, pipeline, export, hot-reload, framework detection, PHPStan enrichment, and CSS/SCSS parsing.
+**Test suite:** 1,308 tests across 10 test files covering models, config, storage, pipeline, export, hot-reload, framework detection, PHPStan enrichment, and CSS/SCSS parsing.
 
 ---
 
@@ -704,7 +806,7 @@ python -m pytest tests/test_enrichment.py -v
 | **Total lines of code** | 32,200+ |
 | **Python source files** | 75+ |
 | **Test files** | 10 |
-| **Tests passing** | 165 |
+| **Tests passing** | 1,308 |
 | **Language plugins** | 6 (PHP, JS, TS, Python, CSS, SCSS) |
 | **Framework detectors** | 11 (Laravel, Symfony, React, Express, Next.js, Vue, Angular, Django, Flask, FastAPI, Tailwind CSS) |
 | **MCP tools** | 8 |
