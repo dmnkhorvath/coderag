@@ -334,7 +334,7 @@ class PipelineOrchestrator:
             )
         )
 
-        # ── Phase 4: Reference Resolution ─────────────────────
+        # ── Phase 4: Reference Resolution (parallel) ─────────
         self._emit(PhaseStarted(phase=PipelinePhase.RESOLUTION))
         resolved_edge_count = 0
         unresolved_edge_count = 0
@@ -342,13 +342,20 @@ class PipelineOrchestrator:
 
         if total_unresolved_refs > 0:
             logger.info(
-                "Phase 4: Resolving %d cross-file references...",
+                "Phase 4: Resolving %d cross-file references (parallel)...",
                 total_unresolved_refs,
             )
             resolver = ReferenceResolver(self._store)
             resolver.build_symbol_table()
 
-            resolved_edges, placeholder_nodes, resolved_count, unresolved_count = resolver.resolve(all_results)
+            # Parallel resolution: group refs by result and resolve in threads
+            io_workers = self._config.perf_config.resolved_io_workers
+            if total_unresolved_refs > 50 and len(all_results) > 1:
+                resolved_edges, placeholder_nodes, resolved_count, unresolved_count = self._parallel_resolve(
+                    resolver, all_results, io_workers
+                )
+            else:
+                resolved_edges, placeholder_nodes, resolved_count, unresolved_count = resolver.resolve(all_results)
 
             resolved_edge_count = resolved_count
             unresolved_edge_count = unresolved_count
@@ -459,6 +466,51 @@ class PipelineOrchestrator:
         )
         return summary
 
+    # ── Phase 4: Parallel Reference Resolution ────────────
+
+    def _parallel_resolve(
+        self,
+        resolver: ReferenceResolver,
+        all_results: list,
+        max_workers: int,
+    ) -> tuple:
+        """Resolve references in parallel using ThreadPoolExecutor.
+
+        Groups extraction results into chunks and resolves each chunk
+        in a separate thread.  The resolver's symbol table is read-only
+        after build_symbol_table(), so concurrent reads are safe.
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        resolved_edges: list = []
+        placeholder_nodes: list = []
+        resolved_count = 0
+        unresolved_count = 0
+
+        if not all_results:
+            return resolved_edges, placeholder_nodes, resolved_count, unresolved_count
+
+        # Chunk results for parallel processing
+        chunk_size = max(1, len(all_results) // max_workers)
+        chunks = [all_results[i : i + chunk_size] for i in range(0, len(all_results), chunk_size)]
+
+        def _resolve_chunk(chunk):
+            return resolver.resolve(chunk)
+
+        with ThreadPoolExecutor(max_workers=min(max_workers, len(chunks))) as pool:
+            futures = {pool.submit(_resolve_chunk, chunk): i for i, chunk in enumerate(chunks)}
+            for future in as_completed(futures):
+                try:
+                    edges, placeholders, res_count, unres_count = future.result()
+                    resolved_edges.extend(edges)
+                    placeholder_nodes.extend(placeholders)
+                    resolved_count += res_count
+                    unresolved_count += unres_count
+                except Exception as exc:
+                    logger.error("Parallel resolution chunk failed: %s", exc)
+
+        return resolved_edges, placeholder_nodes, resolved_count, unresolved_count
+
     def _run_style_edge_matching(self, project_root: str) -> int:
         """Run style edge matching to connect JS/TS components to CSS/SCSS.
 
@@ -561,24 +613,42 @@ class PipelineOrchestrator:
             file_metrics = result.get("file_metrics", {})
             enriched_count = 0
 
-            for rel_path, metrics in file_metrics.items():
-                # Find ALL nodes for this file path and enrich them
-                abs_path = os.path.join(project_root, rel_path)
-                file_nodes = self._store.find_nodes(
-                    file_path=abs_path,
+            # Parallel per-file git enrichment
+            import threading as _threading
+
+            _enrich_lock = _threading.Lock()
+
+            def _enrich_file(rel_path, metrics):
+                """Enrich a single file's nodes with git metrics (thread worker)."""
+                abs_p = os.path.join(project_root, rel_path)
+                fnodes = self._store.find_nodes(
+                    file_path=abs_p,
                     limit=1000,
                 )
-                if not file_nodes:
-                    file_nodes = self._store.find_nodes(
+                if not fnodes:
+                    fnodes = self._store.find_nodes(
                         file_path=rel_path,
                         limit=1000,
                     )
-
-                if file_nodes:
-                    for node in file_nodes:
+                if fnodes:
+                    for node in fnodes:
                         node.metadata["git"] = metrics
-                    self._store.upsert_nodes(file_nodes)
-                    enriched_count += 1
+                    self._store.upsert_nodes(fnodes)
+                    return 1
+                return 0
+
+            io_workers = self._config.perf_config.resolved_io_workers
+            if len(file_metrics) > 10:
+                with ThreadPoolExecutor(max_workers=io_workers) as pool:
+                    futures = {pool.submit(_enrich_file, rp, m): rp for rp, m in file_metrics.items()}
+                    for future in as_completed(futures):
+                        try:
+                            enriched_count += future.result()
+                        except Exception as exc:
+                            logger.debug("Git enrichment failed for %s: %s", futures[future], exc)
+            else:
+                for rel_path, metrics in file_metrics.items():
+                    enriched_count += _enrich_file(rel_path, metrics)
 
             # Store co-change data as metadata
             co_changes = result.get("co_changes", [])
@@ -771,55 +841,83 @@ class PipelineOrchestrator:
                     file_edge_map[node.file_path].append(edge)
                     break
 
-        # Process each file with active detectors
+        # Process each file with active detectors (parallel)
         import os
 
+        io_workers = self._config.perf_config.resolved_io_workers
+
+        def _detect_file(det, plugin, file_path, nodes):
+            """Run framework detection on a single file (thread worker)."""
+            ext = os.path.splitext(file_path)[1]
+            if ext not in plugin.file_extensions:
+                return [], []
+            abs_path = file_path
+            if not os.path.isabs(file_path):
+                abs_path = os.path.join(project_root, file_path)
+            if not os.path.isfile(abs_path):
+                return [], []
+            try:
+                source = self._read_file(abs_path)
+                extractor = plugin.get_extractor()
+                tree = None
+                if hasattr(extractor, "_parser") and extractor._parser is not None:
+                    tree = extractor._parser.parse(source)
+                file_edges = file_edge_map.get(file_path, [])
+                patterns = det.detect(
+                    file_path=file_path,
+                    tree=tree,
+                    source=source,
+                    nodes=nodes,
+                    edges=file_edges,
+                )
+                result_nodes = []
+                result_edges = []
+                for pattern in patterns:
+                    if pattern.nodes:
+                        result_nodes.extend(pattern.nodes)
+                    if pattern.edges:
+                        result_edges.extend(pattern.edges)
+                return result_nodes, result_edges
+            except Exception as exc:
+                logger.debug(
+                    "Framework detection failed for %s in %s: %s",
+                    det.framework_name,
+                    file_path,
+                    exc,
+                )
+                return [], []
+
+        # Build work items
+        work_items = []
         for det, plugin in active_detectors:
             for file_path, nodes in file_node_map.items():
-                # Only process files matching this plugin's extensions
-                ext = os.path.splitext(file_path)[1]
-                if ext not in plugin.file_extensions:
-                    continue
+                work_items.append((det, plugin, file_path, nodes))
 
-                abs_path = file_path
-                if not os.path.isabs(file_path):
-                    abs_path = os.path.join(project_root, file_path)
-
-                if not os.path.isfile(abs_path):
-                    continue
-
-                try:
-                    source = self._read_file(abs_path)
-                    # Re-parse with tree-sitter
-                    extractor = plugin.get_extractor()
-                    tree = None
-                    if hasattr(extractor, "_parser") and extractor._parser is not None:
-                        tree = extractor._parser.parse(source)
-
-                    file_edges = file_edge_map.get(file_path, [])
-                    patterns = det.detect(
-                        file_path=file_path,
-                        tree=tree,
-                        source=source,
-                        nodes=nodes,
-                        edges=file_edges,
-                    )
-
-                    for pattern in patterns:
-                        if pattern.nodes:
-                            self._store.upsert_nodes(pattern.nodes)
-                            total_fw_nodes += len(pattern.nodes)
-                        if pattern.edges:
-                            self._store.upsert_edges(pattern.edges)
-                            total_fw_edges += len(pattern.edges)
-
-                except Exception as exc:
-                    logger.debug(
-                        "Framework detection failed for %s in %s: %s",
-                        det.framework_name,
-                        file_path,
-                        exc,
-                    )
+        if len(work_items) > 10:
+            # Parallel execution for large workloads
+            with ThreadPoolExecutor(max_workers=io_workers) as pool:
+                futures = [pool.submit(_detect_file, det, plugin, fp, nodes) for det, plugin, fp, nodes in work_items]
+                for future in as_completed(futures):
+                    try:
+                        fw_n, fw_e = future.result()
+                        if fw_n:
+                            self._store.upsert_nodes(fw_n)
+                            total_fw_nodes += len(fw_n)
+                        if fw_e:
+                            self._store.upsert_edges(fw_e)
+                            total_fw_edges += len(fw_e)
+                    except Exception as exc:
+                        logger.debug("Parallel framework detection failed: %s", exc)
+        else:
+            # Sequential for small workloads
+            for det, plugin, file_path, nodes in work_items:
+                fw_n, fw_e = _detect_file(det, plugin, file_path, nodes)
+                if fw_n:
+                    self._store.upsert_nodes(fw_n)
+                    total_fw_nodes += len(fw_n)
+                if fw_e:
+                    self._store.upsert_edges(fw_e)
+                    total_fw_edges += len(fw_e)
 
         # ── Phase 5b: Global detection ────────────────────────
         for det, plugin in active_detectors:

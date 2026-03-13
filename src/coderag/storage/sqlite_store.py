@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -176,6 +177,7 @@ class SQLiteStore:
         self._db_path = db_path
         self._batch_size = batch_size
         self._conn: sqlite3.Connection | None = None
+        self._write_lock = threading.Lock()
 
     # ── Lifecycle ─────────────────────────────────────────────
 
@@ -199,6 +201,7 @@ class SQLiteStore:
 
         # Runtime performance pragmas (not persisted in schema)
         try:
+            self._conn.execute("PRAGMA busy_timeout = 30000")  # 30s busy timeout
             self._conn.execute("PRAGMA threads = 4")
         except sqlite3.OperationalError:
             pass  # Not all SQLite builds support this
@@ -216,6 +219,61 @@ class SQLiteStore:
         self.set_metadata("schema_version", _SCHEMA_VERSION)
 
         logger.info("SQLiteStore initialized at %s", self._db_path)
+
+    def execute_write(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
+        """Execute a write operation with thread-safe locking.
+
+        Uses a write lock to serialize concurrent writes from
+        watcher + manual parse scenarios.
+        """
+        with self._write_lock:
+            return self._execute_with_retry(sql, params)
+
+    def _execute_with_retry(
+        self,
+        sql: str,
+        params: tuple = (),
+        max_retries: int = 5,
+        base_delay: float = 0.1,
+    ) -> sqlite3.Cursor:
+        """Execute SQL with exponential backoff retry on SQLITE_BUSY."""
+        import time as _time
+
+        for attempt in range(max_retries):
+            try:
+                return self.connection.execute(sql, params)
+            except sqlite3.OperationalError as exc:
+                if "database is locked" in str(exc) and attempt < max_retries - 1:
+                    delay = base_delay * (2**attempt)
+                    logger.warning(
+                        "SQLite busy (attempt %d/%d), retrying in %.2fs",
+                        attempt + 1,
+                        max_retries,
+                        delay,
+                    )
+                    _time.sleep(delay)
+                else:
+                    raise
+        raise sqlite3.OperationalError("Max retries exceeded for SQLite write")
+
+    def create_thread_connection(self) -> sqlite3.Connection:
+        """Create a new connection for use in a worker thread.
+
+        The returned connection shares the same WAL-mode database
+        and is safe for concurrent reads.  Callers must close it
+        when done.
+        """
+        conn = sqlite3.connect(
+            self._db_path,
+            check_same_thread=False,
+            timeout=30.0,
+        )
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("PRAGMA busy_timeout = 30000")
+        conn.execute("PRAGMA query_only = ON")  # Read-only for safety
+        return conn
 
     def close(self) -> None:
         """Close the database connection and release resources."""

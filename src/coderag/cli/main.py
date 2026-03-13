@@ -1541,6 +1541,109 @@ def embed(ctx: click.Context, path: str, model: str | None, batch_size: int | No
         store.close()
 
 
+# ── watch ──────────────────────────────────────────────────────
+
+
+@cli.command()
+@click.argument("path", type=click.Path(exists=True))
+@click.option(
+    "--debounce",
+    "-d",
+    default=2.0,
+    type=float,
+    help="Debounce interval in seconds (default: 2.0).",
+)
+@click.option(
+    "--incremental/--full",
+    default=True,
+    help="Incremental (default) or full re-parse on changes.",
+)
+@click.pass_context
+def watch(ctx: click.Context, path: str, debounce: float, incremental: bool) -> None:
+    """Watch a codebase for changes and auto-reparse.
+
+    Monitors the project directory for file changes (create, modify,
+    delete) and triggers incremental pipeline runs automatically.
+    Respects the same ignore patterns as `coderag parse`.
+
+    Press Ctrl+C to stop watching.
+    """
+    from coderag.pipeline.events import EventEmitter
+    from coderag.pipeline.watcher import FileWatcher
+    from coderag.plugins import BUILTIN_PLUGINS
+
+    project_root = str(Path(path).resolve())
+    config = _load_config(ctx.obj["config_path"], project_root)
+
+    # Override DB path if specified
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    # Ensure DB directory exists
+    db_path = config.db_path_absolute
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+    console.print(
+        Panel(
+            Text.assemble(
+                ("CodeRAG", "bold cyan"),
+                (" — Watching ", "dim"),
+                (project_root, "bold white"),
+            ),
+            expand=False,
+        )
+    )
+    console.print(f"  Database:  [dim]{db_path}[/dim]")
+    console.print(f"  Debounce:  [dim]{debounce}s[/dim]")
+    mode_label = "incremental" if incremental else "full"
+    console.print(f"  Mode:      [dim]{mode_label}[/dim]")
+    console.print()
+
+    # Initialize plugin registry
+    registry = PluginRegistry()
+    for plugin_cls in BUILTIN_PLUGINS:
+        registry.register_plugin(plugin_cls())
+
+    # Initialize store
+    store = SQLiteStore(db_path)
+    store.initialize()
+
+    # Initialize plugins
+    registry.initialize_all({}, project_root)
+
+    # Create event emitter for pipeline events
+    emitter = EventEmitter()
+
+    def _on_reparse(stats: dict) -> None:
+        console.print(
+            f"  [green]✓[/green] Reparse complete: "
+            f"[bold]{stats.get('files_parsed', 0)}[/bold] files, "
+            f"[bold]{stats.get('total_nodes', 0)}[/bold] nodes, "
+            f"[bold]{stats.get('total_edges', 0)}[/bold] edges"
+        )
+
+    watcher = FileWatcher(
+        config=config,
+        registry=registry,
+        store=store,
+        emitter=emitter,
+        debounce_seconds=debounce,
+        on_reparse=_on_reparse,
+    )
+
+    console.print("[bold green]Watching for changes...[/bold green] (Ctrl+C to stop)")
+    console.print()
+
+    try:
+        watcher.start(project_root, blocking=True)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        console.print()
+        console.print(f"[bold]Watcher stopped.[/bold] {watcher.reparse_count} reparse(s) completed.")
+        store.close()
+
+
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
 
 
