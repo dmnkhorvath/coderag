@@ -27,3 +27,4 @@ Thumbs.db
 *.faiss
 *.pkl
 .env
+.coverage

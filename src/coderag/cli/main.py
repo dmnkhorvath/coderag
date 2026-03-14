@@ -2321,6 +2321,180 @@ def deps(ctx: click.Context, target: str, direction: str, depth: int, fmt: str, 
         store.close()
 
 
+# ── Validate Command ──────────────────────────────────────────
+
+
+@cli.command()
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    type=click.Path(),
+    default=None,
+    help="Path to codegraph.yaml (default: auto-detect).",
+)
+def validate(config_path: str | None) -> None:
+    """Validate configuration, plugins, storage, and grammars.
+
+    Checks that codegraph.yaml exists and is valid, configured language
+    plugins are available, the storage backend is accessible, and
+    tree-sitter grammars are installed.
+    """
+    issues: list[str] = []
+    warnings: list[str] = []
+    checks_passed = 0
+    total_checks = 0
+
+    # ── 1. Validate codegraph.yaml ────────────────────────────
+    total_checks += 1
+    config: CodeGraphConfig | None = None
+    yaml_path = config_path
+    if yaml_path is None:
+        for candidate in ["codegraph.yaml", "codegraph.yml"]:
+            if os.path.exists(candidate):
+                yaml_path = candidate
+                break
+
+    if yaml_path is None:
+        issues.append("No codegraph.yaml found in current directory. Run [bold]coderag init[/bold] to create one.")
+    elif not os.path.exists(yaml_path):
+        issues.append(f"Config file not found: {yaml_path}")
+    else:
+        try:
+            config = CodeGraphConfig.from_yaml(yaml_path)
+            console.print(f"  [green]✓[/green] Config file: {yaml_path}")
+            checks_passed += 1
+        except ValueError as exc:
+            issues.append(f"Invalid config file: {exc}")
+        except Exception as exc:
+            issues.append(f"Error reading config: {exc}")
+
+    # ── 2. Validate language plugins ──────────────────────────
+    total_checks += 1
+    try:
+        registry = PluginRegistry()
+        discovered = registry.discover_builtin_plugins()
+        available_plugins = {p.lower() for p in discovered}
+
+        if config is not None:
+            configured_langs = list(config.languages.keys())
+            missing_plugins = [lang for lang in configured_langs if lang.lower() not in available_plugins]
+            if missing_plugins:
+                issues.append(
+                    f"Configured languages not available: {', '.join(missing_plugins)}. "
+                    f"Available: {', '.join(sorted(available_plugins))}"
+                )
+            else:
+                console.print(f"  [green]✓[/green] Language plugins: {', '.join(configured_langs)} (all available)")
+                checks_passed += 1
+        else:
+            console.print(f"  [green]✓[/green] Built-in plugins discovered: {', '.join(sorted(available_plugins))}")
+            checks_passed += 1
+    except Exception as exc:
+        issues.append(f"Plugin discovery failed: {exc}")
+
+    # ── 3. Validate storage backend ───────────────────────────
+    total_checks += 1
+    if config is not None:
+        raw_db_path = getattr(config, "db_path", None)
+        if not isinstance(raw_db_path, str):
+            raw_db_path = ".codegraph/graph.db"
+        db_path = raw_db_path
+        if not os.path.isabs(db_path):
+            db_path = os.path.join(config.project_root or ".", db_path)
+        db_dir = os.path.dirname(db_path)
+
+        if os.path.exists(db_path):
+            if os.access(db_path, os.R_OK | os.W_OK):
+                console.print(f"  [green]✓[/green] Database: {db_path} (exists, writable)")
+                checks_passed += 1
+            else:
+                issues.append(f"Database file not writable: {db_path}")
+        elif db_dir and os.path.exists(db_dir):
+            if os.access(db_dir, os.W_OK):
+                console.print(f"  [green]✓[/green] Database directory: {db_dir} (writable, DB will be created)")
+                checks_passed += 1
+            else:
+                issues.append(f"Database directory not writable: {db_dir}")
+        else:
+            # Directory doesn't exist yet — check if parent is writable
+            parent = os.path.dirname(db_dir) if db_dir else "."
+            if os.access(parent or ".", os.W_OK):
+                console.print(f"  [green]✓[/green] Storage path: {db_path} (directory will be created)")
+                checks_passed += 1
+            else:
+                issues.append(f"Cannot create database directory: {db_dir} (parent not writable)")
+    else:
+        warnings.append("Skipped storage check (no config loaded).")
+
+    # ── 4. Validate tree-sitter grammars ──────────────────────
+    grammar_packages = {
+        "php": ("tree_sitter_php", "language_php"),
+        "javascript": ("tree_sitter_javascript", "language"),
+        "typescript": ("tree_sitter_typescript", "language_typescript"),
+        "python": ("tree_sitter_python", "language"),
+        "css": ("tree_sitter_css", "language"),
+        "scss": ("tree_sitter_scss", "language"),
+    }
+
+    langs_to_check = list(config.languages.keys()) if config else list(grammar_packages.keys())
+    grammar_ok = []
+    grammar_fail = []
+
+    for lang in langs_to_check:
+        total_checks += 1
+        pkg_info = grammar_packages.get(lang.lower())
+        if pkg_info is None:
+            warnings.append(f"No grammar check available for language: {lang}")
+            checks_passed += 1  # Not a failure
+            continue
+
+        pkg_name, func_name = pkg_info
+        try:
+            import importlib
+
+            mod = importlib.import_module(pkg_name)
+            lang_func = getattr(mod, func_name)
+            lang_func()  # Verify it returns a valid language pointer
+            grammar_ok.append(lang)
+            checks_passed += 1
+        except ImportError:
+            grammar_fail.append(f"{lang} (package '{pkg_name}' not installed)")
+            issues.append(f"Tree-sitter grammar missing for {lang}: pip install {pkg_name.replace('_', '-')}")
+        except Exception as exc:
+            grammar_fail.append(f"{lang} ({exc})")
+            issues.append(f"Tree-sitter grammar error for {lang}: {exc}")
+
+    if grammar_ok:
+        console.print(f"  [green]✓[/green] Tree-sitter grammars: {', '.join(grammar_ok)}")
+
+    # ── Summary ───────────────────────────────────────────────
+    console.print()
+    if warnings:
+        for w in warnings:
+            console.print(f"  [yellow]⚠[/yellow] {w}")
+        console.print()
+
+    if issues:
+        console.print(
+            Panel(
+                "\n".join(f"[red]✗[/red] {issue}" for issue in issues),
+                title="[red]Validation Failed[/red]",
+                border_style="red",
+            )
+        )
+        console.print(f"\n  [red]{checks_passed}/{total_checks} checks passed, {len(issues)} issue(s) found.[/red]")
+        raise SystemExit(1)
+    else:
+        console.print(
+            Panel(
+                f"[green]All {checks_passed} checks passed![/green]",
+                title="[green]Validation Successful[/green]",
+                border_style="green",
+            )
+        )
+
+
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
 
 
