@@ -494,6 +494,8 @@ class CodeRAGApp(App):
                 config = CodeGraphConfig.default()
 
             project_root = Path(self.project_root).resolve()
+            config.project_root = str(project_root)
+            config.project_name = config.project_name or project_root.name
             db_dir = project_root / ".codegraph"
             db_dir.mkdir(parents=True, exist_ok=True)
             db_path = db_dir / "graph.db"
@@ -542,12 +544,12 @@ class CodeRAGApp(App):
             self._update_header_state("▶ Running")
 
         elif isinstance(event, PhaseProgress):
-            self._files_processed = event.current
             try:
                 pp = self.screen.query_one(PipelineProgress)
                 pp.update_progress(event.current, event.total)
             except Exception:
                 pass
+            self._update_metrics()
             if event.message:
                 self._post_log(event.message, "DEBUG")
 
@@ -564,6 +566,7 @@ class CodeRAGApp(App):
                 pp.mark_phase_completed(event.phase)
             except Exception:
                 pass
+            self._update_metrics()
 
         elif isinstance(event, FileStarted):
             self._post_log(f"Parsing: {event.file_path}", "DEBUG")
