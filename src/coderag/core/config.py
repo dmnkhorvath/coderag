@@ -85,6 +85,8 @@ _DEFAULT_SEMANTIC: dict[str, Any] = {
     "batch_size": 128,
 }
 
+_DEFAULT_DB_PATH: str = ".codegraph/graph.db"
+
 
 @dataclass
 class PerformanceConfig:
@@ -165,7 +167,7 @@ class CodeGraphConfig:
 
     project_name: str = ""
     project_root: str = ""
-    db_path: str = ".codegraph/graph.db"
+    db_path: str = _DEFAULT_DB_PATH
     languages: dict[str, dict[str, Any]] = field(default_factory=lambda: dict(_DEFAULT_LANGUAGES))
     ignore_patterns: list[str] = field(default_factory=lambda: list(_DEFAULT_IGNORE_PATTERNS))
     framework_detection: dict[str, Any] = field(default_factory=lambda: dict(_DEFAULT_FRAMEWORK_DETECTION))
@@ -219,7 +221,7 @@ class CodeGraphConfig:
         config = cls(
             project_name=raw.get("project_name", yaml_file.parent.name),
             project_root=project_root,
-            db_path=raw.get("db_path", cls.db_path),
+            db_path=raw.get("db_path", _DEFAULT_DB_PATH),
             languages=_deep_merge(_DEFAULT_LANGUAGES, raw.get("languages", {})),
             ignore_patterns=raw.get("ignore_patterns", list(_DEFAULT_IGNORE_PATTERNS)),
             framework_detection=_deep_merge(
