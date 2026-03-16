@@ -5,6 +5,9 @@
 # Environment variables:
 #   CODERAG_INSTALL_DIR  - Override install location (default: ~/.coderag)
 #   CODERAG_BRANCH       - Git branch to install (default: main)
+#   CODERAG_MINIMAL      - Set to "true" for core-only install without
+#                          optional dependencies like TUI monitor and
+#                          semantic search (default: false)
 
 set -e
 
@@ -15,6 +18,7 @@ MIN_PYTHON_MAJOR=3
 MIN_PYTHON_MINOR=11
 DEFAULT_INSTALL_DIR="$HOME/.coderag"
 BRANCH="${CODERAG_BRANCH:-main}"
+MINIMAL="${CODERAG_MINIMAL:-false}"
 
 # ─── Terminal Colors ──────────────────────────────────────────────────────────
 
@@ -235,8 +239,15 @@ install_coderag() {
     # Install package
     info "Installing CodeRAG and dependencies..."
     "$VENV_DIR/bin/pip" install --upgrade pip --quiet 2>/dev/null
-    "$VENV_DIR/bin/pip" install -e "$SRC_DIR" --quiet 2>/dev/null || \
-        "$VENV_DIR/bin/pip" install -e "$SRC_DIR"
+    if [ "$MINIMAL" = "true" ]; then
+        info "Minimal install (core only — no TUI monitor or semantic search)"
+        "$VENV_DIR/bin/pip" install -e "$SRC_DIR" --quiet 2>/dev/null || \
+            "$VENV_DIR/bin/pip" install -e "$SRC_DIR"
+    else
+        info "Full install (includes TUI monitor and semantic search)"
+        "$VENV_DIR/bin/pip" install -e "$SRC_DIR[full]" --quiet 2>/dev/null || \
+            "$VENV_DIR/bin/pip" install -e "$SRC_DIR[full]"
+    fi
     success "Package installed"
 
     # Create bin directory and wrapper scripts
@@ -328,6 +339,12 @@ print_summary() {
     printf "\n"
     printf "%s\n" "  ${DIM}Location:${RESET}  $INSTALL_DIR"
     printf "%s\n" "  ${DIM}Python:${RESET}    $PYTHON_VERSION"
+    if [ "$MINIMAL" = "true" ]; then
+        printf "%s\n" "  ${DIM}Install:${RESET}   minimal (core only)"
+        printf "%s\n" "  ${DIM}Tip:${RESET}       Reinstall with full deps: ${BOLD}CODERAG_MINIMAL=false sh install.sh${RESET}"
+    else
+        printf "%s\n" "  ${DIM}Install:${RESET}   full (all features)"
+    fi
     printf "\n"
     printf "%s\n" "  ${BOLD}Get started:${RESET}"
     printf "\n"

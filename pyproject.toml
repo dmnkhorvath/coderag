@@ -78,6 +78,13 @@ dev = [
     "build>=1.0",
 ]
 
+full = [
+    "sentence-transformers>=2.2.0",
+    "faiss-cpu>=1.7.0",
+    "textual>=1.0.0",
+    "psutil>=5.9.0",
+]
+
 all = [
     "sentence-transformers>=2.2.0",
     "faiss-cpu>=1.7.0",

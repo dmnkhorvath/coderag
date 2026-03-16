@@ -94,8 +94,8 @@ main() {
     # Reinstall package
     info "Reinstalling package..."
     "$VENV_DIR/bin/pip" install --upgrade pip --quiet 2>/dev/null
-    "$VENV_DIR/bin/pip" install -e "$SRC_DIR" --quiet 2>/dev/null || \
-        "$VENV_DIR/bin/pip" install -e "$SRC_DIR"
+    "$VENV_DIR/bin/pip" install -e "$SRC_DIR[full]" --quiet 2>/dev/null || \
+        "$VENV_DIR/bin/pip" install -e "$SRC_DIR[full]"
     success "Package reinstalled"
 
     # Verify
