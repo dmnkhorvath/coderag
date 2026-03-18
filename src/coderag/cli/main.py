@@ -1259,8 +1259,28 @@ def export(
     default=False,
     help="Disable hot-reload (auto-reload when database changes).",
 )
+@click.option(
+    "--watch",
+    "watch_files",
+    is_flag=True,
+    default=False,
+    help="Watch for file changes and auto-reparse alongside the MCP server.",
+)
+@click.option(
+    "--debounce",
+    default=2.0,
+    type=float,
+    help="Debounce interval in seconds for file watcher (default: 2.0).",
+)
 @click.pass_context
-def serve(ctx: click.Context, project_dir: str, db: str | None, no_reload: bool) -> None:
+def serve(
+    ctx: click.Context,
+    project_dir: str,
+    db: str | None,
+    no_reload: bool,
+    watch_files: bool,
+    debounce: float,
+) -> None:
     """Start MCP server for LLM tool integration.
 
     Exposes the knowledge graph as MCP tools that LLMs can call
@@ -1273,16 +1293,58 @@ def serve(ctx: click.Context, project_dir: str, db: str | None, no_reload: bool)
     automatically reloads when it detects a re-parse. Use --no-reload
     to disable this behavior.
 
+    Use --watch to also monitor the project for file changes and
+    automatically reparse when source files are created, modified,
+    or deleted. This combines `coderag serve` and `coderag watch`
+    into a single process.
+
     PROJECT_DIR is the project root directory (default: current directory).
     """
+    import sys as _sys
     from pathlib import Path as _Path
 
     resolved_dir = str(_Path(project_dir).resolve())
     db_override = db or ctx.obj.get("db_override")
 
-    from coderag.mcp.server import run_stdio_server
+    watcher = None
+    if watch_files:
+        from coderag.pipeline.events import EventEmitter
+        from coderag.pipeline.watcher import FileWatcher
+        from coderag.plugins import BUILTIN_PLUGINS
+        from coderag.plugins.registry import PluginRegistry
+        from coderag.storage.sqlite_store import SQLiteStore
 
-    run_stdio_server(resolved_dir, db_override, hot_reload=not no_reload)
+        config = _load_config(ctx.obj["config_path"], resolved_dir)
+        if db_override:
+            config.db_path = db_override
+
+        db_path = config.db_path_absolute
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+        registry = PluginRegistry()
+        for plugin_cls in BUILTIN_PLUGINS:
+            registry.register(plugin_cls())
+
+        store = SQLiteStore(db_path)
+        store.initialize()
+
+        emitter = EventEmitter()
+
+        watcher = FileWatcher(config, registry, store, emitter, debounce_seconds=debounce)
+        watcher.start(resolved_dir, blocking=False)
+        print(
+            f"File watcher: active (debounce={debounce}s)",
+            file=_sys.stderr,
+        )
+
+    try:
+        from coderag.mcp.server import run_stdio_server
+
+        run_stdio_server(resolved_dir, db_override, hot_reload=not no_reload)
+    finally:
+        if watcher is not None:
+            watcher.stop()
+            store.close()
 
 
 # ── Enrich Command ────────────────────────────────────────────────

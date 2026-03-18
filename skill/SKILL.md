@@ -49,7 +49,7 @@ coderag parse /path/to/your/project --incremental
 ### 3. Start the MCP Server
 
 ```bash
-coderag serve /path/to/your/project
+coderag serve /path/to/your/project --watch
 ```
 
 ### 4. Configure Your AI Tool
@@ -357,7 +357,7 @@ explicit tool calls:
 | Command | Description |
 |---------|-------------|
 | `coderag parse <dir>` | Parse codebase and build knowledge graph |
-| `coderag serve <dir>` | Start MCP server (stdio transport) |
+| `coderag serve <dir> [--watch]` | Start MCP server (+ file watcher with --watch) |
 | `coderag info <dir>` | Show graph statistics |
 | `coderag analyze <dir> <symbol>` | Analyze a symbol |
 | `coderag architecture <dir>` | Show architecture overview |
@@ -386,7 +386,7 @@ explicit tool calls:
 - Verify files aren\'t in ignored directories (node_modules, vendor)
 
 ### MCP server not connecting
-- Test manually: `coderag serve /path/to/project` (should block on stdio)
+- Test manually: `coderag serve /path/to/project --watch` (serves + watches for changes)
 - Verify `.mcp.json` path is correct and absolute
 - Check that `coderag` is on PATH or use full path in config
 
