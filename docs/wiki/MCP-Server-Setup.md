@@ -18,6 +18,8 @@ That's it! The server runs over **stdio** transport and is ready to be connected
 
 ---
 
+> **Tip:** Running `install-coderag.sh` (see [Installation](Installation)) automatically generates `.mcp.json` and `CLAUDE.md` for your project. You can skip the manual configuration below if you've already run the installer.
+
 ## Configuring MCP Clients
 
 ### Claude Desktop

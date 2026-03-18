@@ -83,6 +83,8 @@ Or for Claude Desktop (`claude_desktop_config.json`):
 > **Tip**: If installed via `install.sh`, the binary is at `~/.coderag/bin/coderag`.
 > If installed via pip, it\'s on your PATH.
 
+> **Automated:** `install-coderag.sh` generates both `.mcp.json` and `CLAUDE.md` automatically.
+
 ---
 
 ## MCP Tools Reference

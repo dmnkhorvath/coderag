@@ -10,7 +10,7 @@ CodeRAG parses PHP, JavaScript, TypeScript, Python, CSS, and SCSS codebases into
 
 | Page | Description |
 |------|-------------|
-| **[Installation](Installation)** | How to install CodeRAG on your system |
+| **[Installation](Installation)** | How to install CodeRAG and set up projects with the 10-step installer |
 | **[MCP Server Setup](MCP-Server-Setup)** | Configure CodeRAG as an MCP server for Claude, Cursor, and other AI tools |
 | **[CLI Reference](CLI-Reference)** | Complete command-line interface documentation |
 | **[Configuration](Configuration)** | `codegraph.yaml` options and project setup |

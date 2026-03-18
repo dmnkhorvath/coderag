@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `install-coderag.sh` now auto-generates `CLAUDE.md` for Claude Code integration (Step 8)
+- `install-coderag.sh` now auto-generates `.mcp.json` with `--watch` flag for MCP server config (Step 9)
+- Installer expanded from 8 to 10 steps for complete project setup
 - `coderag validate` CLI command for configuration and environment validation
 - CHANGELOG.md following Keep a Changelog format
 

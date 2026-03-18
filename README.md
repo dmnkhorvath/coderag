@@ -150,6 +150,7 @@ Press `:` to enter command mode (vim-style):
 - **3 resources** providing passive context (summary, architecture, file map)
 - **Hot-reload** — Automatically detects database changes
 - **Token budgeting** — Responses sized to fit LLM context windows
+- **Automated setup** — `install-coderag.sh` handles full project setup including `.mcp.json` and `CLAUDE.md` generation
 
 ### 📦 Export & Output
 - **3 formats** — Markdown, JSON, Tree
@@ -181,6 +182,11 @@ coderag --help
 **One-line install:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+```
+
+**Set up a project** (parses, configures MCP, installs AI skill files):
+```bash
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | sh -s /path/to/project
 ```
 
 ### Parse Your First Project

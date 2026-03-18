@@ -95,6 +95,31 @@ sh ~/.coderag/src/uninstall.sh
 
 ---
 
+## Project Setup
+
+After installing CodeRAG, use `install-coderag.sh` to set up a specific project. This script performs a complete 10-step setup:
+
+| Step | Action | Description |
+|------|--------|-------------|
+| 1 | Verify installation | Confirms `coderag` binary is available |
+| 2 | `coderag init` | Generates `codegraph.yaml` configuration |
+| 3 | `coderag parse` | Builds the knowledge graph (`.codegraph/graph.db`) |
+| 4 | `coderag validate` | Validates configuration and environment |
+| 5 | `coderag info` | Displays codebase statistics |
+| 6 | `coderag embed` | Generates semantic embeddings (optional) |
+| 7 | Install `SKILL.md` | Places OpenSkill file at `.coderag/skill/SKILL.md` with root symlink |
+| 8 | Install `CLAUDE.md` | Installs Claude Code project instructions (3-tier source: local → GitHub → error) |
+| 9 | Generate `.mcp.json` | Auto-detects binary path, configures MCP server with `--watch` flag |
+| 10 | Verify MCP server | Confirms `coderag serve --watch` starts correctly |
+
+### Usage
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | sh -s /path/to/your/project
+```
+
+> **Generated files:** `codegraph.yaml`, `.codegraph/graph.db`, `.coderag/skill/SKILL.md`, `SKILL.md` (symlink), `CLAUDE.md`, `.mcp.json`
+
 ## Method 2: pip install (Development)
 
 For development or if you want more control:
