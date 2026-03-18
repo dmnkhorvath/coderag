@@ -15,9 +15,10 @@
 #   5. Shows graph statistics      (coderag info)
 #   6. Generates embeddings        (coderag embed)       [optional]
 #   7. Installs SKILL.md           (OpenSkill format)
-#   8. Installs CLAUDE.md          (Claude Code instructions)
-#   9. Installs .mcp.json          (MCP server config)
-#  10. Verifies MCP server         (coderag serve --watch)
+#   8. Installs global skill       (~/.claude/ for all projects)
+#   9. Installs CLAUDE.md          (Claude Code instructions)
+#  10. Installs .mcp.json          (MCP server config)
+#  11. Verifies MCP server         (coderag serve --watch)
 
 
 main() {
@@ -68,7 +69,7 @@ main() {
     info "Path:    $PROJECT_DIR"
 
     # ── Step 1: Verify coderag is installed ───────────────────────
-    step "Step 1/10: Checking coderag installation"
+    step "Step 1/11: Checking coderag installation"
     if ! command -v coderag >/dev/null 2>&1; then
         err "coderag not found on PATH"
         echo ""
@@ -81,7 +82,7 @@ main() {
     ok "coderag found: $(which coderag)"
 
     # ── Step 2: Initialize config (coderag init) ──────────────────
-    step "Step 2/10: Initializing configuration"
+    step "Step 2/11: Initializing configuration"
     CONFIG_FILE="$PROJECT_DIR/codegraph.yaml"
     if [ -f "$CONFIG_FILE" ]; then
         ok "Config already exists: codegraph.yaml"
@@ -96,7 +97,7 @@ main() {
     fi
 
     # ── Step 3: Parse codebase (coderag parse) ────────────────────
-    step "Step 3/10: Building knowledge graph"
+    step "Step 3/11: Building knowledge graph"
     DB_DIR="$PROJECT_DIR/.codegraph"
     DB_PATH="$DB_DIR/graph.db"
     if [ -f "$DB_PATH" ]; then
@@ -116,7 +117,7 @@ main() {
     fi
 
     # ── Step 4: Validate configuration (coderag validate) ─────────
-    step "Step 4/10: Validating configuration"
+    step "Step 4/11: Validating configuration"
     if coderag validate "$PROJECT_DIR" 2>/dev/null; then
         ok "Validation passed"
     else
@@ -124,11 +125,11 @@ main() {
     fi
 
     # ── Step 5: Show graph statistics (coderag info) ──────────────
-    step "Step 5/10: Graph statistics"
+    step "Step 5/11: Graph statistics"
     coderag info "$PROJECT_DIR" 2>/dev/null || warn "Could not read graph stats"
 
     # ── Step 6: Semantic embeddings (coderag embed) ───────────────
-    step "Step 6/10: Semantic embeddings (optional)"
+    step "Step 6/11: Semantic embeddings (optional)"
     ask "Generate semantic embeddings? [y/N]"
     case "$REPLY" in
         [Yy]*)
@@ -146,7 +147,7 @@ main() {
     esac
 
     # ── Step 7: Install SKILL.md (OpenSkill format) ───────────────
-    step "Step 7/10: Installing AI skill (OpenSkill)"
+    step "Step 7/11: Installing AI skill (OpenSkill)"
     SKILL_DIR="$PROJECT_DIR/.coderag/skill"
     SKILL_MD="$SKILL_DIR/SKILL.md"
 
@@ -207,8 +208,51 @@ main() {
         _install_skill
     fi
 
-    # ── Step 8: Install CLAUDE.md (Claude Code instructions) ──────
-    step "Step 8/10: Installing Claude Code instructions"
+    # ── Step 8: Install global skill (~/.claude/) ───────────────
+    step "Step 8/11: Installing global Claude skill"
+    GLOBAL_SKILL_DIR="$HOME/.claude/skills/coderag"
+    GLOBAL_SKILL_MD="$GLOBAL_SKILL_DIR/SKILL.md"
+
+    _install_global_skill() {
+        mkdir -p "$GLOBAL_SKILL_DIR"
+
+        # Source: use the project-local SKILL.md we just installed
+        if [ -f "$SKILL_MD" ]; then
+            cp "$SKILL_MD" "$GLOBAL_SKILL_MD"
+            ok "Installed global skill: $GLOBAL_SKILL_MD"
+        else
+            # Fallback: download from GitHub
+            info "Local SKILL.md not found, downloading from GitHub..."
+            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag/main/skill/SKILL.md"                  -o "$GLOBAL_SKILL_MD" 2>/dev/null; then
+                ok "Installed global skill (downloaded from GitHub)"
+            else
+                err "Could not install global skill"
+                return 1
+            fi
+        fi
+
+        # Create a convenience symlink at ~/.claude/coderag-SKILL.md
+        local GLOBAL_LINK="$HOME/.claude/coderag-SKILL.md"
+        if [ ! -f "$GLOBAL_LINK" ] && [ ! -L "$GLOBAL_LINK" ]; then
+            ln -s "skills/coderag/SKILL.md" "$GLOBAL_LINK" 2>/dev/null &&                 ok "Symlink: ~/.claude/coderag-SKILL.md -> skills/coderag/SKILL.md" || true
+        fi
+
+        info "CodeRAG skill is now globally available for all Claude projects"
+    }
+
+    if [ -f "$GLOBAL_SKILL_MD" ]; then
+        warn "Global skill already exists at $GLOBAL_SKILL_MD"
+        ask "Overwrite? [y/N]"
+        case "$REPLY" in
+            [Yy]*) _install_global_skill ;;
+            *)     info "Keeping existing global skill" ;;
+        esac
+    else
+        _install_global_skill
+    fi
+
+    # ── Step 9: Install CLAUDE.md (Claude Code instructions) ──────
+    step "Step 9/11: Installing Claude Code instructions"
     CLAUDE_MD="$PROJECT_DIR/CLAUDE.md"
 
     _install_claude_md() {
@@ -257,8 +301,8 @@ main() {
         _install_claude_md
     fi
 
-    # ── Step 9: Install .mcp.json (MCP server config) ─────────────
-    step "Step 9/10: Installing MCP server configuration"
+    # ── Step 10: Install .mcp.json (MCP server config) ────────────
+    step "Step 10/11: Installing MCP server configuration"
     MCP_JSON="$PROJECT_DIR/.mcp.json"
 
     _install_mcp_json() {
@@ -295,8 +339,8 @@ MCPEOF
         _install_mcp_json
     fi
 
-    # ── Step 10: Verify MCP server (coderag serve --watch) ────────
-    step "Step 10/10: Verifying MCP server"
+    # ── Step 11: Verify MCP server (coderag serve --watch) ────────
+    step "Step 11/11: Verifying MCP server"
     info "Testing MCP server startup (with file watcher)..."
     if timeout 3 coderag serve "$PROJECT_DIR" --watch </dev/null >/dev/null 2>&1; then
         ok "MCP server + file watcher starts successfully"
@@ -321,6 +365,8 @@ MCPEOF
     [ -f "$DB_PATH" ]      && echo "    ✓ .codegraph/graph.db      — knowledge graph"
     [ -f "$SKILL_MD" ]     && echo "    ✓ .coderag/skill/SKILL.md  — AI skill"
     [ -L "$PROJECT_DIR/SKILL.md" ] && echo "    ✓ SKILL.md                 — symlink"
+    [ -f "$GLOBAL_SKILL_MD" ]  && echo "    ✓ ~/.claude/skills/coderag — global skill"
+    [ -L "$HOME/.claude/coderag-SKILL.md" ] && echo "    ✓ ~/.claude/coderag-SKILL.md — global symlink"
     [ -f "$CLAUDE_MD" ]    && echo "    ✓ CLAUDE.md                — Claude Code instructions"
     [ -f "$MCP_JSON" ]     && echo "    ✓ .mcp.json                — MCP server config"
     echo ""
