@@ -36,10 +36,20 @@ warn()  { printf "${YELLOW}⚠${NC}  %s\n" "$*"; }
 err()   { printf "${RED}✗${NC}  %s\n" "$*"; }
 step()  { printf "\n${CYAN}── %s ──${NC}\n" "$*"; }
 
-# ── Prompt helper (POSIX-safe, no read -p) ────────────────────
+# ── Prompt helper (POSIX-safe, reads from /dev/tty for curl|sh) ─
+if [ -t 0 ] || [ -e /dev/tty ]; then
+    INTERACTIVE=true
+else
+    INTERACTIVE=false
+fi
+
 ask() {
-    printf "   %s " "$1"
-    read -r REPLY
+    if [ "$INTERACTIVE" = true ]; then
+        printf "   %s " "$1"
+        read -r REPLY < /dev/tty
+    else
+        REPLY="N"
+    fi
 }
 
 PROJECT_DIR="${1:-.}"
