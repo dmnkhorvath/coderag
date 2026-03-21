@@ -2553,6 +2553,13 @@ def validate(config_path: str | None) -> None:
         )
 
 
+# ── Launch Command ─────────────────────────────────────────────
+
+from coderag.cli.launch import launch  # noqa: E402
+
+cli.add_command(launch)
+
+
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
 
 
