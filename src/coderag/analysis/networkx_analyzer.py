@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
@@ -256,42 +257,67 @@ class NetworkXAnalyzer:
     # ── Community Detection ───────────────────────────────────
 
     def community_detection(self) -> list[set[str]]:
-        """Detect communities using greedy modularity optimization.
+        """Detect communities using tiered algorithm selection.
 
-        Operates on the undirected view of the graph.
+        Algorithm selection based on graph size:
+        - < 10K nodes: greedy modularity (best quality, O(n² log n))
+        - 10K-500K nodes: Leiden algorithm (excellent quality, O(n log n))
+        - > 500K nodes: label propagation (good quality, O(n + m))
 
         Returns:
             List of sets, each set containing node IDs in a community.
             Sorted by community size (largest first).
         """
         self._ensure_loaded()
-
         if self._graph.number_of_nodes() == 0:
             return []
 
         undirected = self._graph.to_undirected()
-
-        # Remove isolated nodes for better community detection
         isolates = list(nx.isolates(undirected))
         if isolates:
             undirected.remove_nodes_from(isolates)
-
         if undirected.number_of_nodes() == 0:
             return []
 
-        try:
-            from networkx.algorithms.community import (
-                greedy_modularity_communities,
-            )
+        node_count = undirected.number_of_nodes()
 
-            communities = list(greedy_modularity_communities(undirected))
+        try:
+            if node_count < 10_000:
+                logger.info("Community detection: using greedy modularity (%d nodes)", node_count)
+                from networkx.algorithms.community import greedy_modularity_communities
+                communities = list(greedy_modularity_communities(undirected))
+            elif node_count < 500_000:
+                logger.info("Community detection: using Leiden algorithm (%d nodes)", node_count)
+                communities = self._leiden_communities(undirected)
+            else:
+                logger.info("Community detection: using label propagation (%d nodes)", node_count)
+                from networkx.algorithms.community import label_propagation_communities
+                communities = [set(c) for c in label_propagation_communities(undirected)]
         except Exception as exc:
             logger.warning("Community detection failed: %s", exc)
-            # Fallback: use connected components as communities
             communities = [set(c) for c in nx.connected_components(undirected)]
 
-        # Sort by size descending
         communities.sort(key=len, reverse=True)
+        return communities
+
+    def _leiden_communities(self, undirected: nx.Graph) -> list[set[str]]:
+        """Run Leiden community detection via igraph."""
+        import igraph as ig
+        import leidenalg
+
+        # Convert NetworkX graph to igraph
+        g = ig.Graph.from_networkx(undirected)
+        node_names = g.vs["_nx_name"]
+
+        # Run Leiden with modularity optimization
+        partition = leidenalg.find_partition(g, leidenalg.ModularityVertexPartition)
+
+        # Convert partition to list of sets
+        communities = []
+        for community_indices in partition:
+            community_set = {node_names[i] for i in community_indices}
+            communities.append(community_set)
+
         return communities
 
     # ── Shortest Path ─────────────────────────────────────────
@@ -646,8 +672,9 @@ class NetworkXAnalyzer:
 
     # ── Persistence ───────────────────────────────────────────
 
-    # Maximum graph size for community detection (greedy modularity is O(n² log n))
-    _COMMUNITY_DETECTION_NODE_LIMIT = 50_000
+    @staticmethod
+    def _timeout_handler(signum, frame):
+        raise TimeoutError("Community detection timed out")
 
     def persist_scores_to_store(self, store: SQLiteStore) -> None:
         """Batch-update pagerank and community_id columns in the nodes table.
@@ -674,25 +701,21 @@ class NetworkXAnalyzer:
             conn.commit()
             logger.info("Persisted %d PageRank scores", len(scores))
 
-        # ── Phase 2: Community detection (skip on large graphs) ──
+        # ── Phase 2: Community detection (always runs with timeout) ──
         community_map: dict[str, int] = {}
-        node_count = self._graph.number_of_nodes()
 
-        if node_count > self._COMMUNITY_DETECTION_NODE_LIMIT:
-            logger.warning(
-                "Skipping community detection: graph has %s nodes "
-                "(threshold: %s)",
-                f"{node_count:,}",
-                f"{self._COMMUNITY_DETECTION_NODE_LIMIT:,}",
-            )
-        else:
-            try:
-                community_sets = self.community_detection()
-                for community_id, members in enumerate(community_sets):
-                    for node_id in members:
-                        community_map[node_id] = community_id
-            except Exception:  # noqa: BLE001
-                logger.warning("Community detection failed during persist, skipping")
+        try:
+            old_handler = signal.signal(signal.SIGALRM, self._timeout_handler)
+            signal.alarm(120)  # 120 second timeout
+            community_sets = self.community_detection()
+            signal.alarm(0)  # Cancel alarm
+            signal.signal(signal.SIGALRM, old_handler)
+            for community_id, members in enumerate(community_sets):
+                for node_id in members:
+                    community_map[node_id] = community_id
+        except (TimeoutError, Exception) as exc:  # noqa: BLE001
+            signal.alarm(0)
+            logger.warning("Community detection failed or timed out: %s", exc)
 
         if community_map:
             conn.executemany(
