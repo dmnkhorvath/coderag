@@ -2559,6 +2559,10 @@ from coderag.cli.launch import launch  # noqa: E402
 
 cli.add_command(launch)
 
+from coderag.cli.session import session  # noqa: E402
+
+cli.add_command(session)
+
 
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
 

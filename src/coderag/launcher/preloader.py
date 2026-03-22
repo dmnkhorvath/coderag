@@ -234,6 +234,26 @@ def build_preload_context(
             sections.append(entry_points)
             tokens_used += entry_tokens
 
+
+    # 6. Session context (if available, remaining budget)
+    remaining = token_budget - tokens_used
+    if remaining > 200:
+        try:
+            from coderag.session.injector import ContextInjector
+            from coderag.session.store import SessionStore
+
+            db_path = config.db_path_absolute
+            session_store = SessionStore(db_path)
+            injector = ContextInjector(session_store)
+            session_ctx = injector.generate_context(token_budget=remaining)
+            session_tokens = _estimate_tokens(session_ctx)
+            if session_ctx.strip() and tokens_used + session_tokens <= token_budget:
+                sections.append(session_ctx)
+                tokens_used += session_tokens
+            session_store.close()
+        except Exception as exc:
+            logger.debug("Could not load session context: %s", exc)
+
     result = "\n".join(sections)
 
     # Final truncation safety net

@@ -21,9 +21,11 @@ from mcp.server.fastmcp import FastMCP
 
 from coderag.analysis.networkx_analyzer import NetworkXAnalyzer
 from coderag.storage.sqlite_store import SQLiteStore
+from coderag.session.store import SessionStore
 
 from .resources import register_resources
 from .tools import register_tools
+from .session_tools import register_session_tools
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +238,10 @@ def create_server(
     # Register tools and resources (they capture store_ref/analyzer_ref)
     register_tools(mcp, store_ref, analyzer_ref)
     register_resources(mcp, store_ref, analyzer_ref)
+
+    # Register session tools (uses same database for session tables)
+    session_store = SessionStore(str(resolved_db))
+    register_session_tools(mcp, session_store)
 
     stats = ctx.analyzer.get_statistics()
     logger.info(
