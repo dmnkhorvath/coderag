@@ -436,6 +436,17 @@ class PipelineOrchestrator:
         # ── Phase 7b: PHPStan Enrichment (optional) ───────────
         self._run_phpstan_enrichment(project_root)
 
+        # ── Phase 9: Persist graph analysis scores ────────────
+        try:
+            from coderag.analysis.networkx_analyzer import NetworkXAnalyzer
+
+            analyzer = NetworkXAnalyzer()
+            analyzer.load_from_store(self._store)
+            analyzer.persist_scores_to_store(self._store)
+            logger.info("Phase 9: Persisted PageRank and community scores")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Phase 9: Graph analysis persist failed: %s", exc)
+
         elapsed = time.perf_counter() - t0
         summary = PipelineSummary(
             total_files=total_files,

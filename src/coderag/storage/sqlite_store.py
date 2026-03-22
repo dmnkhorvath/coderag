@@ -811,8 +811,8 @@ class SQLiteStore:
         if self._db_path != ":memory:" and os.path.exists(self._db_path):
             db_size = os.path.getsize(self._db_path)
 
-        frameworks_raw = self.get_metadata("frameworks")
-        frameworks = json.loads(frameworks_raw) if frameworks_raw else []
+        frameworks_raw = self.get_metadata("detected_frameworks")
+        frameworks = [f.strip() for f in frameworks_raw.split(",") if f.strip()] if frameworks_raw else []
 
         return GraphSummary(
             project_name=project_name,

@@ -644,5 +644,51 @@ class NetworkXAnalyzer:
             return None
         return dict(self._graph.nodes[node_id])
 
+    # ── Persistence ───────────────────────────────────────────
+
+    def persist_scores_to_store(self, store: SQLiteStore) -> None:
+        """Batch-update pagerank and community_id columns in the nodes table.
+
+        Computes PageRank scores and community assignments, then writes
+        them back to the SQLite ``nodes`` table in a single transaction.
+
+        Args:
+            store: The SQLiteStore instance to persist scores to.
+        """
+        self._ensure_loaded()
+
+        # Compute PageRank scores
+        scores = self.pagerank()
+
+        # Compute communities and build node -> community_id mapping
+        community_map: dict[str, int] = {}
+        try:
+            community_sets = self.community_detection()
+            for community_id, members in enumerate(community_sets):
+                for node_id in members:
+                    community_map[node_id] = community_id
+        except Exception:  # noqa: BLE001
+            logger.warning("Community detection failed during persist, skipping")
+
+        # Batch-update using executemany + commit
+        conn = store.connection
+        if scores:
+            conn.executemany(
+                "UPDATE nodes SET pagerank = ? WHERE id = ?",
+                [(score, node_id) for node_id, score in scores.items()],
+            )
+        if community_map:
+            conn.executemany(
+                "UPDATE nodes SET community_id = ? WHERE id = ?",
+                [(cid, node_id) for node_id, cid in community_map.items()],
+            )
+        conn.commit()
+
+        logger.info(
+            "Persisted scores: %d pagerank, %d community assignments",
+            len(scores),
+            len(community_map),
+        )
+
     def __repr__(self) -> str:
         return f"NetworkXAnalyzer(nodes={self.node_count}, edges={self.edge_count}, loaded={self._loaded})"
