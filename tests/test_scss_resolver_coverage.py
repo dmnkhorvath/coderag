@@ -1,7 +1,5 @@
 """Targeted coverage tests for SCSS resolver — covers lines 85, 131, 175, 200, 217-218, 233-249."""
 
-import pytest
-
 from coderag.core.models import FileInfo, Language, ResolutionStrategy
 from coderag.plugins.scss.resolver import SCSSResolver
 
@@ -22,9 +20,11 @@ class TestSCSSResolverResolveSymbol:
     def test_resolve_symbol_delegates(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/_vars.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/_vars.scss"),
+            ]
+        )
         result = r.resolve_symbol("vars", "styles/main.scss")
         # resolve_symbol should delegate to resolve
         assert result is not None
@@ -50,9 +50,11 @@ class TestSCSSResolverExactMatch:
     def test_exact_match_with_extension(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/reset.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/reset.scss"),
+            ]
+        )
         result = r.resolve("./reset.scss", "styles/main.scss")
         assert result.resolved_path == "styles/reset.scss"
         assert result.confidence == 1.0
@@ -61,9 +63,11 @@ class TestSCSSResolverExactMatch:
     def test_exact_match_full_path(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("components/button.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("components/button.scss"),
+            ]
+        )
         result = r.resolve("./button.scss", "components/index.scss")
         assert result.resolved_path == "components/button.scss"
         assert result.confidence == 1.0
@@ -75,9 +79,11 @@ class TestSCSSResolverPartialDirectory:
     def test_partial_directory_index(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/_utils/index.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/_utils/index.scss"),
+            ]
+        )
         result = r.resolve("./utils", "styles/main.scss")
         assert result is not None
         if result.resolved_path is not None:
@@ -87,9 +93,11 @@ class TestSCSSResolverPartialDirectory:
     def test_partial_directory_underscore_index(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/_mixins/_index.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/_mixins/_index.scss"),
+            ]
+        )
         result = r.resolve("./mixins", "styles/main.scss")
         assert result is not None
         if result.resolved_path is not None:
@@ -98,9 +106,11 @@ class TestSCSSResolverPartialDirectory:
     def test_partial_directory_sass_extension(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/_helpers/index.sass"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/_helpers/index.sass"),
+            ]
+        )
         result = r.resolve("./helpers", "styles/main.scss")
         assert result is not None
 
@@ -112,9 +122,11 @@ class TestSCSSResolverBasenameWithExtension:
         """When import name contains a dot, try exact basename lookup."""
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("vendor/bootstrap.min.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("vendor/bootstrap.min.scss"),
+            ]
+        )
         # Import with a dot in the name — triggers the "." in name branch
         result = r.resolve("bootstrap.min", "styles/main.scss")
         assert result is not None
@@ -122,9 +134,11 @@ class TestSCSSResolverBasenameWithExtension:
     def test_basename_with_scss_extension(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("lib/theme.dark.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("lib/theme.dark.scss"),
+            ]
+        )
         result = r.resolve("theme.dark", "styles/main.scss")
         assert result is not None
 
@@ -135,9 +149,11 @@ class TestSCSSResolverMultipleBasenameMatches:
     def test_single_basename_match(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("components/_button.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("components/_button.scss"),
+            ]
+        )
         result = r.resolve("button", "pages/home.scss")
         if result.resolved_path is not None:
             assert result.confidence == 0.7
@@ -147,11 +163,13 @@ class TestSCSSResolverMultipleBasenameMatches:
         """Multiple files with same basename — _pick_closest selects nearest."""
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("components/_button.scss"),
-            _make_fi("pages/_button.scss"),
-            _make_fi("shared/_button.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("components/_button.scss"),
+                _make_fi("pages/_button.scss"),
+                _make_fi("shared/_button.scss"),
+            ]
+        )
         # from_file in src/ where no _button.scss exists — triggers basename multi-match
         result = r.resolve("button", "src/main.scss")
         assert result.resolved_path is not None
@@ -161,11 +179,13 @@ class TestSCSSResolverMultipleBasenameMatches:
     def test_multiple_matches_different_directories(self):
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("a/b/c/_vars.scss"),
-            _make_fi("a/b/_vars.scss"),
-            _make_fi("x/y/_vars.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("a/b/c/_vars.scss"),
+                _make_fi("a/b/_vars.scss"),
+                _make_fi("x/y/_vars.scss"),
+            ]
+        )
         # from z/ where no _vars.scss exists — triggers basename multi-match
         result = r.resolve("vars", "z/main.scss")
         assert result.resolved_path is not None
@@ -239,9 +259,11 @@ class TestSCSSResolverEdgeCases:
         """SCSS partial convention: _filename.scss."""
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/_variables.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/_variables.scss"),
+            ]
+        )
         result = r.resolve("./variables", "styles/main.scss")
         if result.resolved_path is not None:
             assert "_variables.scss" in result.resolved_path
@@ -251,9 +273,11 @@ class TestSCSSResolverEdgeCases:
         """Import without extension — resolver adds .scss."""
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/reset.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/reset.scss"),
+            ]
+        )
         result = r.resolve("./reset", "styles/main.scss")
         if result.resolved_path is not None:
             assert result.confidence >= 0.9
@@ -269,9 +293,11 @@ class TestSCSSResolverEdgeCases:
         """Import a directory — resolver tries index.scss."""
         r = SCSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/utils/index.scss"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/utils/index.scss"),
+            ]
+        )
         result = r.resolve("./utils", "styles/main.scss")
         if result.resolved_path is not None:
             assert "index" in result.resolved_path

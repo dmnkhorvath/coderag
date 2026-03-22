@@ -7,17 +7,14 @@ Covers uncovered lines: 61-62, 72-73, 100, 114-115, 176-184,
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers: mock SQLiteStore and NetworkXAnalyzer
 # ---------------------------------------------------------------------------
+
 
 def _mock_store():
     store = MagicMock()
@@ -58,8 +55,10 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()) as mock_s, \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()) as mock_a:
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()) as mock_s,
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()) as mock_a,
+        ):
             ctx = GraphContext(str(db_file))
             assert ctx._load_count == 1
             mock_s.return_value.initialize.assert_called_once()
@@ -84,8 +83,7 @@ class TestGraphContext:
             call_count[0] += 1
             return stores[idx]
 
-        with patch(_STORE_CLS, side_effect=store_factory), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, side_effect=store_factory), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             assert ctx._load_count == 1
             # Reload triggers close on store1 which raises
@@ -99,9 +97,11 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch("os.path.getmtime", side_effect=OSError("no file")):
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch("os.path.getmtime", side_effect=OSError("no file")),
+        ):
             ctx = GraphContext(str(db_file))
             assert ctx._last_mtime == 0.0
 
@@ -112,8 +112,7 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             assert ctx.db_path == str(db_file)
 
@@ -124,8 +123,7 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
 
         with patch("os.path.getmtime", side_effect=OSError("gone")):
@@ -138,15 +136,16 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             old_count = ctx._load_count
 
         # Simulate mtime increase
-        with patch("os.path.getmtime", return_value=ctx._last_mtime + 100), \
-             patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with (
+            patch("os.path.getmtime", return_value=ctx._last_mtime + 100),
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+        ):
             result = ctx.check_and_reload()
             assert result is True
             assert ctx._load_count == old_count + 1
@@ -158,8 +157,7 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
 
         with patch("os.path.getmtime", return_value=ctx._last_mtime):
@@ -173,8 +171,7 @@ class TestGraphContext:
         db_file.touch()
         mock_s = _mock_store()
 
-        with patch(_STORE_CLS, return_value=mock_s), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=mock_s), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             ctx.close()
             mock_s.close.assert_called()
@@ -188,8 +185,7 @@ class TestGraphContext:
         db_file.touch()
         mock_s = _mock_store()
 
-        with patch(_STORE_CLS, return_value=mock_s), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=mock_s), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             assert ctx.store is mock_s
 
@@ -201,14 +197,11 @@ class TestGraphContext:
         db_file.touch()
         mock_a = _mock_analyzer()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=mock_a):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=mock_a):
             ctx = GraphContext(str(db_file))
             assert ctx.analyzer is mock_a
 
-
-# ═══════════════════════════════════════════════════════════════════════
-
+    # ═══════════════════════════════════════════════════════════════════════
 
     def test_last_mtime_property(self, tmp_path):
         """Line 104: last_mtime property returns the mtime."""
@@ -217,13 +210,13 @@ class TestGraphContext:
         db_file = tmp_path / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             # Access the property (not the private attribute)
             mtime = ctx.last_mtime
             assert isinstance(mtime, float)
             assert mtime > 0
+
 
 # Tests for _StoreProxy and _AnalyzerProxy
 # ═══════════════════════════════════════════════════════════════════════
@@ -240,8 +233,7 @@ class TestProxies:
         mock_s = _mock_store()
         mock_s.some_method.return_value = "result"
 
-        with patch(_STORE_CLS, return_value=mock_s), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
+        with patch(_STORE_CLS, return_value=mock_s), patch(_ANALYZER_CLS, return_value=_mock_analyzer()):
             ctx = GraphContext(str(db_file))
             proxy = _StoreProxy(ctx)
             assert proxy.some_method() == "result"
@@ -254,8 +246,7 @@ class TestProxies:
         mock_a = _mock_analyzer()
         mock_a.some_method.return_value = 42
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=mock_a):
+        with patch(_STORE_CLS, return_value=_mock_store()), patch(_ANALYZER_CLS, return_value=mock_a):
             ctx = GraphContext(str(db_file))
             proxy = _AnalyzerProxy(ctx)
             assert proxy.some_method() == 42
@@ -321,10 +312,12 @@ class TestCreateServer:
         db_file = db_dir / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS) as mock_rt, \
-             patch(_REG_RESOURCES) as mock_rr:
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS) as mock_rt,
+            patch(_REG_RESOURCES) as mock_rr,
+        ):
             mcp, ctx = create_server(str(tmp_path))
             assert mcp is not None
             assert ctx is not None
@@ -334,17 +327,19 @@ class TestCreateServer:
 
     def test_create_server_hot_reload(self, tmp_path):
         """Lines 217-219: hot_reload uses proxy objects."""
-        from coderag.mcp.server import create_server, _StoreProxy, _AnalyzerProxy
+        from coderag.mcp.server import _AnalyzerProxy, _StoreProxy, create_server
 
         db_dir = tmp_path / ".codegraph"
         db_dir.mkdir()
         db_file = db_dir / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS) as mock_rt, \
-             patch(_REG_RESOURCES) as mock_rr:
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS) as mock_rt,
+            patch(_REG_RESOURCES) as mock_rr,
+        ):
             mcp, ctx = create_server(str(tmp_path), hot_reload=True)
             # Check that proxies were passed to register_tools/resources
             store_arg = mock_rt.call_args[0][1]
@@ -355,7 +350,7 @@ class TestCreateServer:
 
     def test_create_server_no_hot_reload(self, tmp_path):
         """Lines 220-222: no hot_reload uses direct references."""
-        from coderag.mcp.server import create_server, _StoreProxy, _AnalyzerProxy
+        from coderag.mcp.server import _StoreProxy, create_server
 
         db_dir = tmp_path / ".codegraph"
         db_dir.mkdir()
@@ -363,10 +358,12 @@ class TestCreateServer:
         db_file.touch()
         mock_s = _mock_store()
 
-        with patch(_STORE_CLS, return_value=mock_s), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS) as mock_rt, \
-             patch(_REG_RESOURCES):
+        with (
+            patch(_STORE_CLS, return_value=mock_s),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS) as mock_rt,
+            patch(_REG_RESOURCES),
+        ):
             mcp, ctx = create_server(str(tmp_path), hot_reload=False)
             store_arg = mock_rt.call_args[0][1]
             assert not isinstance(store_arg, _StoreProxy)
@@ -379,10 +376,12 @@ class TestCreateServer:
         db_file = tmp_path / "custom.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS), \
-             patch(_REG_RESOURCES):
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS),
+            patch(_REG_RESOURCES),
+        ):
             mcp, ctx = create_server(str(tmp_path), db_path=str(db_file))
             assert ctx.db_path == str(db_file)
             ctx.close()
@@ -399,10 +398,12 @@ class TestCreateServer:
         mock_s = _mock_store()
         mock_s.get_summary.side_effect = RuntimeError("no summary")
 
-        with patch(_STORE_CLS, return_value=mock_s), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS), \
-             patch(_REG_RESOURCES):
+        with (
+            patch(_STORE_CLS, return_value=mock_s),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS),
+            patch(_REG_RESOURCES),
+        ):
             mcp, ctx = create_server(str(tmp_path))
             # Should not raise, falls back to dir name
             assert mcp is not None
@@ -494,8 +495,7 @@ class TestRunStdioServer:
         db_file = db_dir / "graph.db"
         db_file.touch()
 
-        with patch(_STORE_CLS, side_effect=RuntimeError("init failed")), \
-             pytest.raises(SystemExit) as exc_info:
+        with patch(_STORE_CLS, side_effect=RuntimeError("init failed")), pytest.raises(SystemExit) as exc_info:
             run_stdio_server(str(tmp_path))
         assert exc_info.value.code == 1
 
@@ -509,15 +509,19 @@ class TestRunStdioServer:
         db_file.touch()
 
         mock_mcp = MagicMock()
+
         async def _fake_run():
             pass
+
         mock_mcp.run_stdio_async = _fake_run
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS), \
-             patch(_REG_RESOURCES), \
-             patch("coderag.mcp.server.FastMCP", return_value=mock_mcp):
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS),
+            patch(_REG_RESOURCES),
+            patch("coderag.mcp.server.FastMCP", return_value=mock_mcp),
+        ):
             run_stdio_server(str(tmp_path), hot_reload=False)
 
     def test_run_stdio_server_with_hot_reload(self, tmp_path):
@@ -536,11 +540,13 @@ class TestRunStdioServer:
 
         mock_mcp.run_stdio_async = fake_run_stdio
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS), \
-             patch(_REG_RESOURCES), \
-             patch("coderag.mcp.server.FastMCP", return_value=mock_mcp):
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS),
+            patch(_REG_RESOURCES),
+            patch("coderag.mcp.server.FastMCP", return_value=mock_mcp),
+        ):
             run_stdio_server(str(tmp_path), hot_reload=True)
 
     def test_run_stdio_server_with_explicit_db_path(self, tmp_path):
@@ -557,9 +563,11 @@ class TestRunStdioServer:
 
         mock_mcp.run_stdio_async = fake_run_stdio
 
-        with patch(_STORE_CLS, return_value=_mock_store()), \
-             patch(_ANALYZER_CLS, return_value=_mock_analyzer()), \
-             patch(_REG_TOOLS), \
-             patch(_REG_RESOURCES), \
-             patch("coderag.mcp.server.FastMCP", return_value=mock_mcp):
+        with (
+            patch(_STORE_CLS, return_value=_mock_store()),
+            patch(_ANALYZER_CLS, return_value=_mock_analyzer()),
+            patch(_REG_TOOLS),
+            patch(_REG_RESOURCES),
+            patch("coderag.mcp.server.FastMCP", return_value=mock_mcp),
+        ):
             run_stdio_server(str(tmp_path), db_path=str(db_file), hot_reload=False)

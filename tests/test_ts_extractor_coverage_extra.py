@@ -10,16 +10,18 @@ Focuses on:
 7. JSX element rendering and props
 8. Various empty-name guard clauses
 """
-import pytest
-from unittest.mock import patch, MagicMock
-import sys
+
 import os
+import sys
+from unittest.mock import patch
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from coderag.plugins.typescript.extractor import TypeScriptExtractor
-from coderag.core.models import NodeKind, EdgeKind
 import coderag.plugins.typescript.extractor as ext_mod
+from coderag.core.models import EdgeKind, NodeKind
+from coderag.plugins.typescript.extractor import TypeScriptExtractor
 
 
 @pytest.fixture
@@ -45,6 +47,7 @@ def find_node(result, kind, name):
 # ===================================================================
 # PARAMETER EXTRACTION EDGE CASES (lines 100, 104, 113-116, 130-141)
 # ===================================================================
+
 
 class TestParameterEdgeCases:
     """Test _extract_parameters fallback paths."""
@@ -95,12 +98,14 @@ class TestParameterEdgeCases:
         """Lines 113-116: fallback when pattern field is None."""
         real_cbf = ext_mod._child_by_field
         call_count = [0]
+
         def patched(node, field):
             if field == "pattern" and node.type in ("required_parameter", "optional_parameter"):
                 call_count[0] += 1
                 if call_count[0] <= 2:
                     return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"function f(x: number, y?: string) {}")
         fn = find_node(result, NodeKind.FUNCTION, "f")
@@ -115,6 +120,7 @@ class TestParameterEdgeCases:
 # ===================================================================
 # DECORATOR EDGE CASES (lines 258-259, 262-264)
 # ===================================================================
+
 
 class TestDecoratorEdgeCases:
     """Test _extract_decorators edge cases."""
@@ -162,6 +168,7 @@ class MyClass {
 # ABSTRACT MEMBER DETECTION (line 170)
 # ===================================================================
 
+
 class TestAbstractMembers:
     """Test _is_abstract_member detection."""
 
@@ -195,6 +202,7 @@ abstract class Base {
 # TYPE ANNOTATION FALLBACK (lines 195-196)
 # ===================================================================
 
+
 class TestTypeAnnotationFallback:
     """Test _extract_type_annotation fallback path."""
 
@@ -208,10 +216,12 @@ class TestTypeAnnotationFallback:
     def test_type_annotation_fallback_via_mock(self, ext):
         """Lines 195-196: fallback when type field is None but type_annotation child exists."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "type" and node.type == "variable_declarator":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"const x: string = 'hello';")
         nodes = [n for n in result.nodes if n.kind in (NodeKind.VARIABLE, NodeKind.CONSTANT) and n.name == "x"]
@@ -221,6 +231,7 @@ class TestTypeAnnotationFallback:
 # ===================================================================
 # TYPE PARAMETERS FALLBACK (lines 226-227)
 # ===================================================================
+
 
 class TestTypeParametersFallback:
     """Test _extract_type_parameters fallback path."""
@@ -236,10 +247,12 @@ class TestTypeParametersFallback:
     def test_type_params_fallback_via_mock(self, ext):
         """Lines 226-227: fallback when type_parameters field is None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "type_parameters":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"function identity<T>(x: T): T { return x; }")
         fn = find_node(result, NodeKind.FUNCTION, "identity")
@@ -249,6 +262,7 @@ class TestTypeParametersFallback:
 # ===================================================================
 # IMPORT PROCESSING VIA MOCKING (lines 539, 551-596, 619-620)
 # ===================================================================
+
 
 class TestImportProcessingMocked:
     """Test import processing paths that are unreachable due to tree-sitter grammar.
@@ -260,19 +274,19 @@ class TestImportProcessingMocked:
 
     def test_import_default_creates_unresolved(self, ext):
         """Test that default imports create unresolved references."""
-        code = b'import React from "react";'  
+        code = b'import React from "react";'
         result = ext.extract("test.ts", code)
         assert any(r.reference_name == "react" for r in result.unresolved_references)
 
     def test_import_named_creates_unresolved(self, ext):
         """Test that named imports create unresolved references."""
-        code = b'import { useState, useEffect } from "react";'  
+        code = b'import { useState, useEffect } from "react";'
         result = ext.extract("test.ts", code)
         assert any(r.reference_name == "react" for r in result.unresolved_references)
 
     def test_import_type_only(self, ext):
         """Test type-only import."""
-        code = b'import type { Foo, Bar } from "./types";'  
+        code = b'import type { Foo, Bar } from "./types";'
         result = ext.extract("test.ts", code)
         assert any(r.reference_name == "./types" for r in result.unresolved_references)
         for r in result.unresolved_references:
@@ -281,13 +295,13 @@ class TestImportProcessingMocked:
 
     def test_import_namespace(self, ext):
         """Test namespace import."""
-        code = b'import * as path from "path";'  
+        code = b'import * as path from "path";'
         result = ext.extract("test.ts", code)
         assert any(r.reference_name == "path" for r in result.unresolved_references)
 
     def test_import_side_effect(self, ext):
         """Test side-effect import (no specifiers)."""
-        code = b'import "./polyfills";'  
+        code = b'import "./polyfills";'
         result = ext.extract("test.ts", code)
         assert any(r.reference_name == "./polyfills" for r in result.unresolved_references)
 
@@ -297,10 +311,10 @@ class TestImportProcessingMocked:
         Create a mock import_statement node where identifier, namespace_import,
         and named_imports are direct children (as the code expects).
         """
+        from coderag.core.models import Node
         from coderag.plugins.typescript.extractor import _ExtractionContext
-        from coderag.core.models import Node, generate_node_id
 
-        source = b'import React, * as ns, { foo, bar as baz, type Qux } from "react";'  
+        source = b'import React, * as ns, { foo, bar as baz, type Qux } from "react";'
 
         file_node = Node(
             id="test.ts:1:file:test.ts",
@@ -355,8 +369,9 @@ class TestImportProcessingMocked:
         qux_id = MockNode("identifier", b"Qux")
         qux_spec = MockNode("import_specifier", b"type Qux", children=[type_id, qux_id])
 
-        named_node = MockNode("named_imports", b"{ foo, bar as baz, type Qux }",
-                              children=[foo_spec, bar_spec, qux_spec])
+        named_node = MockNode(
+            "named_imports", b"{ foo, bar as baz, type Qux }", children=[foo_spec, bar_spec, qux_spec]
+        )
 
         import_node = MockNode(
             "import_statement",
@@ -366,6 +381,7 @@ class TestImportProcessingMocked:
         )
 
         real_nt = ext_mod._node_text
+
         def mock_nt(node, src):
             if isinstance(node, MockNode):
                 return node._text.decode() if isinstance(node._text, bytes) else node._text
@@ -393,10 +409,12 @@ class TestImportProcessingMocked:
     def test_import_source_none_via_mock(self, ext):
         """Line 536: import with source field None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "source" and node.type == "import_statement":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b'import { foo } from "./mod";')
         assert result is not None
@@ -405,12 +423,14 @@ class TestImportProcessingMocked:
         """Line 539: empty module path after stripping quotes."""
         real_nt = ext_mod._node_text
         real_cbf = ext_mod._child_by_field
+
         def patched_nt(node, source):
             text = real_nt(node, source)
             # Make the source string node return empty quotes
             if node.type == "string" and text.strip().strip('"').strip("'") in ("./mod",):
                 return '""'
             return text
+
         with patch.object(ext_mod, "_node_text", side_effect=patched_nt):
             result = ext.extract("test.ts", b'import { foo } from "./mod";')
         assert result is not None
@@ -420,26 +440,27 @@ class TestImportProcessingMocked:
 # EXPORT PROCESSING (lines 668, 685, 775)
 # ===================================================================
 
+
 class TestExportProcessing:
     """Test export processing edge cases."""
 
     def test_export_type_re_export(self, ext):
         """Line 668: export type detection."""
-        code = b'export type { Foo, Bar } from "./types";'  
+        code = b'export type { Foo, Bar } from "./types";'
         result = ext.extract("test.ts", code)
         export_edges = edges_by_kind(result, EdgeKind.EXPORTS)
         assert len(export_edges) >= 1
 
     def test_re_export_with_alias(self, ext):
         """Line 685: re-export with alias (parts >= 2)."""
-        code = b'export { foo as bar, baz } from "./module";'  
+        code = b'export { foo as bar, baz } from "./module";'
         result = ext.extract("test.ts", code)
         export_edges = edges_by_kind(result, EdgeKind.EXPORTS)
         assert len(export_edges) >= 2
 
     def test_export_star(self, ext):
         """Test export * from."""
-        code = b'export * from "./module";'  
+        code = b'export * from "./module";'
         result = ext.extract("test.ts", code)
         export_edges = edges_by_kind(result, EdgeKind.EXPORTS)
         assert len(export_edges) >= 1
@@ -477,6 +498,7 @@ class TestExportProcessing:
 # CLASS HERITAGE - IMPLEMENTS WITH GENERICS (lines 889-892, 943-944)
 # ===================================================================
 
+
 class TestClassHeritageGenerics:
     """Test class heritage with generic implements."""
 
@@ -490,10 +512,12 @@ class TestClassHeritageGenerics:
     def test_class_body_fallback_via_mock(self, ext):
         """Lines 889-892: class body fallback when body field is None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "body" and node.type in ("class_declaration", "abstract_class_declaration"):
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"class Foo { x: number = 5; }")
         cls = find_node(result, NodeKind.CLASS, "Foo")
@@ -503,6 +527,7 @@ class TestClassHeritageGenerics:
 # ===================================================================
 # CLASS METHOD MODIFIERS (lines 1010, 1064, 1066, 1068, 1070, 1074)
 # ===================================================================
+
 
 class TestClassMethodModifiers:
     """Test class method modifier metadata."""
@@ -589,6 +614,7 @@ class Foo {
 # PROPERTY MODIFIERS (lines 1141, 1159-1160, 1174, 1180, 1182, 1184)
 # ===================================================================
 
+
 class TestPropertyModifiers:
     """Test class property modifier metadata."""
 
@@ -645,6 +671,7 @@ class Foo {
 # INTERFACE EXTENDS WITH GENERICS (lines 1295-1296, 1320-1323)
 # ===================================================================
 
+
 class TestInterfaceExtendsGenerics:
     """Test interface extends with generic types."""
 
@@ -660,10 +687,12 @@ class TestInterfaceExtendsGenerics:
     def test_interface_body_fallback_via_mock(self, ext):
         """Lines 1320-1323: interface body fallback when body field is None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "body" and node.type == "interface_declaration":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"interface Foo { x: string; }")
         iface = find_node(result, NodeKind.INTERFACE, "Foo")
@@ -681,6 +710,7 @@ class TestInterfaceExtendsGenerics:
 # ===================================================================
 # INTERFACE METHOD WITH TYPE PARAMS (lines 1423, 1439)
 # ===================================================================
+
 
 class TestInterfaceMethodTypeParams:
     """Test interface method signatures with type parameters."""
@@ -722,16 +752,19 @@ class TestInterfaceMethodTypeParams:
 # ENUM BODY FALLBACK (lines 1549, 1568-1571, 1581-1584)
 # ===================================================================
 
+
 class TestEnumEdgeCases:
     """Test enum edge cases."""
 
     def test_enum_body_fallback_via_mock(self, ext):
         """Lines 1568-1571: enum body fallback when body field is None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "body" and node.type == "enum_declaration":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"enum Color { Red, Green, Blue }")
         enum = find_node(result, NodeKind.ENUM, "Color")
@@ -740,10 +773,12 @@ class TestEnumEdgeCases:
     def test_enum_assignment_name_fallback_via_mock(self, ext):
         """Lines 1581-1584: enum assignment name fallback when name field is None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "name" and node.type == "enum_assignment":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"enum Status { Active = 1, Inactive = 0 }")
         enum = find_node(result, NodeKind.ENUM, "Status")
@@ -753,6 +788,7 @@ class TestEnumEdgeCases:
 # ===================================================================
 # FUNCTION EDGE CASES (lines 1640, 1679)
 # ===================================================================
+
 
 class TestFunctionEdgeCases:
     """Test function edge cases."""
@@ -778,6 +814,7 @@ class TestFunctionEdgeCases:
 # ===================================================================
 # ARROW/FUNCTION EXPRESSION (lines 1894, 1896, 1900)
 # ===================================================================
+
 
 class TestArrowFunctionEdgeCases:
     """Test arrow function and function expression edge cases."""
@@ -819,6 +856,7 @@ class TestArrowFunctionEdgeCases:
 # CLASS EXPRESSION (lines 1965, 1999-2002)
 # ===================================================================
 
+
 class TestClassExpressionEdgeCases:
     """Test class expression edge cases."""
 
@@ -839,10 +877,12 @@ class TestClassExpressionEdgeCases:
     def test_class_expression_body_fallback_via_mock(self, ext):
         """Lines 1999-2002: class expression body fallback."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "body" and node.type == "class":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"const Foo = class { x = 1; };")
         cls = find_node(result, NodeKind.CLASS, "Foo")
@@ -852,6 +892,7 @@ class TestClassExpressionEdgeCases:
 # ===================================================================
 # EXPRESSION STATEMENT (line 2020)
 # ===================================================================
+
 
 class TestExpressionStatement:
     """Test expression statement handling."""
@@ -872,6 +913,7 @@ class TestExpressionStatement:
 # ===================================================================
 # MODULE/NAMESPACE DECLARATION (line 2132)
 # ===================================================================
+
 
 class TestModuleDeclaration:
     """Test module/namespace declaration."""
@@ -904,6 +946,7 @@ class TestModuleDeclaration:
 # NEW EXPRESSION (lines 2258, 2261)
 # ===================================================================
 
+
 class TestNewExpression:
     """Test new expression handling."""
 
@@ -920,10 +963,12 @@ function bar() { const x = new Foo(); }
     def test_new_expression_constructor_none_via_mock(self, ext):
         """Line 2258: new expression with constructor field None."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "constructor" and node.type == "new_expression":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"function f() { new Foo(); }")
         assert result is not None
@@ -932,6 +977,7 @@ function bar() { const x = new Foo(); }
 # ===================================================================
 # JSX ELEMENTS (lines 2317-2318, 2322-2325, 2332, 2338-2367)
 # ===================================================================
+
 
 class TestJSXElements:
     """Test JSX element handling (requires .tsx extension)."""
@@ -986,16 +1032,21 @@ function App() {
     def test_jsx_element_open_tag_fallback_via_mock(self, ext):
         """Lines 2322-2325: JSX element open_tag fallback."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "open_tag" and node.type == "jsx_element":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
-            result = ext.extract("test.tsx", b"""
+            result = ext.extract(
+                "test.tsx",
+                b"""
 function App() {
   return <MyComponent>hello</MyComponent>;
 }
-""")
+""",
+            )
         assert result is not None
 
     def test_jsx_fragment(self, ext):
@@ -1026,16 +1077,19 @@ function App(props: any) {
 # GUARD CLAUSES - EMPTY NAME VIA MOCK (lines 832, 1010, 1141, etc.)
 # ===================================================================
 
+
 class TestGuardClausesViaMock:
     """Test guard clauses where name is empty via mocking."""
 
     def _mock_empty_name(self, ext, code, target_type, file="test.ts"):
         """Helper: mock _child_by_field to return None for name field of target_type."""
         real_cbf = ext_mod._child_by_field
+
         def patched(node, field):
             if field == "name" and node.type == target_type:
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_mod, "_child_by_field", side_effect=patched):
             return ext.extract(file, code)
 
@@ -1089,17 +1143,20 @@ class TestGuardClausesViaMock:
 # EMPTY TEXT GUARD CLAUSES VIA MOCK
 # ===================================================================
 
+
 class TestEmptyTextGuardClauses:
     """Test guard clauses where _node_text returns empty string."""
 
     def _mock_empty_text(self, ext, code, target_type, target_text, file="test.ts"):
         """Helper: mock _node_text to return empty for specific node type and text."""
         real_nt = ext_mod._node_text
+
         def patched(node, source):
             text = real_nt(node, source)
             if node.type == target_type and text == target_text:
                 return ""
             return text
+
         with patch.object(ext_mod, "_node_text", side_effect=patched):
             return ext.extract(file, code)
 
@@ -1115,7 +1172,9 @@ class TestEmptyTextGuardClauses:
 
     def test_interface_method_name_empty_text(self, ext):
         """Line 1423: interface method name returns empty text."""
-        result = self._mock_empty_text(ext, b"interface Foo { doSomething(): void; }", "property_identifier", "doSomething")
+        result = self._mock_empty_text(
+            ext, b"interface Foo { doSomething(): void; }", "property_identifier", "doSomething"
+        )
         assert find_node(result, NodeKind.METHOD, "doSomething") is None
 
     def test_type_alias_name_empty_text(self, ext):
@@ -1143,6 +1202,7 @@ class TestEmptyTextGuardClauses:
 # QUALIFIED NAME WITH EMPTY SCOPE (line 311)
 # ===================================================================
 
+
 class TestQualifiedName:
     """Test qualified name generation."""
 
@@ -1167,6 +1227,7 @@ class TestQualifiedName:
 # RETURN TYPE EXTRACTION (line 213-214)
 # ===================================================================
 
+
 class TestReturnTypeExtraction:
     """Test return type extraction."""
 
@@ -1190,6 +1251,7 @@ class TestReturnTypeExtraction:
 # ===================================================================
 # COMPLEX REAL-WORLD PATTERNS
 # ===================================================================
+
 
 class TestComplexPatterns:
     """Test complex real-world TypeScript patterns."""
@@ -1308,7 +1370,7 @@ declare class Buffer {
 
     def test_re_export_star_as_namespace(self, ext):
         """Test re-export star as namespace."""
-        code = b'export * as utils from "./utils";'  
+        code = b'export * as utils from "./utils";'
         result = ext.extract("test.ts", code)
         assert result is not None
 

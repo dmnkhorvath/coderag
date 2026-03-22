@@ -10,15 +10,13 @@ import json
 import os
 from unittest.mock import patch
 
-import pytest
-
 from coderag.core.models import FileInfo, Language, ResolutionResult
 from coderag.plugins.typescript.resolver import TSResolver
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_fi(abs_path: str, project_root: str) -> FileInfo:
     """Create a FileInfo with correct absolute and relative paths."""
@@ -127,14 +125,12 @@ class TestLoadTsconfigErrors:
         """Lines 425-426: circular extends chain detected."""
         (tmp_path / "package.json").write_text("{}")
         # A extends B, B extends A
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "extends": "./tsconfig.base.json",
-            "compilerOptions": {"baseUrl": "."}
-        }))
-        (tmp_path / "tsconfig.base.json").write_text(json.dumps({
-            "extends": "./tsconfig.json",
-            "compilerOptions": {"strict": True}
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"extends": "./tsconfig.base.json", "compilerOptions": {"baseUrl": "."}})
+        )
+        (tmp_path / "tsconfig.base.json").write_text(
+            json.dumps({"extends": "./tsconfig.json", "compilerOptions": {"strict": True}})
+        )
         r = TSResolver()
         r.set_project_root(str(tmp_path))
         # Should not raise, just log warning
@@ -147,6 +143,7 @@ class TestLoadTsconfigErrors:
         real_open = open
 
         call_count = 0
+
         def patched_open(path, *a, **kw):
             nonlocal call_count
             if str(path).endswith("tsconfig.json") and str(tmp_path) in str(path):
@@ -176,17 +173,13 @@ class TestLoadTsconfigErrors:
     def test_extends_without_json_suffix(self, tmp_path):
         """Line 452: extends value without .json suffix gets it appended."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.base.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {"@/*": ["src/*"]}
-            }
-        }))
+        (tmp_path / "tsconfig.base.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
         # extends without .json suffix
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "extends": "./tsconfig.base",
-            "compilerOptions": {"strict": True}
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"extends": "./tsconfig.base", "compilerOptions": {"strict": True}})
+        )
         (tmp_path / "src").mkdir()
         (tmp_path / "src" / "utils.ts").write_text("export const x = 1;")
 
@@ -207,15 +200,9 @@ class TestApplyTsconfigPaths:
     def test_empty_targets_skipped(self, tmp_path):
         """Line 481: paths entry with empty targets array is skipped."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@empty/*": [],
-                    "@valid/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@empty/*": [], "@valid/*": ["src/*"]}}})
+        )
         r = TSResolver()
         r.set_project_root(str(tmp_path))
         # @empty should not be in aliases
@@ -225,14 +212,9 @@ class TestApplyTsconfigPaths:
     def test_exact_alias_no_wildcard(self, tmp_path):
         """Lines 487-492: exact alias without wildcard."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "utils": ["src/utils/index"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"utils": ["src/utils/index"]}}})
+        )
         r = TSResolver()
         r.set_project_root(str(tmp_path))
         assert "utils" in r._exact_aliases
@@ -240,14 +222,9 @@ class TestApplyTsconfigPaths:
     def test_exact_alias_with_trailing_star(self, tmp_path):
         """Lines 490-491: exact alias target ending with *."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "mylib": ["src/lib/*"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"mylib": ["src/lib/*"]}}})
+        )
         r = TSResolver()
         r.set_project_root(str(tmp_path))
         # The trailing * should be stripped
@@ -257,14 +234,9 @@ class TestApplyTsconfigPaths:
     def test_other_wildcard_pattern(self, tmp_path):
         """Lines 493-498: wildcard pattern that is not simple prefix/*."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "lib*": ["src/lib*"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"lib*": ["src/lib*"]}}})
+        )
         r = TSResolver()
         r.set_project_root(str(tmp_path))
         # "lib*" -> prefix "lib", stored in _aliases
@@ -273,14 +245,9 @@ class TestApplyTsconfigPaths:
     def test_other_wildcard_empty_prefix(self, tmp_path):
         """Lines 497-498: wildcard pattern with empty prefix after split."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"*": ["src/*"]}}})
+        )
         r = TSResolver()
         r.set_project_root(str(tmp_path))
         # "*" splits to prefix "" which is falsy -> not added
@@ -300,19 +267,17 @@ class TestTryAlias:
         (tmp_path / "package.json").write_text("{}")
         (tmp_path / "src" / "utils").mkdir(parents=True)
         (tmp_path / "src" / "utils" / "index.ts").write_text("export const x = 1;")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "utils": ["src/utils/index"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"utils": ["src/utils/index"]}}})
+        )
 
         abs_idx = str(tmp_path / "src" / "utils" / "index.ts")
-        r = _build_resolver(tmp_path, ["src/utils/index.ts"],
-                            tsconfig={"compilerOptions": {"baseUrl": ".", "paths": {"utils": ["src/utils/index"]}}},
-                            package_json={})
+        r = _build_resolver(
+            tmp_path,
+            ["src/utils/index.ts"],
+            tsconfig={"compilerOptions": {"baseUrl": ".", "paths": {"utils": ["src/utils/index"]}}},
+            package_json={},
+        )
 
         result = r.resolve("utils", "src/app.ts")
         assert result.resolution_strategy == "tsconfig_paths"
@@ -354,8 +319,7 @@ class TestScopedPackageResolution:
         (nm / "helpers.ts").write_text("export const x = 1;")
 
         abs_helpers = str(nm / "helpers.ts")
-        r = _build_resolver(tmp_path, [abs_helpers],
-                            package_json={})
+        r = _build_resolver(tmp_path, [abs_helpers], package_json={})
 
         result = r.resolve("@myorg/utils/helpers", "src/app.ts")
         assert result.resolution_strategy == "node_modules"
@@ -371,8 +335,7 @@ class TestScopedPackageResolution:
         (nm / "index.ts").write_text("export const x = 1;")
 
         abs_idx = str(nm / "index.ts")
-        r = _build_resolver(tmp_path, [abs_idx],
-                            package_json={})
+        r = _build_resolver(tmp_path, [abs_idx], package_json={})
 
         result = r.resolve("@myorg/core", "src/app.ts")
         assert result.resolution_strategy == "node_modules"
@@ -506,10 +469,7 @@ class TestReadPackageMain:
 
     def test_module_field_preferred(self, tmp_path):
         """Lines 517: module field preferred over main."""
-        (tmp_path / "package.json").write_text(json.dumps({
-            "main": "dist/cjs.js",
-            "module": "dist/esm.js"
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"main": "dist/cjs.js", "module": "dist/esm.js"}))
         r = TSResolver()
         assert r._read_package_main(str(tmp_path)) == "dist/esm.js"
 
@@ -566,18 +526,12 @@ class TestTsconfigExtendsIntegration:
     def test_extends_merges_compiler_options(self, tmp_path):
         """Test that child tsconfig merges with parent."""
         (tmp_path / "package.json").write_text("{}")
-        (tmp_path / "tsconfig.base.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {"@base/*": ["base/*"]}
-            }
-        }))
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "extends": "./tsconfig.base",
-            "compilerOptions": {
-                "paths": {"@app/*": ["src/*"]}
-            }
-        }))
+        (tmp_path / "tsconfig.base.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@base/*": ["base/*"]}}})
+        )
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"extends": "./tsconfig.base", "compilerOptions": {"paths": {"@app/*": ["src/*"]}}})
+        )
 
         r = TSResolver()
         r.set_project_root(str(tmp_path))
@@ -620,14 +574,10 @@ class TestBaseUrlResolution:
         (tmp_path / "package.json").write_text("{}")
         (tmp_path / "src").mkdir()
         (tmp_path / "src" / "utils.ts").write_text("export const x = 1;")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {"baseUrl": "."}
-        }))
+        (tmp_path / "tsconfig.json").write_text(json.dumps({"compilerOptions": {"baseUrl": "."}}))
 
         abs_utils = str(tmp_path / "src" / "utils.ts")
-        r = _build_resolver(tmp_path, ["src/utils.ts"],
-                            tsconfig={"compilerOptions": {"baseUrl": "."}},
-                            package_json={})
+        r = _build_resolver(tmp_path, ["src/utils.ts"], tsconfig={"compilerOptions": {"baseUrl": "."}}, package_json={})
 
         result = r.resolve("src/utils", "src/app.ts")
         assert result.resolution_strategy == "base_url"
@@ -675,17 +625,17 @@ class TestWildcardAliasPrefixSlash:
         (tmp_path / "package.json").write_text("{}")
         (tmp_path / "src" / "components").mkdir(parents=True)
         (tmp_path / "src" / "components" / "Button.ts").write_text("export default {};")
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {"@/*": ["src/*"]}
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
 
         abs_btn = str(tmp_path / "src" / "components" / "Button.ts")
-        r = _build_resolver(tmp_path, [abs_btn],
-                            tsconfig={"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}},
-                            package_json={})
+        r = _build_resolver(
+            tmp_path,
+            [abs_btn],
+            tsconfig={"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}},
+            package_json={},
+        )
 
         result = r.resolve("@/components/Button", "src/app.ts")
         assert result.resolution_strategy == "tsconfig_paths"

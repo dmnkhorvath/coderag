@@ -55,8 +55,8 @@ def _open_store_for_launch(config):
 
 def _run_parse(project_path: str, config_path: str | None = None) -> bool:
     """Run coderag parse on the project."""
-    import subprocess
     import shutil
+    import subprocess
 
     coderag_bin = shutil.which("coderag")
     if coderag_bin is None:
@@ -88,12 +88,11 @@ def _detect_best_tool() -> str | None:
     return None
 
 
-
 def _check_for_updates_on_launch() -> None:
     """Non-blocking update check on launch."""
     try:
-        from coderag.updater.config import UpdateConfig
         from coderag.updater.checker import UpdateChecker
+        from coderag.updater.config import UpdateConfig
 
         config = UpdateConfig.load()
         if not config.auto_check:
@@ -118,9 +117,7 @@ def _check_for_updates_on_launch() -> None:
                 installer = UpdateInstaller()
                 result = installer.install()
                 if result.success:
-                    _console.print(
-                        f"[green]✅ Auto-updated to v{result.new_version}[/green]"
-                    )
+                    _console.print(f"[green]✅ Auto-updated to v{result.new_version}[/green]")
     except Exception:  # noqa: BLE001
         pass  # Never block launch
 
@@ -150,8 +147,6 @@ def _check_for_updates_on_launch() -> None:
     type=int,
     help="Token budget for context pre-loading.",
 )
-
-
 @click.pass_context
 def launch(
     ctx: click.Context,
@@ -184,8 +179,7 @@ def launch(
     console.print(f"Project: [bold]{project_path}[/bold]")
 
     state_info = detect_project_state(project_path)
-    console.print(f"State: [bold]{state_info.state.value}[/bold] "
-                  f"({state_info.source_file_count} source files)")
+    console.print(f"State: [bold]{state_info.state.value}[/bold] ({state_info.source_file_count} source files)")
 
     # Step 2: Parse if needed
     if state_info.state in (ProjectState.FRESH, ProjectState.STALE):
@@ -223,15 +217,13 @@ def launch(
     try:
         # Step 4: Build context pre-load
         with console.status("[bold cyan]Building context..."):
-            context = build_preload_context(
-                store, config, query=prompt, token_budget=token_budget
-            )
+            context = build_preload_context(store, config, query=prompt, token_budget=token_budget)
 
         if context_only:
             click.echo(context)
             return
 
-        console.print(f"[green]\u2713[/green] Context built ({len(context)} chars, ~{len(context)//4} tokens)")
+        console.print(f"[green]\u2713[/green] Context built ({len(context)} chars, ~{len(context) // 4} tokens)")
 
         # Step 5: Generate CLAUDE.md
         with console.status("[bold cyan]Generating project prompt..."):
@@ -254,7 +246,9 @@ def launch(
             tool_for_config = "claude" if selected_tool == "claude-code" else selected_tool
             config_written = write_tool_config(tool_for_config, project_path)
             if config_written:
-                console.print(f"[green]\u2713[/green] Wrote tool config: {os.path.relpath(config_written, project_path)}")
+                console.print(
+                    f"[green]\u2713[/green] Wrote tool config: {os.path.relpath(config_written, project_path)}"
+                )
 
         # Step 7: Dry run summary
         if dry_run:
@@ -263,17 +257,19 @@ def launch(
                 f"Project: {project_path}",
                 f"State: {state_info.state.value}",
                 f"Source files: {state_info.source_file_count}",
-                f"Context size: {len(context)} chars (~{len(context)//4} tokens)",
+                f"Context size: {len(context)} chars (~{len(context) // 4} tokens)",
                 f"CLAUDE.md: {prompt_path}",
                 f"AI tool: {selected_tool or 'none detected'}",
             ]
             if prompt:
                 summary_lines.append(f"Prompt: {prompt}")
-            console.print(Panel(
-                "\n".join(summary_lines),
-                title="[bold]Dry Run Summary[/bold]",
-                border_style="cyan",
-            ))
+            console.print(
+                Panel(
+                    "\n".join(summary_lines),
+                    title="[bold]Dry Run Summary[/bold]",
+                    border_style="cyan",
+                )
+            )
             return
 
         # Step 8: Launch MCP server + AI tool

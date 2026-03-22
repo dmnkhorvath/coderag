@@ -7,13 +7,11 @@ Focuses on uncovered lines: 173-175, 203, 270-276, 290-292, 311-314,
 import json
 import os
 
-import pytest
-
 from coderag.core.models import FileInfo, Language, ResolutionResult
 from coderag.plugins.javascript.resolver import JSResolver
 
-
 # ── Helpers ──────────────────────────────────────────────────────────
+
 
 def _make_resolver(project_dir, *, build_index=True):
     """Create a JSResolver with project root set and optionally build index."""
@@ -62,14 +60,9 @@ class TestTryAlias:
         (tmp_path / "src" / "utils").mkdir(parents=True)
         (tmp_path / "src" / "utils" / "index.js").write_text("export default {};")
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "utils": ["src/utils"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"utils": ["src/utils"]}}})
+        )
 
         r = _make_resolver(tmp_path)
         # _try_alias should match "utils" exactly
@@ -82,14 +75,9 @@ class TestTryAlias:
         (tmp_path / "src" / "utils").mkdir(parents=True)
         (tmp_path / "src" / "utils" / "helpers.js").write_text("export const x = 1;")
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
 
         r = _make_resolver(tmp_path)
         # _try_alias should match "@" prefix and append "/utils/helpers"
@@ -118,14 +106,9 @@ class TestAliasResolution:
         (tmp_path / "src" / "utils").mkdir(parents=True)
         (tmp_path / "src" / "utils" / "helpers.js").write_text("export const foo = 1;")
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
 
         r = _make_resolver(tmp_path)
         result = r.resolve("@/utils/helpers", "src/app.js")
@@ -139,14 +122,9 @@ class TestAliasResolution:
         (tmp_path / "src" / "components").mkdir(parents=True)
         (tmp_path / "src" / "components" / "index.js").write_text("export default {};")
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
 
         r = _make_resolver(tmp_path)
         result = r.resolve("@/components", "src/app.js")
@@ -158,14 +136,9 @@ class TestAliasResolution:
         """Alias matches but _resolve_relative returns None -> falls through."""
         (tmp_path / "src").mkdir(parents=True)
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
 
         r = _make_resolver(tmp_path)
         # @/nonexistent -> alias matches but file doesn't exist
@@ -415,14 +388,9 @@ class TestLoadAliases:
     def test_jsconfig_loaded(self, tmp_path):
         """Lines 371-372: jsconfig.json found and loaded."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -431,14 +399,9 @@ class TestLoadAliases:
     def test_tsconfig_loaded_when_no_jsconfig(self, tmp_path):
         """Lines 371-372: tsconfig.json used when jsconfig.json absent."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "~/*": ["src/*"]
-                }
-            }
-        }))
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"~/*": ["src/*"]}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -447,18 +410,12 @@ class TestLoadAliases:
     def test_jsconfig_preferred_over_tsconfig(self, tmp_path):
         """jsconfig.json is checked first; tsconfig.json is skipped."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {"@/*": ["src/*"]}
-            }
-        }))
-        (tmp_path / "tsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {"~/*": ["lib/*"]}
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"]}}})
+        )
+        (tmp_path / "tsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"~/*": ["lib/*"]}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -485,15 +442,9 @@ class TestLoadJsconfigPaths:
     def test_wildcard_paths(self, tmp_path):
         """Lines 394-399: wildcard pattern '@/*' -> ['src/*']."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": ["src/*"],
-                    "~/*": ["lib/*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": ["src/*"], "~/*": ["lib/*"]}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -503,15 +454,11 @@ class TestLoadJsconfigPaths:
     def test_exact_alias_paths(self, tmp_path):
         """Lines 400-405: exact alias 'utils' -> ['src/utils']."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "utils": ["src/utils"],
-                    "config": ["src/config"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps(
+                {"compilerOptions": {"baseUrl": ".", "paths": {"utils": ["src/utils"], "config": ["src/config"]}}}
+            )
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -521,14 +468,9 @@ class TestLoadJsconfigPaths:
     def test_exact_alias_with_trailing_star(self, tmp_path):
         """Lines 403-404: exact alias target ending with '*' gets stripped."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "mylib": ["vendor/mylib*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"mylib": ["vendor/mylib*"]}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -574,14 +516,9 @@ class TestLoadJsconfigPaths:
     def test_config_with_base_url_subdir(self, tmp_path):
         """Line 390: baseUrl is a subdirectory."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": "./src",
-                "paths": {
-                    "@/*": ["./*"]
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": "./src", "paths": {"@/*": ["./*"]}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -601,9 +538,7 @@ class TestLoadJsconfigPaths:
     def test_config_no_paths(self, tmp_path):
         """Config with compilerOptions but no paths -> no aliases."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {"baseUrl": "."}
-        }))
+        (tmp_path / "jsconfig.json").write_text(json.dumps({"compilerOptions": {"baseUrl": "."}}))
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -612,15 +547,9 @@ class TestLoadJsconfigPaths:
     def test_config_empty_targets(self, tmp_path):
         """Path alias with empty targets list -> skipped."""
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
-        (tmp_path / "jsconfig.json").write_text(json.dumps({
-            "compilerOptions": {
-                "baseUrl": ".",
-                "paths": {
-                    "@/*": [],
-                    "utils": []
-                }
-            }
-        }))
+        (tmp_path / "jsconfig.json").write_text(
+            json.dumps({"compilerOptions": {"baseUrl": ".", "paths": {"@/*": [], "utils": []}}})
+        )
 
         r = JSResolver()
         r.set_project_root(str(tmp_path))
@@ -652,10 +581,7 @@ class TestReadPackageMain:
 
     def test_package_json_with_main(self, tmp_path):
         """Normal case: main field present."""
-        (tmp_path / "package.json").write_text(json.dumps({
-            "name": "test-pkg",
-            "main": "lib/index.js"
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"name": "test-pkg", "main": "lib/index.js"}))
 
         r = JSResolver()
         result = r._read_package_main(str(tmp_path))
@@ -663,11 +589,9 @@ class TestReadPackageMain:
 
     def test_package_json_with_module_field(self, tmp_path):
         """Prefers 'module' over 'main'."""
-        (tmp_path / "package.json").write_text(json.dumps({
-            "name": "test-pkg",
-            "main": "lib/index.cjs",
-            "module": "lib/index.mjs"
-        }))
+        (tmp_path / "package.json").write_text(
+            json.dumps({"name": "test-pkg", "main": "lib/index.cjs", "module": "lib/index.mjs"})
+        )
 
         r = JSResolver()
         result = r._read_package_main(str(tmp_path))
@@ -675,10 +599,7 @@ class TestReadPackageMain:
 
     def test_package_json_no_main_no_module(self, tmp_path):
         """No main or module field -> returns None."""
-        (tmp_path / "package.json").write_text(json.dumps({
-            "name": "test-pkg",
-            "version": "1.0.0"
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"name": "test-pkg", "version": "1.0.0"}))
 
         r = JSResolver()
         result = r._read_package_main(str(tmp_path))
@@ -827,10 +748,7 @@ class TestNodeModulesWalkUp:
         nm.mkdir(parents=True)
         (nm / "dist").mkdir()
         (nm / "dist" / "main.js").write_text("module.exports = {};")
-        (nm / "package.json").write_text(json.dumps({
-            "name": "my-lib",
-            "main": "dist/main"
-        }))
+        (nm / "package.json").write_text(json.dumps({"name": "my-lib", "main": "dist/main"}))
         (tmp_path / "package.json").write_text(json.dumps({"type": "module"}))
 
         r = _make_resolver(tmp_path)

@@ -7,9 +7,7 @@ Does NOT require a Docker daemon - only checks file content.
 import os
 import stat
 
-import pytest
 import yaml
-
 
 # -- Paths -----------------------------------------------------------------
 
@@ -44,13 +42,11 @@ class TestDockerfile:
 
     def test_dockerfile_has_builder_stage(self):
         content = open(DOCKERFILE).read()
-        assert "AS builder" in content or "as builder" in content, \
-            "Should have a builder stage"
+        assert "AS builder" in content or "as builder" in content, "Should have a builder stage"
 
     def test_dockerfile_has_runtime_stage(self):
         content = open(DOCKERFILE).read()
-        assert "AS runtime" in content or "as runtime" in content, \
-            "Should have a runtime stage"
+        assert "AS runtime" in content or "as runtime" in content, "Should have a runtime stage"
 
     def test_dockerfile_installs_gcc(self):
         content = open(DOCKERFILE).read()
@@ -80,22 +76,36 @@ class TestDockerfile:
     def test_dockerfile_has_labels(self):
         content = open(DOCKERFILE).read()
         assert "LABEL" in content, "Should have metadata labels"
-        assert "maintainer" in content.lower() or "org.opencontainers" in content, \
+        assert "maintainer" in content.lower() or "org.opencontainers" in content, (
             "Should have maintainer or OCI labels"
+        )
 
     def test_dockerfile_copies_from_builder(self):
         content = open(DOCKERFILE).read()
-        assert "COPY --from=builder" in content, \
-            "Runtime stage should copy from builder"
+        assert "COPY --from=builder" in content, "Runtime stage should copy from builder"
 
     def test_dockerfile_no_obvious_syntax_errors(self):
         """Check that all non-continuation lines start with valid instructions."""
         content = open(DOCKERFILE).read()
         lines = content.splitlines()
         valid_instructions = {
-            "FROM", "RUN", "CMD", "LABEL", "EXPOSE", "ENV", "ADD", "COPY",
-            "ENTRYPOINT", "VOLUME", "USER", "WORKDIR", "ARG", "ONBUILD",
-            "STOPSIGNAL", "HEALTHCHECK", "SHELL",
+            "FROM",
+            "RUN",
+            "CMD",
+            "LABEL",
+            "EXPOSE",
+            "ENV",
+            "ADD",
+            "COPY",
+            "ENTRYPOINT",
+            "VOLUME",
+            "USER",
+            "WORKDIR",
+            "ARG",
+            "ONBUILD",
+            "STOPSIGNAL",
+            "HEALTHCHECK",
+            "SHELL",
         }
         in_continuation = False
         for line in lines:
@@ -240,5 +250,4 @@ class TestEntrypoint:
 
     def test_entrypoint_handles_no_args(self):
         content = open(ENTRYPOINT).read()
-        assert "--help" in content, \
-            "Should handle case when no arguments provided"
+        assert "--help" in content, "Should handle case when no arguments provided"

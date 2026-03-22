@@ -1,10 +1,12 @@
 import json
-import os
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, ANY
 
 from coderag.core.models import (
-    Node, NodeKind, Edge, EdgeKind, FrameworkPattern,
+    EdgeKind,
+    Node,
+    NodeKind,
 )
 from coderag.plugins.javascript.frameworks.vue import VueDetector
 
@@ -59,6 +61,7 @@ def _make_var_node(name, file_path="test.vue", start=1, end=50):
 
 # ── framework_name ────────────────────────────────────────────
 
+
 class TestFrameworkName:
     def test_name(self, detector):
         assert detector.framework_name == "vue"
@@ -66,23 +69,18 @@ class TestFrameworkName:
 
 # ── detect_framework ──────────────────────────────────────────
 
+
 class TestDetectFramework:
     def test_vue_in_deps(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"vue": "^3.4.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"vue": "^3.4.0"}}))
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_vue_in_devdeps(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "devDependencies": {"vue": "^3.0.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"devDependencies": {"vue": "^3.0.0"}}))
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_no_vue(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"react": "^18.0.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"react": "^18.0.0"}}))
         assert detector.detect_framework(str(tmp_path)) is False
 
     def test_no_package_json(self, detector, tmp_path):
@@ -95,6 +93,7 @@ class TestDetectFramework:
 
 # ── detect_global_patterns ────────────────────────────────────
 
+
 class TestDetectGlobalPatterns:
     def test_returns_empty(self, detector):
         store = MagicMock()
@@ -103,9 +102,10 @@ class TestDetectGlobalPatterns:
 
 # ── _detect_sfc ───────────────────────────────────────────────
 
+
 class TestDetectSFC:
     def test_full_sfc(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <div>{{ msg }}</div>
 </template>
 
@@ -117,7 +117,7 @@ const msg = ref('Hello')
 <style scoped>
 .container { color: red; }
 </style>
-'''
+"""
         patterns = detector.detect("UserProfile.vue", _make_tree(), source, [], [])
         sfc = [p for p in patterns if p.pattern_type == "sfc"]
         assert len(sfc) == 1
@@ -130,9 +130,9 @@ const msg = ref('Hello')
         assert sfc[0].nodes[0].metadata["script_lang"] == "typescript"
 
     def test_sfc_no_style(self, detector):
-        source = b'''<template><div></div></template>
+        source = b"""<template><div></div></template>
 <script>export default {}</script>
-'''
+"""
         patterns = detector.detect("MyComp.vue", _make_tree(), source, [], [])
         sfc = [p for p in patterns if p.pattern_type == "sfc"]
         assert len(sfc) == 1
@@ -141,17 +141,17 @@ const msg = ref('Hello')
         assert sfc[0].nodes[0].metadata["script_lang"] == "javascript"
 
     def test_sfc_no_template_no_script(self, detector):
-        source = b'''<style>.x { color: red; }</style>'''
+        source = b"""<style>.x { color: red; }</style>"""
         patterns = detector.detect("OnlyStyle.vue", _make_tree(), source, [], [])
         sfc = [p for p in patterns if p.pattern_type == "sfc"]
         assert len(sfc) == 0
 
     def test_sfc_links_to_function_nodes(self, detector):
-        source = b'''<template><div></div></template>
+        source = b"""<template><div></div></template>
 <script setup>
 const handler = () => {}
 </script>
-'''
+"""
         fn = _make_fn_node("handler", "Comp.vue")
         patterns = detector.detect("Comp.vue", _make_tree(), source, [fn], [])
         sfc = [p for p in patterns if p.pattern_type == "sfc"]
@@ -161,9 +161,9 @@ const handler = () => {}
         assert contains_edges[0].target_id == fn.id
 
     def test_sfc_kebab_case_filename(self, detector):
-        source = b'''<template><div></div></template>
+        source = b"""<template><div></div></template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("user-profile-card.vue", _make_tree(), source, [], [])
         sfc = [p for p in patterns if p.pattern_type == "sfc"]
         assert sfc[0].nodes[0].name == "UserProfileCard"
@@ -171,25 +171,26 @@ const handler = () => {}
 
 # ── _detect_composition_api ───────────────────────────────────
 
+
 class TestDetectCompositionAPI:
     def test_define_component(self, detector):
-        source = b'''import { defineComponent } from 'vue'
+        source = b"""import { defineComponent } from 'vue'
 export default defineComponent({ name: 'MyComp' })
-'''
+"""
         patterns = detector.detect("comp.ts", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composition_api"]
         assert len(comp) == 1
         assert "defineComponent" in comp[0].metadata["api_usages"]
 
     def test_script_setup_macros(self, detector):
-        source = b'''<script setup>
+        source = b"""<script setup>
 const props = defineProps<{ msg: string }>()
 const emit = defineEmits(['update'])
 defineExpose({ reset })
 defineSlots()
 const model = defineModel()
 </script>
-'''
+"""
         patterns = detector.detect("comp.vue", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composition_api"]
         assert len(comp) == 1
@@ -201,13 +202,13 @@ const model = defineModel()
         assert "defineModel" in usages
 
     def test_reactivity_primitives(self, detector):
-        source = b'''import { ref, reactive, computed, watch, watchEffect } from 'vue'
+        source = b"""import { ref, reactive, computed, watch, watchEffect } from 'vue'
 const count = ref(0)
 const state = reactive({ items: [] })
 const doubled = computed(() => count.value * 2)
 watch(count, (val) => console.log(val))
 watchEffect(() => console.log(count.value))
-'''
+"""
         patterns = detector.detect("comp.ts", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composition_api"]
         assert len(comp) == 1
@@ -219,10 +220,10 @@ watchEffect(() => console.log(count.value))
         assert "watchEffect" in usages
 
     def test_lifecycle_hooks(self, detector):
-        source = b'''import { onMounted, onUnmounted } from 'vue'
+        source = b"""import { onMounted, onUnmounted } from 'vue'
 onMounted(() => { console.log('mounted') })
 onUnmounted(() => { console.log('unmounted') })
-'''
+"""
         fn = _make_fn_node("setup", "comp.ts", 1, 10)
         patterns = detector.detect("comp.ts", _make_tree(), source, [fn], [])
         comp = [p for p in patterns if p.pattern_type == "composition_api"]
@@ -237,9 +238,9 @@ onUnmounted(() => { console.log('unmounted') })
         assert len(uses_hook_edges) == 2
 
     def test_no_composition_api(self, detector):
-        source = b'''const x = 42;
+        source = b"""const x = 42;
 console.log(x);
-'''
+"""
         patterns = detector.detect("plain.js", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composition_api"]
         assert len(comp) == 0
@@ -247,9 +248,10 @@ console.log(x);
 
 # ── _detect_options_api ───────────────────────────────────────
 
+
 class TestDetectOptionsAPI:
     def test_full_options(self, detector):
-        source = b'''export default {
+        source = b"""export default {
   data() { return { count: 0 } },
   methods: { increment() { this.count++ } },
   computed: { doubled() { return this.count * 2 } },
@@ -257,7 +259,7 @@ class TestDetectOptionsAPI:
   created() { console.log('created') },
   mounted() { console.log('mounted') },
 }
-'''
+"""
         patterns = detector.detect("comp.js", _make_tree(), source, [], [])
         opts = [p for p in patterns if p.pattern_type == "options_api"]
         assert len(opts) == 1
@@ -269,12 +271,12 @@ class TestDetectOptionsAPI:
         assert "created" in found or "mounted" in found
 
     def test_lifecycle_hooks_options(self, detector):
-        source = b'''export default {
+        source = b"""export default {
   created() { console.log('created') },
   mounted() { console.log('mounted') },
   beforeDestroy() { console.log('cleanup') },
 }
-'''
+"""
         patterns = detector.detect("comp.js", _make_tree(), source, [], [])
         opts = [p for p in patterns if p.pattern_type == "options_api"]
         assert len(opts) == 1
@@ -282,7 +284,7 @@ class TestDetectOptionsAPI:
         assert len(hooks) >= 2
 
     def test_no_options_api(self, detector):
-        source = b'''const x = 42;'''
+        source = b"""const x = 42;"""
         patterns = detector.detect("plain.js", _make_tree(), source, [], [])
         opts = [p for p in patterns if p.pattern_type == "options_api"]
         assert len(opts) == 0
@@ -290,14 +292,15 @@ class TestDetectOptionsAPI:
 
 # ── _detect_stores ────────────────────────────────────────────
 
+
 class TestDetectStores:
     def test_pinia_define_store(self, detector):
-        source = b'''import { defineStore } from 'pinia'
+        source = b"""import { defineStore } from 'pinia'
 export const useCounterStore = defineStore('counter', {
   state: () => ({ count: 0 }),
   actions: { increment() { this.count++ } },
 })
-'''
+"""
         patterns = detector.detect("stores/counter.ts", _make_tree(), source, [], [])
         stores = [p for p in patterns if p.pattern_type == "stores"]
         assert len(stores) == 1
@@ -307,9 +310,9 @@ export const useCounterStore = defineStore('counter', {
         assert stores[0].metadata["store_count"] >= 1
 
     def test_pinia_use_store(self, detector):
-        source = b'''import { useCounterStore } from './stores/counter'
+        source = b"""import { useCounterStore } from './stores/counter'
 const counter = useCounterStore()
-'''
+"""
         fn = _make_fn_node("setup", "comp.ts", 1, 10)
         patterns = detector.detect("comp.ts", _make_tree(), source, [fn], [])
         stores = [p for p in patterns if p.pattern_type == "stores"]
@@ -319,10 +322,10 @@ const counter = useCounterStore()
         assert len(use_entries) >= 1
 
     def test_vuex_store(self, detector):
-        source = b'''import { useStore } from 'vuex'
+        source = b"""import { useStore } from 'vuex'
 const store = useStore()
 store.commit('increment')
-'''
+"""
         patterns = detector.detect("comp.ts", _make_tree(), source, [], [])
         stores = [p for p in patterns if p.pattern_type == "stores"]
         assert len(stores) == 1
@@ -331,7 +334,7 @@ store.commit('increment')
         assert len(vuex_entries) >= 1
 
     def test_no_stores(self, detector):
-        source = b'''const x = 42;'''
+        source = b"""const x = 42;"""
         patterns = detector.detect("plain.js", _make_tree(), source, [], [])
         stores = [p for p in patterns if p.pattern_type == "stores"]
         assert len(stores) == 0
@@ -339,9 +342,10 @@ store.commit('increment')
 
 # ── _detect_router ────────────────────────────────────────────
 
+
 class TestDetectRouter:
     def test_create_router(self, detector):
-        source = b'''import { createRouter, createWebHistory } from 'vue-router'
+        source = b"""import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -349,7 +353,7 @@ const router = createRouter({
     { path: '/about', component: About },
   ],
 })
-'''
+"""
         patterns = detector.detect("router/index.ts", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 1
@@ -358,11 +362,11 @@ const router = createRouter({
         assert len(route_nodes) == 2
 
     def test_route_components(self, detector):
-        source = b'''const routes = [
+        source = b"""const routes = [
   { path: '/users', component: UserList },
   { path: '/settings', component: Settings },
 ]
-'''
+"""
         patterns = detector.detect("router.ts", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 1
@@ -370,10 +374,10 @@ const router = createRouter({
         assert len(routes_to) == 2
 
     def test_lazy_loaded_routes(self, detector):
-        source = b'''const routes = [
+        source = b"""const routes = [
   { path: '/dashboard', component: () => import('./views/Dashboard.vue') },
 ]
-'''
+"""
         patterns = detector.detect("router.ts", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 1
@@ -381,10 +385,10 @@ const router = createRouter({
         assert len(lazy_edges) == 1
 
     def test_use_route_and_router(self, detector):
-        source = b'''import { useRoute, useRouter } from 'vue-router'
+        source = b"""import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
-'''
+"""
         patterns = detector.detect("comp.ts", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 1
@@ -394,25 +398,25 @@ const router = useRouter()
         assert "useRouter" in types
 
     def test_navigation_guards(self, detector):
-        source = b'''router.beforeEach((to, from) => {
+        source = b"""router.beforeEach((to, from) => {
   if (!isAuthenticated) return '/login'
 })
 router.afterEach((to, from) => {
   document.title = to.meta.title
 })
-'''
+"""
         patterns = detector.detect("router.ts", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 1
         assert router[0].metadata["has_nav_guards"] is True
 
     def test_router_link_in_template(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <router-link to="/about">About</router-link>
   <RouterLink to="/home">Home</RouterLink>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Nav.vue", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 1
@@ -420,7 +424,7 @@ router.afterEach((to, from) => {
         assert len(link_usages) >= 1
 
     def test_no_router(self, detector):
-        source = b'''const x = 42;'''
+        source = b"""const x = 42;"""
         patterns = detector.detect("plain.js", _make_tree(), source, [], [])
         router = [p for p in patterns if p.pattern_type == "router"]
         assert len(router) == 0
@@ -428,11 +432,12 @@ router.afterEach((to, from) => {
 
 # ── _detect_provide_inject ────────────────────────────────────
 
+
 class TestDetectProvideInject:
     def test_provide_string_key(self, detector):
-        source = b'''import { provide } from 'vue'
+        source = b"""import { provide } from 'vue'
 provide('theme', 'dark')
-'''
+"""
         fn = _make_fn_node("setup", "comp.ts", 1, 10)
         patterns = detector.detect("comp.ts", _make_tree(), source, [fn], [])
         pi = [p for p in patterns if p.pattern_type == "provide_inject"]
@@ -442,9 +447,9 @@ provide('theme', 'dark')
         assert len(provider_nodes) == 1
 
     def test_inject_string_key(self, detector):
-        source = b'''import { inject } from 'vue'
+        source = b"""import { inject } from 'vue'
 const theme = inject('theme')
-'''
+"""
         fn = _make_fn_node("setup", "comp.ts", 1, 10)
         patterns = detector.detect("comp.ts", _make_tree(), source, [fn], [])
         pi = [p for p in patterns if p.pattern_type == "provide_inject"]
@@ -454,11 +459,11 @@ const theme = inject('theme')
         assert len(consumes) == 1
 
     def test_injection_key(self, detector):
-        source = b'''import { InjectionKey } from 'vue'
+        source = b"""import { InjectionKey } from 'vue'
 const ThemeKey: InjectionKey<string> = Symbol('theme')
 provide(ThemeKey, 'dark')
 inject(ThemeKey)
-'''
+"""
         fn = _make_fn_node("setup", "comp.ts", 1, 10)
         patterns = detector.detect("comp.ts", _make_tree(), source, [fn], [])
         pi = [p for p in patterns if p.pattern_type == "provide_inject"]
@@ -466,7 +471,7 @@ inject(ThemeKey)
         assert pi[0].metadata["injection_key_count"] >= 1
 
     def test_no_provide_inject(self, detector):
-        source = b'''const x = 42;'''
+        source = b"""const x = 42;"""
         patterns = detector.detect("plain.js", _make_tree(), source, [], [])
         pi = [p for p in patterns if p.pattern_type == "provide_inject"]
         assert len(pi) == 0
@@ -474,14 +479,15 @@ inject(ThemeKey)
 
 # ── _detect_composables ───────────────────────────────────────
 
+
 class TestDetectComposables:
     def test_composable_definition(self, detector):
-        source = b'''export function useCounter() {
+        source = b"""export function useCounter() {
   const count = ref(0)
   const increment = () => count.value++
   return { count, increment }
 }
-'''
+"""
         patterns = detector.detect("composables/useCounter.ts", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composables"]
         assert len(comp) == 1
@@ -491,9 +497,9 @@ class TestDetectComposables:
         assert fn_nodes[0].metadata["composable"] is True
 
     def test_composable_usage(self, detector):
-        source = b'''import { useCounter } from './composables/useCounter'
+        source = b"""import { useCounter } from './composables/useCounter'
 const { count, increment } = useCounter()
-'''
+"""
         fn = _make_fn_node("setup", "comp.ts", 1, 10)
         patterns = detector.detect("comp.ts", _make_tree(), source, [fn], [])
         comp = [p for p in patterns if p.pattern_type == "composables"]
@@ -501,9 +507,9 @@ const { count, increment } = useCounter()
         assert "useCounter" in comp[0].metadata["composable_calls"]
 
     def test_skips_vue_builtins(self, detector):
-        source = b'''import { useRoute } from 'vue-router'
+        source = b"""import { useRoute } from 'vue-router'
 const route = useRoute()
-'''
+"""
         patterns = detector.detect("comp.ts", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composables"]
         # useRoute is a Vue built-in, should be skipped
@@ -511,7 +517,7 @@ const route = useRoute()
             assert "useRoute" not in comp[0].metadata.get("composable_calls", [])
 
     def test_skips_store_calls(self, detector):
-        source = b'''const counter = useCounterStore()'''
+        source = b"""const counter = useCounterStore()"""
         patterns = detector.detect("comp.ts", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composables"]
         # useCounterStore ends with Store, should be skipped
@@ -519,7 +525,7 @@ const route = useRoute()
             assert "useCounterStore" not in comp[0].metadata.get("composable_calls", [])
 
     def test_no_composables(self, detector):
-        source = b'''const x = 42;'''
+        source = b"""const x = 42;"""
         patterns = detector.detect("plain.js", _make_tree(), source, [], [])
         comp = [p for p in patterns if p.pattern_type == "composables"]
         assert len(comp) == 0
@@ -527,15 +533,16 @@ const route = useRoute()
 
 # ── _detect_template_patterns ─────────────────────────────────
 
+
 class TestDetectTemplatePatterns:
     def test_pascal_case_components(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <UserProfile />
   <NavBar />
   <div>plain html</div>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("App.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
@@ -545,24 +552,24 @@ class TestDetectTemplatePatterns:
         assert len(renders) >= 2
 
     def test_kebab_case_components(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <user-profile />
   <nav-bar></nav-bar>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("App.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
         assert len(tmpl[0].metadata["kebab_components"]) >= 1
 
     def test_v_model(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <input v-model="name" />
   <MyInput v-model:title="title" />
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Form.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
@@ -570,7 +577,7 @@ class TestDetectTemplatePatterns:
         assert len(v_models) >= 1
 
     def test_slot_definitions(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <div>
     <slot name="header"></slot>
     <slot></slot>
@@ -578,7 +585,7 @@ class TestDetectTemplatePatterns:
   </div>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Layout.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
@@ -587,14 +594,14 @@ class TestDetectTemplatePatterns:
         assert "footer" in slots
 
     def test_slot_usage(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <Layout>
     <template #header>Header</template>
     <template #footer>Footer</template>
   </Layout>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Page.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
@@ -603,12 +610,12 @@ class TestDetectTemplatePatterns:
         assert len(slot_usages) >= 1  # regex stops at first inner </template>
 
     def test_event_listeners(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <button @click="handleClick">Click</button>
   <form @submit.prevent="handleSubmit">Submit</form>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Comp.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
@@ -616,31 +623,31 @@ class TestDetectTemplatePatterns:
         assert "click" in events
 
     def test_dynamic_components(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <component :is="currentComponent" />
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Dynamic.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 1
         assert tmpl[0].metadata["dynamic_components"] >= 1
 
     def test_no_template(self, detector):
-        source = b'''<script setup>
+        source = b"""<script setup>
 const x = ref(0)
 </script>
-'''
+"""
         patterns = detector.detect("comp.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         assert len(tmpl) == 0
 
     def test_empty_template(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <div>plain text only</div>
 </template>
 <script setup></script>
-'''
+"""
         patterns = detector.detect("Plain.vue", _make_tree(), source, [], [])
         tmpl = [p for p in patterns if p.pattern_type == "template_patterns"]
         # No components, no v-model, no slots, no events
@@ -648,6 +655,7 @@ const x = ref(0)
 
 
 # ── Helper methods ────────────────────────────────────────────
+
 
 class TestHelpers:
     def test_component_name_from_path_pascal(self, detector):
@@ -682,9 +690,10 @@ class TestHelpers:
 
 # ── Full integration ──────────────────────────────────────────
 
+
 class TestFullDetect:
     def test_complex_vue_file(self, detector):
-        source = b'''<template>
+        source = b"""<template>
   <div>
     <UserCard />
     <button @click="increment">{{ count }}</button>
@@ -709,7 +718,7 @@ const counter = useCounterStore()
 <style scoped>
 .container { color: red; }
 </style>
-'''
+"""
         patterns = detector.detect("Dashboard.vue", _make_tree(), source, [], [])
         pattern_types = {p.pattern_type for p in patterns}
         assert "sfc" in pattern_types

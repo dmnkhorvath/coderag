@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:#0d1117;color:#c9d1d9}
+a{color:#58a6ff;text-decoration:none}
+
+/* ── Layout ───────────────────────────────────────────────── */
+#app{display:flex;height:100vh;width:100vw}
+#sidebar{width:320px;min-width:280px;background:#161b22;border-right:1px solid #30363d;
+  display:flex;flex-direction:column;overflow:hidden;z-index:10}
+#graph-container{flex:1;position:relative;overflow:hidden}
+svg{width:100%;height:100%;display:block}
+
+/* ── Sidebar Sections ─────────────────────────────────────── */
+.sidebar-header{padding:16px;border-bottom:1px solid #30363d;background:#0d1117}
+.sidebar-header h1{font-size:16px;font-weight:600;color:#f0f6fc;display:flex;align-items:center;gap:8px}
+.sidebar-header h1 .icon{font-size:20px}
+.sidebar-body{flex:1;overflow-y:auto;padding:0}
+.section{border-bottom:1px solid #21262d}
+.section-header{padding:10px 16px;cursor:pointer;display:flex;justify-content:space-between;
+  align-items:center;font-size:13px;font-weight:600;color:#8b949e;text-transform:uppercase;
+  letter-spacing:0.5px;user-select:none;transition:background 0.15s}
+.section-header:hover{background:#1c2128}
+.section-header .arrow{transition:transform 0.2s;font-size:10px}
+.section.collapsed .section-content{display:none}
+.section.collapsed .arrow{transform:rotate(-90deg)}
+.section-content{padding:8px 16px 12px}
+
+/* ── Search ────────────────────────────────────────────────── */
+.search-box{position:relative;margin-bottom:8px}
+.search-box input{width:100%;padding:8px 12px 8px 32px;background:#0d1117;border:1px solid #30363d;
+  border-radius:6px;color:#c9d1d9;font-size:13px;outline:none;transition:border-color 0.2s}
+.search-box input:focus{border-color:#58a6ff}
+.search-box .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  color:#484f58;font-size:14px}
+.search-results{max-height:150px;overflow-y:auto;margin-top:4px}
+.search-result{padding:4px 8px;border-radius:4px;cursor:pointer;font-size:12px;
+  color:#8b949e;transition:background 0.1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-result:hover{background:#1c2128;color:#c9d1d9}
+.search-result .kind-badge{display:inline-block;padding:1px 5px;border-radius:3px;
+  font-size:10px;margin-right:4px;background:#30363d;color:#8b949e}
+
+/* ── Filter Checkboxes ────────────────────────────────────── */
+.filter-grid{display:flex;flex-wrap:wrap;gap:4px}
+.filter-chip{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;
+  font-size:11px;cursor:pointer;border:1px solid #30363d;transition:all 0.15s;user-select:none}
+.filter-chip:hover{border-color:#484f58}
+.filter-chip.active{border-color:#58a6ff;background:rgba(88,166,255,0.1)}
+.filter-chip .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.filter-chip .count{color:#484f58;margin-left:2px}
+
+/* ── Sliders ──────────────────────────────────────────────── */
+.slider-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.slider-row label{font-size:12px;color:#8b949e;min-width:90px}
+.slider-row input[type=range]{flex:1;accent-color:#58a6ff;height:4px}
+.slider-row .val{font-size:11px;color:#484f58;min-width:30px;text-align:right}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn{padding:6px 12px;border-radius:6px;border:1px solid #30363d;background:#21262d;
+  color:#c9d1d9;font-size:12px;cursor:pointer;transition:all 0.15s;display:inline-flex;
+  align-items:center;gap:4px}
+.btn:hover{background:#30363d;border-color:#484f58}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.toggle-row label{font-size:12px;color:#8b949e}
+.toggle{position:relative;width:36px;height:20px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#30363d;border-radius:10px;transition:0.2s}
+.toggle .slider::before{content:"";position:absolute;height:14px;width:14px;left:3px;bottom:3px;
+  background:#c9d1d9;border-radius:50%;transition:0.2s}
+.toggle input:checked+.slider{background:#238636}
+.toggle input:checked+.slider::before{transform:translateX(16px)}
+
+/* ── Detail Panel ─────────────────────────────────────────── */
+#detail-panel{display:none;position:absolute;top:16px;right:16px;width:340px;max-height:calc(100vh - 32px);
+  background:#161b22;border:1px solid #30363d;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  overflow-y:auto;z-index:20}
+#detail-panel.visible{display:block}
+.detail-header{padding:16px;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;align-items:start}
+.detail-header h3{font-size:14px;color:#f0f6fc;word-break:break-all}
+.detail-close{background:none;border:none;color:#484f58;cursor:pointer;font-size:18px;padding:4px;
+  line-height:1;border-radius:4px;transition:color 0.15s}
+.detail-close:hover{color:#c9d1d9}
+.detail-body{padding:16px}
+.detail-row{display:flex;margin-bottom:8px;font-size:12px}
+.detail-row .label{color:#484f58;min-width:80px;flex-shrink:0}
+.detail-row .value{color:#c9d1d9;word-break:break-all}
+.detail-section{margin-top:12px}
+.detail-section h4{font-size:12px;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+.connected-node{padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer;
+  color:#8b949e;transition:background 0.1s;display:flex;align-items:center;gap:4px}
+.connected-node:hover{background:#1c2128;color:#c9d1d9}
+.connected-node .edge-type{color:#484f58;font-size:10px}
+
+/* ── Stats Bar ────────────────────────────────────────────── */
+#stats-bar{position:absolute;bottom:0;left:0;right:0;height:32px;background:rgba(13,17,23,0.9);
+  border-top:1px solid #21262d;display:flex;align-items:center;padding:0 16px;gap:20px;
+  font-size:11px;color:#484f58;z-index:5;backdrop-filter:blur(8px)}
+#stats-bar .stat{display:flex;align-items:center;gap:4px}
+#stats-bar .stat .num{color:#8b949e;font-weight:600}
+
+/* ── Legend ────────────────────────────────────────────────── */
+#legend{position:absolute;bottom:44px;left:16px;background:rgba(22,27,34,0.95);border:1px solid #30363d;
+  border-radius:8px;padding:12px;font-size:11px;z-index:5;max-width:280px;backdrop-filter:blur(8px)}
+#legend.hidden{display:none}
+#legend h4{color:#8b949e;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+.legend-grid{display:flex;flex-wrap:wrap;gap:4px 12px}
+.legend-item{display:flex;align-items:center;gap:4px;color:#8b949e}
+.legend-item .swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.legend-divider{width:100%;height:1px;background:#21262d;margin:6px 0}
+
+/* ── Tooltip ──────────────────────────────────────────────── */
+#tooltip{position:absolute;pointer-events:none;background:rgba(22,27,34,0.95);border:1px solid #30363d;
+  border-radius:6px;padding:8px 12px;font-size:12px;color:#c9d1d9;z-index:30;
+  box-shadow:0 4px 16px rgba(0,0,0,0.3);display:none;max-width:300px;backdrop-filter:blur(8px)}
+#tooltip .tt-name{font-weight:600;color:#f0f6fc;margin-bottom:2px}
+#tooltip .tt-meta{color:#8b949e;font-size:11px}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#484f58}
+
+/* ── Node Glow ────────────────────────────────────────────── */
+.node-glow{filter:drop-shadow(0 0 6px var(--glow-color,#58a6ff))}
+.edge-highlight{stroke-opacity:1 !important;stroke-width:2.5px !important}
+.node-dim{opacity:0.15}
+.edge-dim{opacity:0.05}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media(max-width:768px){
+  #sidebar{position:absolute;left:-320px;transition:left 0.3s;z-index:20;height:100%}
+  #sidebar.open{left:0}
+  #menu-toggle{display:flex !important}
+}
+#menu-toggle{display:none;position:absolute;top:12px;left:12px;z-index:25;background:#161b22;
+  border:1px solid #30363d;border-radius:6px;padding:8px;cursor:pointer;color:#c9d1d9}
+</style>
+</head>
+<body>
+<div id="app">
+  <button id="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1><span class="icon">&#9670;</span> __TITLE__</h1>
+    </div>
+    <div class="sidebar-body">
+      <!-- Search -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">Search <span class="arrow">&#9660;</span></div>
+        <div class="section-content">
+          <div class="search-box">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" id="search-input" placeholder="Search nodes..." oninput="onSearch(this.value)">
+          </div>
+          <div id="search-results" class="search-results"></div>
+        </div>
+      </div>
+
+      <!-- Languages -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">Languages <span class="arrow">&#9660;</span></div>
+        <div class="section-content">
+          <div id="lang-filters" class="filter-grid"></div>
+        </div>
+      </div>
+
+      <!-- Node Kinds -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">Node Types <span class="arrow">&#9660;</span></div>
+        <div class="section-content">
+          <div id="kind-filters" class="filter-grid"></div>
+        </div>
+      </div>
+
+      <!-- Edge Types -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">Edge Types <span class="arrow">&#9660;</span></div>
+        <div class="section-content">
+          <div id="edge-filters" class="filter-grid"></div>
+        </div>
+      </div>
+
+      <!-- Layout Controls -->
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">Layout <span class="arrow">&#9660;</span></div>
+        <div class="section-content">
+          <div class="slider-row">
+            <label>Force Strength</label>
+            <input type="range" id="force-strength" min="-500" max="-10" value="-150" oninput="updateForce()">
+            <span class="val" id="force-val">-150</span>
+          </div>
+          <div class="slider-row">
+            <label>Link Distance</label>
+            <input type="range" id="link-distance" min="20" max="200" value="80" oninput="updateForce()">
+            <span class="val" id="link-val">80</span>
+          </div>
+          <div class="slider-row">
+            <label>Collision</label>
+            <input type="range" id="collision-radius" min="5" max="50" value="15" oninput="updateForce()">
+            <span class="val" id="collision-val">15</span>
+          </div>
+          <div class="toggle-row">
+            <label>Show Labels</label>
+            <label class="toggle"><input type="checkbox" id="toggle-labels" checked onchange="toggleLabels()"><span class="slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <label>Show Edge Labels</label>
+            <label class="toggle"><input type="checkbox" id="toggle-edge-labels" onchange="toggleEdgeLabels()"><span class="slider"></span></label>
+          </div>
+          <div class="btn-row">
+            <button class="btn" onclick="resetView()">&#8634; Reset View</button>
+            <button class="btn" onclick="exportPNG()">&#128247; Export PNG</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Graph -->
+  <div id="graph-container">
+    <svg id="graph-svg"></svg>
+    <div id="tooltip"></div>
+    <div id="detail-panel">
+      <div class="detail-header">
+        <h3 id="detail-name"></h3>
+        <button class="detail-close" onclick="closeDetail()">&times;</button>
+      </div>
+      <div class="detail-body" id="detail-body"></div>
+    </div>
+    <div id="legend"></div>
+    <div id="stats-bar"></div>
+  </div>
+</div>
+
+<script>/* __D3_SOURCE__ */</script>
+<script>
+// ── Data ──────────────────────────────────────────────────────
+const GRAPH_DATA = __GRAPH_DATA__;
+
+// ── Color Schemes ────────────────────────────────────────────
+const LANG_COLORS = {
+  php:"#8B5CF6",javascript:"#F59E0B",typescript:"#3B82F6",python:"#10B981",
+  css:"#F97316",scss:"#EC4899",vue:"#42b883",html:"#E34F26",json:"#6B7280",
+  default:"#6B7280"
+};
+const KIND_SHAPES = {
+  class:"circle",function:"diamond",method:"diamond",interface:"triangle",
+  trait:"triangle",file:"square",module:"square",enum:"hexagon",
+  component:"circle",route:"star",hook:"diamond",model:"circle",
+  variable:"circle",constant:"circle",property:"circle",namespace:"square",
+  default:"circle"
+};
+const EDGE_STYLES = {
+  calls:"solid",extends:"dashed",implements:"dotted",imports:"solid",
+  contains:"solid",uses_trait:"dashed",instantiates:"solid",renders:"dashed",
+  default:"solid"
+};
+
+// ── State ────────────────────────────────────────────────────
+let activeLangs = new Set(GRAPH_DATA.metadata.languages);
+let activeKinds = new Set(GRAPH_DATA.metadata.kinds);
+let activeEdgeTypes = new Set([...new Set(GRAPH_DATA.edges.map(e=>e.type))]);
+let showLabels = true, showEdgeLabels = false;
+let selectedNode = null, hoveredNode = null;
+
+// ── Preprocess ───────────────────────────────────────────────
+const nodeMap = new Map();
+GRAPH_DATA.nodes.forEach(n => nodeMap.set(n.id, n));
+const maxPR = Math.max(...GRAPH_DATA.nodes.map(n=>n.metrics.pagerank), 0.001);
+
+function nodeRadius(d) {
+  const base = 4, scale = 20;
+  return base + (d.metrics.pagerank / maxPR) * scale;
+}
+function langColor(lang) { return LANG_COLORS[lang] || LANG_COLORS.default; }
+function kindShape(kind) { return KIND_SHAPES[kind] || KIND_SHAPES.default; }
+function edgeStyle(type) { return EDGE_STYLES[type] || EDGE_STYLES.default; }
+
+// ── SVG Setup ────────────────────────────────────────────────
+const svg = d3.select("#graph-svg");
+const container = svg.append("g").attr("id","zoom-group");
+const edgeGroup = container.append("g").attr("class","edges");
+const edgeLabelGroup = container.append("g").attr("class","edge-labels");
+const nodeGroup = container.append("g").attr("class","nodes");
+const labelGroup = container.append("g").attr("class","labels");
+
+// Defs for arrow markers
+const defs = svg.append("defs");
+defs.append("marker").attr("id","arrow").attr("viewBox","0 -5 10 10")
+  .attr("refX",20).attr("refY",0).attr("markerWidth",6).attr("markerHeight",6)
+  .attr("orient","auto").append("path").attr("d","M0,-4L10,0L0,4").attr("fill","#30363d");
+
+// ── Zoom ─────────────────────────────────────────────────────
+const zoom = d3.zoom().scaleExtent([0.1, 8]).on("zoom", e => container.attr("transform", e.transform));
+svg.call(zoom);
+
+// ── Force Simulation ─────────────────────────────────────────
+const simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(d=>d.id).distance(80))
+  .force("charge", d3.forceManyBody().strength(-150))
+  .force("center", d3.forceCenter())
+  .force("collision", d3.forceCollide().radius(d=>nodeRadius(d)+5))
+  .force("x", d3.forceX().strength(0.05))
+  .force("y", d3.forceY().strength(0.05))
+  .on("tick", ticked);
+
+function updateCenter() {
+  const rect = document.getElementById("graph-container").getBoundingClientRect();
+  simulation.force("center", d3.forceCenter(rect.width/2, rect.height/2));
+}
+updateCenter();
+window.addEventListener("resize", updateCenter);
+
+// ── Shape Generators ─────────────────────────────────────────
+function drawShape(sel) {
+  sel.each(function(d) {
+    const g = d3.select(this);
+    g.selectAll("*").remove();
+    const r = nodeRadius(d);
+    const color = langColor(d.language);
+    const shape = kindShape(d.kind);
+    g.attr("--glow-color", color);
+    let el;
+    switch(shape) {
+      case "diamond":
+        el = g.append("rect").attr("width",r*1.4).attr("height",r*1.4)
+          .attr("x",-r*0.7).attr("y",-r*0.7)
+          .attr("transform","rotate(45)").attr("rx",2);
+        break;
+      case "triangle":
+        const s = r * 1.3;
+        el = g.append("polygon").attr("points",
+          `0,${-s} ${s*0.866},${s*0.5} ${-s*0.866},${s*0.5}`);
+        break;
+      case "square":
+        el = g.append("rect").attr("width",r*1.6).attr("height",r*1.6)
+          .attr("x",-r*0.8).attr("y",-r*0.8).attr("rx",3);
+        break;
+      case "hexagon":
+        const h = r * 1.2;
+        const pts = d3.range(6).map(i => {
+          const a = Math.PI/3*i - Math.PI/6;
+          return [h*Math.cos(a), h*Math.sin(a)];
+        });
+        el = g.append("polygon").attr("points", pts.map(p=>p.join(",")).join(" "));
+        break;
+      case "star":
+        const outer = r*1.3, inner = r*0.6;
+        const starPts = d3.range(10).map(i => {
+          const a = Math.PI/5*i - Math.PI/2;
+          const rad = i%2===0 ? outer : inner;
+          return [rad*Math.cos(a), rad*Math.sin(a)];
+        });
+        el = g.append("polygon").attr("points", starPts.map(p=>p.join(",")).join(" "));
+        break;
+      default:
+        el = g.append("circle").attr("r", r);
+    }
+    el.attr("fill", color).attr("fill-opacity", 0.85).attr("stroke", color)
+      .attr("stroke-width", 1.5).attr("stroke-opacity", 0.6);
+  });
+}
+
+// ── Render ───────────────────────────────────────────────────
+let linkSel, linkLabelSel, nodeSel, labelSel;
+
+function render() {
+  const nodes = GRAPH_DATA.nodes.filter(n => activeLangs.has(n.language) && activeKinds.has(n.kind));
+  const nodeIds = new Set(nodes.map(n=>n.id));
+  const edges = GRAPH_DATA.edges.filter(e =>
+    nodeIds.has(e.source.id||e.source) && nodeIds.has(e.target.id||e.target) && activeEdgeTypes.has(e.type));
+
+  // Edges
+  linkSel = edgeGroup.selectAll("line").data(edges, d=>`${d.source.id||d.source}-${d.target.id||d.target}-${d.type}`);
+  linkSel.exit().remove();
+  const linkEnter = linkSel.enter().append("line");
+  linkSel = linkEnter.merge(linkSel)
+    .attr("stroke", "#30363d")
+    .attr("stroke-width", d => 0.5 + d.confidence * 1.5)
+    .attr("stroke-opacity", d => 0.2 + d.confidence * 0.4)
+    .attr("stroke-dasharray", d => {
+      const s = edgeStyle(d.type);
+      return s==="dashed"?"6,3":s==="dotted"?"2,3":"none";
+    })
+    .attr("marker-end","url(#arrow)");
+
+  // Edge labels
+  linkLabelSel = edgeLabelGroup.selectAll("text").data(edges, d=>`${d.source.id||d.source}-${d.target.id||d.target}-${d.type}`);
+  linkLabelSel.exit().remove();
+  const linkLabelEnter = linkLabelSel.enter().append("text")
+    .attr("font-size",9).attr("fill","#484f58").attr("text-anchor","middle").attr("dy",-4);
+  linkLabelSel = linkLabelEnter.merge(linkLabelSel)
+    .text(d=>d.type)
+    .attr("display", showEdgeLabels?"block":"none");
+
+  // Nodes
+  nodeSel = nodeGroup.selectAll("g.node").data(nodes, d=>d.id);
+  nodeSel.exit().remove();
+  const nodeEnter = nodeSel.enter().append("g").attr("class","node").attr("cursor","pointer")
+    .call(d3.drag().on("start",dragStart).on("drag",dragging).on("end",dragEnd))
+    .on("mouseover", (e,d) => onHover(d))
+    .on("mouseout", () => onHoverEnd())
+    .on("click", (e,d) => { e.stopPropagation(); showDetail(d); })
+    .on("dblclick", (e,d) => { e.stopPropagation(); zoomToNode(d); });
+  nodeSel = nodeEnter.merge(nodeSel);
+  nodeSel.each(function(d) { drawShape(d3.select(this)); });
+
+  // Labels
+  labelSel = labelGroup.selectAll("text").data(nodes, d=>d.id);
+  labelSel.exit().remove();
+  const labelEnter = labelSel.enter().append("text")
+    .attr("font-size", d => Math.max(9, Math.min(13, nodeRadius(d)*0.9)))
+    .attr("fill","#8b949e").attr("text-anchor","middle")
+    .attr("dy", d => nodeRadius(d) + 12)
+    .attr("pointer-events","none");
+  labelSel = labelEnter.merge(labelSel)
+    .text(d => d.name.length > 20 ? d.name.slice(0,18)+".." : d.name)
+    .attr("display", showLabels?"block":"none");
+
+  // Update simulation
+  simulation.nodes(nodes);
+  simulation.force("link").links(edges);
+  simulation.alpha(0.8).restart();
+
+  updateStats(nodes.length, edges.length);
+}
+
+function ticked() {
+  if(linkSel) linkSel.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y)
+    .attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+  if(linkLabelSel) linkLabelSel.attr("x",d=>(d.source.x+d.target.x)/2).attr("y",d=>(d.source.y+d.target.y)/2);
+  if(nodeSel) nodeSel.attr("transform",d=>`translate(${d.x},${d.y})`);
+  if(labelSel) labelSel.attr("x",d=>d.x).attr("y",d=>d.y + nodeRadius(d) + 12);
+}
+
+// ── Drag ─────────────────────────────────────────────────────
+function dragStart(e,d) { if(!e.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; }
+function dragging(e,d) { d.fx=e.x; d.fy=e.y; }
+function dragEnd(e,d) { if(!e.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; }
+
+// ── Hover ────────────────────────────────────────────────────
+function onHover(d) {
+  hoveredNode = d;
+  const connected = new Set();
+  GRAPH_DATA.edges.forEach(e => {
+    const sid = e.source.id||e.source, tid = e.target.id||e.target;
+    if(sid===d.id) connected.add(tid);
+    if(tid===d.id) connected.add(sid);
+  });
+  connected.add(d.id);
+
+  nodeSel.classed("node-dim", n => !connected.has(n.id));
+  nodeSel.classed("node-glow", n => n.id===d.id);
+  linkSel.classed("edge-dim", e => {
+    const sid=e.source.id||e.source, tid=e.target.id||e.target;
+    return sid!==d.id && tid!==d.id;
+  });
+  linkSel.classed("edge-highlight", e => {
+    const sid=e.source.id||e.source, tid=e.target.id||e.target;
+    return sid===d.id || tid===d.id;
+  });
+  labelSel.classed("node-dim", n => !connected.has(n.id));
+
+  // Tooltip
+  const tt = document.getElementById("tooltip");
+  tt.innerHTML = `<div class="tt-name">${esc(d.name)}</div>
+    <div class="tt-meta">${d.kind} &middot; ${d.language} &middot; PR: ${d.metrics.pagerank.toFixed(4)}</div>
+    <div class="tt-meta">${esc(d.file)}</div>`;
+  tt.style.display = "block";
+  document.addEventListener("mousemove", moveTooltip);
+}
+function moveTooltip(e) {
+  const tt = document.getElementById("tooltip");
+  tt.style.left = (e.clientX + 12) + "px";
+  tt.style.top = (e.clientY - 10) + "px";
+}
+function onHoverEnd() {
+  hoveredNode = null;
+  nodeSel.classed("node-dim",false).classed("node-glow",false);
+  linkSel.classed("edge-dim",false).classed("edge-highlight",false);
+  labelSel.classed("node-dim",false);
+  document.getElementById("tooltip").style.display = "none";
+  document.removeEventListener("mousemove", moveTooltip);
+}
+
+// ── Detail Panel ─────────────────────────────────────────────
+function showDetail(d) {
+  selectedNode = d;
+  document.getElementById("detail-name").textContent = d.qualified_name || d.name;
+  const body = document.getElementById("detail-body");
+  const incoming = [], outgoing = [];
+  GRAPH_DATA.edges.forEach(e => {
+    const sid=e.source.id||e.source, tid=e.target.id||e.target;
+    if(sid===d.id) { const t=nodeMap.get(tid); if(t) outgoing.push({node:t,type:e.type}); }
+    if(tid===d.id) { const s=nodeMap.get(sid); if(s) incoming.push({node:s,type:e.type}); }
+  });
+  body.innerHTML = `
+    <div class="detail-row"><span class="label">Kind</span><span class="value">${d.kind}</span></div>
+    <div class="detail-row"><span class="label">Language</span><span class="value">${d.language}</span></div>
+    <div class="detail-row"><span class="label">File</span><span class="value">${esc(d.file)}</span></div>
+    <div class="detail-row"><span class="label">Lines</span><span class="value">${d.start_line} - ${d.end_line}</span></div>
+    <div class="detail-row"><span class="label">PageRank</span><span class="value">${d.metrics.pagerank.toFixed(6)}</span></div>
+    <div class="detail-row"><span class="label">Community</span><span class="value">${d.metrics.community_id ?? "N/A"}</span></div>
+    ${outgoing.length ? `<div class="detail-section"><h4>Outgoing (${outgoing.length})</h4>
+      ${outgoing.slice(0,20).map(c=>`<div class="connected-node" onclick="focusNode('${esc(c.node.id)}')">
+        <span class="edge-type">${c.type} &rarr;</span> ${esc(c.node.name)}</div>`).join("")}
+      ${outgoing.length>20?`<div style="color:#484f58;font-size:11px;padding:4px 8px">+${outgoing.length-20} more</div>`:""}
+    </div>`:""}
+    ${incoming.length ? `<div class="detail-section"><h4>Incoming (${incoming.length})</h4>
+      ${incoming.slice(0,20).map(c=>`<div class="connected-node" onclick="focusNode('${esc(c.node.id)}')">
+        <span class="edge-type">&larr; ${c.type}</span> ${esc(c.node.name)}</div>`).join("")}
+      ${incoming.length>20?`<div style="color:#484f58;font-size:11px;padding:4px 8px">+${incoming.length-20} more</div>`:""}
+    </div>`:""}
+  `;
+  document.getElementById("detail-panel").classList.add("visible");
+}
+function closeDetail() {
+  selectedNode = null;
+  document.getElementById("detail-panel").classList.remove("visible");
+}
+function focusNode(id) {
+  const d = GRAPH_DATA.nodes.find(n=>n.id===id);
+  if(d) { showDetail(d); zoomToNode(d); }
+}
+function zoomToNode(d) {
+  const rect = document.getElementById("graph-container").getBoundingClientRect();
+  svg.transition().duration(750).call(
+    zoom.transform,
+    d3.zoomIdentity.translate(rect.width/2, rect.height/2).scale(2).translate(-d.x, -d.y)
+  );
+}
+
+// ── Search ───────────────────────────────────────────────────
+function onSearch(q) {
+  const el = document.getElementById("search-results");
+  if(!q || q.length < 2) { el.innerHTML = ""; return; }
+  const lq = q.toLowerCase();
+  const matches = GRAPH_DATA.nodes.filter(n =>
+    n.name.toLowerCase().includes(lq) || (n.qualified_name||"" ).toLowerCase().includes(lq)
+  ).slice(0, 15);
+  el.innerHTML = matches.map(m =>
+    `<div class="search-result" onclick="focusNode('${esc(m.id)}')">
+      <span class="kind-badge">${m.kind}</span>${esc(m.name)}</div>`
+  ).join("");
+}
+
+// ── Filters ──────────────────────────────────────────────────
+function buildFilters() {
+  // Languages
+  const langCounts = {};
+  GRAPH_DATA.nodes.forEach(n => { langCounts[n.language] = (langCounts[n.language]||0)+1; });
+  const langEl = document.getElementById("lang-filters");
+  langEl.innerHTML = Object.entries(langCounts).sort((a,b)=>b[1]-a[1]).map(([lang,count]) =>
+    `<div class="filter-chip active" data-lang="${lang}" onclick="toggleLang(this,'${lang}')">
+      <span class="dot" style="background:${langColor(lang)}"></span>
+      ${lang}<span class="count">${count}</span></div>`
+  ).join("");
+
+  // Kinds
+  const kindCounts = {};
+  GRAPH_DATA.nodes.forEach(n => { kindCounts[n.kind] = (kindCounts[n.kind]||0)+1; });
+  const kindEl = document.getElementById("kind-filters");
+  kindEl.innerHTML = Object.entries(kindCounts).sort((a,b)=>b[1]-a[1]).map(([kind,count]) =>
+    `<div class="filter-chip active" data-kind="${kind}" onclick="toggleKind(this,'${kind}')">
+      ${kind}<span class="count">${count}</span></div>`
+  ).join("");
+
+  // Edge types
+  const edgeCounts = {};
+  GRAPH_DATA.edges.forEach(e => { edgeCounts[e.type] = (edgeCounts[e.type]||0)+1; });
+  const edgeEl = document.getElementById("edge-filters");
+  edgeEl.innerHTML = Object.entries(edgeCounts).sort((a,b)=>b[1]-a[1]).map(([type,count]) =>
+    `<div class="filter-chip active" data-edge="${type}" onclick="toggleEdgeType(this,'${type}')">
+      ${type}<span class="count">${count}</span></div>`
+  ).join("");
+}
+
+function toggleLang(el, lang) {
+  el.classList.toggle("active");
+  if(activeLangs.has(lang)) activeLangs.delete(lang); else activeLangs.add(lang);
+  render();
+}
+function toggleKind(el, kind) {
+  el.classList.toggle("active");
+  if(activeKinds.has(kind)) activeKinds.delete(kind); else activeKinds.add(kind);
+  render();
+}
+function toggleEdgeType(el, type) {
+  el.classList.toggle("active");
+  if(activeEdgeTypes.has(type)) activeEdgeTypes.delete(type); else activeEdgeTypes.add(type);
+  render();
+}
+
+// ── Controls ─────────────────────────────────────────────────
+function updateForce() {
+  const str = +document.getElementById("force-strength").value;
+  const dist = +document.getElementById("link-distance").value;
+  const col = +document.getElementById("collision-radius").value;
+  document.getElementById("force-val").textContent = str;
+  document.getElementById("link-val").textContent = dist;
+  document.getElementById("collision-val").textContent = col;
+  simulation.force("charge").strength(str);
+  simulation.force("link").distance(dist);
+  simulation.force("collision").radius(d=>nodeRadius(d)+col);
+  simulation.alpha(0.5).restart();
+}
+function toggleLabels() {
+  showLabels = document.getElementById("toggle-labels").checked;
+  if(labelSel) labelSel.attr("display", showLabels?"block":"none");
+}
+function toggleEdgeLabels() {
+  showEdgeLabels = document.getElementById("toggle-edge-labels").checked;
+  if(linkLabelSel) linkLabelSel.attr("display", showEdgeLabels?"block":"none");
+}
+function resetView() {
+  svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+  updateCenter();
+  simulation.alpha(0.5).restart();
+}
+function toggleSection(header) {
+  header.parentElement.classList.toggle("collapsed");
+}
+
+// ── Export PNG ────────────────────────────────────────────────
+function exportPNG() {
+  const svgEl = document.getElementById("graph-svg");
+  const rect = svgEl.getBoundingClientRect();
+  const svgData = new XMLSerializer().serializeToString(svgEl);
+  const canvas = document.createElement("canvas");
+  canvas.width = rect.width * 2;
+  canvas.height = rect.height * 2;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(2, 2);
+  ctx.fillStyle = "#0d1117";
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0);
+    const a = document.createElement("a");
+    a.download = "coderag-graph.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  };
+  img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+}
+
+// ── Stats ────────────────────────────────────────────────────
+function updateStats(nodeCount, edgeCount) {
+  document.getElementById("stats-bar").innerHTML = `
+    <div class="stat">Nodes: <span class="num">${nodeCount}</span></div>
+    <div class="stat">Edges: <span class="num">${edgeCount}</span></div>
+    <div class="stat">Languages: <span class="num">${activeLangs.size}</span></div>
+    <div class="stat">Total in graph: <span class="num">${GRAPH_DATA.metadata.total_nodes} nodes, ${GRAPH_DATA.metadata.total_edges} edges</span></div>
+  `;
+}
+
+// ── Legend ────────────────────────────────────────────────────
+function buildLegend() {
+  const langs = GRAPH_DATA.metadata.languages;
+  const kinds = [...new Set(GRAPH_DATA.nodes.map(n=>n.kind))].slice(0,8);
+  document.getElementById("legend").innerHTML = `
+    <h4>Languages</h4>
+    <div class="legend-grid">
+      ${langs.map(l=>`<div class="legend-item"><span class="swatch" style="background:${langColor(l)}"></span>${l}</div>`).join("")}
+    </div>
+    <div class="legend-divider"></div>
+    <h4>Shapes = Node Type</h4>
+    <div class="legend-grid">
+      <div class="legend-item">&#9679; class/component</div>
+      <div class="legend-item">&#9670; function/method</div>
+      <div class="legend-item">&#9650; interface/trait</div>
+      <div class="legend-item">&#9632; file/module</div>
+      <div class="legend-item">&#11042; enum</div>
+      <div class="legend-item">&#9733; route</div>
+    </div>
+  `;
+}
+
+// ── Utility ──────────────────────────────────────────────────
+function esc(s) { if(!s) return ""; const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+// ── Click outside to deselect ────────────────────────────────
+svg.on("click", () => closeDetail());
+
+// ── Init ─────────────────────────────────────────────────────
+buildFilters();
+buildLegend();
+render();
+</script>
+</body>
+</html>

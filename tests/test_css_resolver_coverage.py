@@ -1,9 +1,5 @@
 """Targeted coverage tests for CSS resolver — covers lines 74, 101-103, 112, 122-123, 163-180."""
 
-import os
-
-import pytest
-
 from coderag.core.models import FileInfo, Language, ResolutionStrategy
 from coderag.plugins.css.resolver import CSSResolver
 
@@ -63,9 +59,11 @@ class TestCSSResolverPathNormalization:
         (project / "base" / "reset.css").write_text("body{}")
         r = CSSResolver()
         r.set_project_root(str(project))
-        r.build_index([
-            _make_fi("base/reset.css", str(project / "base" / "reset.css")),
-        ])
+        r.build_index(
+            [
+                _make_fi("base/reset.css", str(project / "base" / "reset.css")),
+            ]
+        )
         result = r.resolve("../base/reset.css", "styles/main.css")
         assert result is not None
 
@@ -76,9 +74,11 @@ class TestCSSResolverExtensionResolution:
     def test_extensionless_import_resolved_with_css(self):
         r = CSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/reset.css"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/reset.css"),
+            ]
+        )
         # Import without .css extension — resolver should try adding .css
         result = r.resolve("./reset", "styles/main.css")
         # The candidate after normalization would be "styles/reset"
@@ -95,9 +95,11 @@ class TestCSSResolverBasenameMatching:
     def test_single_basename_match(self):
         r = CSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("components/button.css"),
-        ])
+        r.build_index(
+            [
+                _make_fi("components/button.css"),
+            ]
+        )
         result = r.resolve("button", "pages/home.css")
         assert result.resolved_path == "components/button.css"
         assert result.confidence == 0.7
@@ -107,11 +109,13 @@ class TestCSSResolverBasenameMatching:
         """When multiple files share the same basename, _pick_closest is used."""
         r = CSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("components/button.css"),
-            _make_fi("pages/button.css"),
-            _make_fi("shared/button.css"),
-        ])
+        r.build_index(
+            [
+                _make_fi("components/button.css"),
+                _make_fi("pages/button.css"),
+                _make_fi("shared/button.css"),
+            ]
+        )
         # Import from src/ (no button.css there) — triggers basename multi-match
         result = r.resolve("button", "pages/deep/home.css")
         assert result.confidence == 0.5
@@ -120,11 +124,13 @@ class TestCSSResolverBasenameMatching:
     def test_multiple_matches_different_depths(self):
         r = CSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("a/b/c/vars.css"),
-            _make_fi("a/b/vars.css"),
-            _make_fi("x/y/vars.css"),
-        ])
+        r.build_index(
+            [
+                _make_fi("a/b/c/vars.css"),
+                _make_fi("a/b/vars.css"),
+                _make_fi("x/y/vars.css"),
+            ]
+        )
         # from z/main.css — z/vars.css not in index, triggers basename multi-match
         result = r.resolve("vars", "z/main.css")
         assert result.confidence == 0.5
@@ -225,9 +231,11 @@ class TestCSSResolverEdgeCases:
     def test_exact_match(self):
         r = CSSResolver()
         r.set_project_root("/project")
-        r.build_index([
-            _make_fi("styles/reset.css"),
-        ])
+        r.build_index(
+            [
+                _make_fi("styles/reset.css"),
+            ]
+        )
         result = r.resolve("./reset.css", "styles/main.css")
         # After normalization, should match styles/reset.css
         assert result is not None

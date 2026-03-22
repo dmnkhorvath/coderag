@@ -2,24 +2,22 @@
 
 import json
 import os
-import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from coderag.core.models import Node, NodeKind, Edge, EdgeKind
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 from coderag.visualization.exporter import (
     GraphExporter,
-    _select_top_nodes,
-    _collect_edges,
     _build_json,
-    _node_to_dict,
+    _collect_edges,
     _edge_to_dict,
+    _node_to_dict,
+    _select_top_nodes,
     _write_json,
 )
 from coderag.visualization.renderer import GraphRenderer, _escape_html
-
 
 # ── Helpers ───────────────────────────────────────────────────
 
@@ -272,9 +270,7 @@ class TestGraphExporter:
         ]
         edges = [_make_edge(0, 1), _make_edge(0, 2)]
         store = _make_mock_store(nodes=nodes, edges=edges)
-        data = GraphExporter.export_filtered(
-            store, tmp_path / "g.json", languages=["python"]
-        )
+        data = GraphExporter.export_filtered(store, tmp_path / "g.json", languages=["python"])
         for node in data["nodes"]:
             assert node["language"] == "python"
 
@@ -285,9 +281,7 @@ class TestGraphExporter:
             _make_node(2, kind=NodeKind.CLASS, pagerank=0.7),
         ]
         store = _make_mock_store(nodes=nodes, edges=[])
-        data = GraphExporter.export_filtered(
-            store, tmp_path / "g.json", kinds=["class"]
-        )
+        data = GraphExporter.export_filtered(store, tmp_path / "g.json", kinds=["class"])
         for node in data["nodes"]:
             assert node["kind"] == "class"
 
@@ -298,9 +292,7 @@ class TestGraphExporter:
             _make_node(2, file_path="src/models/post.py", pagerank=0.7),
         ]
         store = _make_mock_store(nodes=nodes, edges=[])
-        data = GraphExporter.export_filtered(
-            store, tmp_path / "g.json", file_pattern="models"
-        )
+        data = GraphExporter.export_filtered(store, tmp_path / "g.json", file_pattern="models")
         for node in data["nodes"]:
             assert "models" in node["file"]
 
@@ -312,8 +304,11 @@ class TestGraphExporter:
         ]
         store = _make_mock_store(nodes=nodes, edges=[])
         data = GraphExporter.export_filtered(
-            store, tmp_path / "g.json",
-            languages=["python"], kinds=["class"], file_pattern="models",
+            store,
+            tmp_path / "g.json",
+            languages=["python"],
+            kinds=["class"],
+            file_pattern="models",
         )
         assert len(data["nodes"]) == 1
         assert data["nodes"][0]["name"] == "TestSymbol0"
@@ -334,7 +329,10 @@ class TestGraphExporter:
         edges = [_make_edge(0, 1), _make_edge(1, 2), _make_edge(2, 3), _make_edge(3, 4)]
         store = _make_mock_store(nodes=nodes, edges=edges)
         data = GraphExporter.export_neighborhood(
-            store, tmp_path / "g.json", symbol="TestSymbol0", depth=1,
+            store,
+            tmp_path / "g.json",
+            symbol="TestSymbol0",
+            depth=1,
         )
         assert len(data["nodes"]) > 0
 
@@ -343,7 +341,10 @@ class TestGraphExporter:
         edges = [_make_edge(0, 1), _make_edge(1, 2), _make_edge(2, 3), _make_edge(3, 4)]
         store = _make_mock_store(nodes=nodes, edges=edges)
         data = GraphExporter.export_neighborhood(
-            store, tmp_path / "g.json", symbol="TestSymbol0", depth=2,
+            store,
+            tmp_path / "g.json",
+            symbol="TestSymbol0",
+            depth=2,
         )
         # Should include node 0, 1 (depth 1), and 2 (depth 2)
         node_names = {n["name"] for n in data["nodes"]}
@@ -353,7 +354,9 @@ class TestGraphExporter:
         store = _make_mock_store()
         with pytest.raises(ValueError, match="No node found matching"):
             GraphExporter.export_neighborhood(
-                store, tmp_path / "g.json", symbol="NonExistentSymbol",
+                store,
+                tmp_path / "g.json",
+                symbol="NonExistentSymbol",
             )
 
     def test_export_neighborhood_max_nodes(self, tmp_path):
@@ -361,7 +364,11 @@ class TestGraphExporter:
         edges = [_make_edge(i, i + 1) for i in range(49)]
         store = _make_mock_store(nodes=nodes, edges=edges)
         data = GraphExporter.export_neighborhood(
-            store, tmp_path / "g.json", symbol="TestSymbol0", depth=10, max_nodes=5,
+            store,
+            tmp_path / "g.json",
+            symbol="TestSymbol0",
+            depth=10,
+            max_nodes=5,
         )
         assert len(data["nodes"]) <= 5
 
@@ -385,7 +392,10 @@ class TestGraphExporter:
         ]
         store = _make_mock_store(nodes=nodes, edges=edges)
         data = GraphExporter.export_neighborhood(
-            store, tmp_path / "g.json", symbol="TestSymbol0", depth=1,
+            store,
+            tmp_path / "g.json",
+            symbol="TestSymbol0",
+            depth=1,
         )
         assert len(data["nodes"]) == 3  # node 0 + incoming from 1 and 2
 
@@ -399,10 +409,26 @@ class TestGraphRenderer:
     def _sample_data(self):
         return {
             "nodes": [
-                {"id": "n1", "name": "ClassA", "kind": "class", "language": "python",
-                 "file": "a.py", "start_line": 1, "end_line": 10, "metrics": {}},
-                {"id": "n2", "name": "func_b", "kind": "function", "language": "javascript",
-                 "file": "b.js", "start_line": 1, "end_line": 5, "metrics": {}},
+                {
+                    "id": "n1",
+                    "name": "ClassA",
+                    "kind": "class",
+                    "language": "python",
+                    "file": "a.py",
+                    "start_line": 1,
+                    "end_line": 10,
+                    "metrics": {},
+                },
+                {
+                    "id": "n2",
+                    "name": "func_b",
+                    "kind": "function",
+                    "language": "javascript",
+                    "file": "b.js",
+                    "start_line": 1,
+                    "end_line": 5,
+                    "metrics": {},
+                },
             ],
             "edges": [
                 {"source": "n1", "target": "n2", "type": "calls", "confidence": 0.9},
@@ -469,14 +495,20 @@ class TestGraphRenderer:
     def test_render_large_dataset(self, tmp_path):
         data = {
             "nodes": [
-                {"id": f"n{i}", "name": f"Node{i}", "kind": "class",
-                 "language": "python", "file": f"f{i}.py",
-                 "start_line": 1, "end_line": 10, "metrics": {}}
+                {
+                    "id": f"n{i}",
+                    "name": f"Node{i}",
+                    "kind": "class",
+                    "language": "python",
+                    "file": f"f{i}.py",
+                    "start_line": 1,
+                    "end_line": 10,
+                    "metrics": {},
+                }
                 for i in range(200)
             ],
             "edges": [
-                {"source": f"n{i}", "target": f"n{(i+1)%200}",
-                 "type": "calls", "confidence": 0.8}
+                {"source": f"n{i}", "target": f"n{(i + 1) % 200}", "type": "calls", "confidence": 0.8}
                 for i in range(200)
             ],
             "metadata": {"total_nodes": 200, "total_edges": 200},
@@ -516,7 +548,7 @@ class TestEscapeHtml:
         assert _escape_html("plain text") == "plain text"
 
     def test_combined(self):
-        assert _escape_html('<a href="x">&') == '&lt;a href=&quot;x&quot;&gt;&amp;'
+        assert _escape_html('<a href="x">&') == "&lt;a href=&quot;x&quot;&gt;&amp;"
 
 
 # ── CLI Tests ─────────────────────────────────────────────────
@@ -527,11 +559,14 @@ class TestVisualizeCLI:
 
     def test_cli_import(self):
         from coderag.cli.visualize import visualize
+
         assert callable(visualize)
 
     def test_cli_help(self):
         from click.testing import CliRunner
+
         from coderag.cli.visualize import visualize
+
         runner = CliRunner()
         result = runner.invoke(visualize, ["--help"])
         assert result.exit_code == 0
@@ -539,7 +574,9 @@ class TestVisualizeCLI:
 
     def test_cli_format_options(self):
         from click.testing import CliRunner
+
         from coderag.cli.visualize import visualize
+
         runner = CliRunner()
         result = runner.invoke(visualize, ["--help"])
         assert "html" in result.output
@@ -547,14 +584,18 @@ class TestVisualizeCLI:
 
     def test_cli_symbol_option(self):
         from click.testing import CliRunner
+
         from coderag.cli.visualize import visualize
+
         runner = CliRunner()
         result = runner.invoke(visualize, ["--help"])
         assert "--symbol" in result.output
 
     def test_cli_max_nodes_option(self):
         from click.testing import CliRunner
+
         from coderag.cli.visualize import visualize
+
         runner = CliRunner()
         result = runner.invoke(visualize, ["--help"])
         assert "--max-nodes" in result.output
@@ -586,7 +627,9 @@ class TestVisualizationIntegration:
         html_path = tmp_path / "graph.html"
 
         data = GraphExporter.export_filtered(
-            store, str(json_path), max_nodes=3,
+            store,
+            str(json_path),
+            max_nodes=3,
         )
         GraphRenderer.render(data, str(html_path), title="Filtered View")
         content = html_path.read_text()
@@ -598,7 +641,10 @@ class TestVisualizationIntegration:
         html_path = tmp_path / "graph.html"
 
         data = GraphExporter.export_neighborhood(
-            store, str(json_path), symbol="TestSymbol0", depth=2,
+            store,
+            str(json_path),
+            symbol="TestSymbol0",
+            depth=2,
         )
         GraphRenderer.render(data, str(html_path), title="Neighborhood")
         assert html_path.exists()
@@ -654,12 +700,14 @@ class TestDockerFiles:
 
     def test_docker_compose_valid_yaml(self, repo_root):
         import yaml
+
         with open(repo_root / "docker-compose.yml") as f:
             data = yaml.safe_load(f)
         assert "services" in data
 
     def test_docker_compose_has_services(self, repo_root):
         import yaml
+
         with open(repo_root / "docker-compose.yml") as f:
             data = yaml.safe_load(f)
         assert "coderag" in data["services"]

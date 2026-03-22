@@ -1,9 +1,11 @@
 """Final targeted tests for DjangoDetector remaining coverage gaps."""
+
 import os
-import pytest
 from unittest.mock import MagicMock, patch
 
-from coderag.core.models import Node, NodeKind, Edge, EdgeKind
+import pytest
+
+from coderag.core.models import Node, NodeKind
 from coderag.plugins.python.frameworks.django import DjangoDetector
 
 
@@ -27,12 +29,14 @@ def _make_node(kind, name, file_path="test.py", start=1, end=50, qname=None):
 
 # ── framework_name property ───────────────────────────────────
 
+
 class TestFrameworkName:
     def test_framework_name(self, detector):
         assert detector.framework_name == "django"
 
 
 # ── detect_framework dir filtering (lines 217-218, 243-244, 252-253, 277-278, 286-287, 327-328) ──
+
 
 class TestDetectFrameworkDirFiltering:
     def test_manage_py_deep_nested_beyond_depth2(self, detector, tmp_path):
@@ -97,10 +101,12 @@ class TestDetectFrameworkDirFiltering:
         (tmp_path / "requirements.txt").write_text("django==4.2\n")
         (tmp_path / "settings.py").write_text("INSTALLED_APPS = ['django']\n")
         original_open = open
+
         def mock_open(path, *a, **kw):
             if str(path).endswith("settings.py") and "settings" not in str(path).split(os.sep)[-2:]:
                 raise OSError("Permission denied")
             return original_open(path, *a, **kw)
+
         with patch("builtins.open", side_effect=mock_open):
             result = detector.detect_framework(str(tmp_path))
         assert result is False
@@ -110,16 +116,19 @@ class TestDetectFrameworkDirFiltering:
         (tmp_path / "requirements.txt").write_text("django==4.2\n")
         (tmp_path / "wsgi.py").write_text("from django.core.wsgi import get_wsgi_application\n")
         original_open = open
+
         def mock_open(path, *a, **kw):
             if str(path).endswith("wsgi.py"):
                 raise OSError("Permission denied")
             return original_open(path, *a, **kw)
+
         with patch("builtins.open", side_effect=mock_open):
             result = detector.detect_framework(str(tmp_path))
         assert result is False
 
 
 # ── _extract_bases edge case (line 463) ───────────────────────
+
 
 class TestExtractBases:
     def test_extract_bases_out_of_range(self, detector):
@@ -145,6 +154,7 @@ class TestExtractBases:
 
 # ── _detect_model edge case (line 563) ────────────────────────
 
+
 class TestDetectModelEdge:
     def test_model_with_meta_class(self, detector):
         """Model with Meta inner class."""
@@ -162,6 +172,7 @@ class TestDetectModelEdge:
 
 
 # ── _detect_signals edge case (line 957) ──────────────────────
+
 
 class TestDetectSignalsEdge:
     def test_receiver_decorator_no_matching_func(self, detector):
@@ -181,6 +192,7 @@ class TestDetectSignalsEdge:
 
 # ── _extract_view_name edge case (line 1140) ──────────────────
 
+
 class TestExtractViewNameEdge:
     def test_empty_string(self, detector):
         result = detector._extract_view_name("")
@@ -193,18 +205,18 @@ class TestExtractViewNameEdge:
 
 # ── _build_route_tree OSError (lines 1164-1165) ──────────────
 
+
 class TestBuildRouteTreeEdge:
     def test_unreadable_urls_file(self, detector, tmp_path):
         """Unreadable urls.py should be skipped."""
-        (tmp_path / "urls.py").write_text(
-            "from django.urls import path\n"
-            "urlpatterns = [path('home/', views.home)]\n"
-        )
+        (tmp_path / "urls.py").write_text("from django.urls import path\nurlpatterns = [path('home/', views.home)]\n")
         original_open = open
+
         def mock_open(path, *a, **kw):
             if str(path).endswith("urls.py"):
                 raise OSError("Permission denied")
             return original_open(path, *a, **kw)
+
         store = MagicMock()
         with patch("builtins.open", side_effect=mock_open):
             result = detector._build_route_tree(store, str(tmp_path))
@@ -220,17 +232,18 @@ class TestBuildRouteTreeEdge:
 
 # ── _extract_middleware_chain OSError (lines 1315-1316) ───────
 
+
 class TestExtractMiddlewareChainEdge:
     def test_unreadable_settings(self, detector, tmp_path):
         """Unreadable settings.py should be skipped."""
-        (tmp_path / "settings.py").write_text(
-            "MIDDLEWARE = ['django.middleware.security.SecurityMiddleware']\n"
-        )
+        (tmp_path / "settings.py").write_text("MIDDLEWARE = ['django.middleware.security.SecurityMiddleware']\n")
         original_open = open
+
         def mock_open(path, *a, **kw):
             if str(path).endswith("settings.py"):
                 raise OSError("Permission denied")
             return original_open(path, *a, **kw)
+
         store = MagicMock()
         with patch("builtins.open", side_effect=mock_open):
             result = detector._extract_middleware_chain(store, str(tmp_path))
@@ -239,9 +252,7 @@ class TestExtractMiddlewareChainEdge:
     def test_settings_without_middleware_list(self, detector, tmp_path):
         """settings.py with MIDDLEWARE as tuple (not list) should not match."""
         (tmp_path / "settings.py").write_text(
-            "MIDDLEWARE = (\n"
-            "    'django.middleware.security.SecurityMiddleware',\n"
-            ")\n"
+            "MIDDLEWARE = (\n    'django.middleware.security.SecurityMiddleware',\n)\n"
         )
         store = MagicMock()
         result = detector._extract_middleware_chain(store, str(tmp_path))
@@ -265,15 +276,18 @@ class TestExtractMiddlewareChainEdge:
 
 # ── _check_django_dependency OSError (lines 327-328) ─────────
 
+
 class TestCheckDjangoDependencyOSError:
     def test_oserror_on_dep_file_read(self, detector, tmp_path):
         """OSError reading a dep file should be skipped gracefully."""
         (tmp_path / "requirements.txt").write_text("flask==2.0\n")
         original_open = open
+
         def mock_open(path, *a, **kw):
             if str(path).endswith("requirements.txt"):
                 raise OSError("Permission denied")
             return original_open(path, *a, **kw)
+
         with patch("builtins.open", side_effect=mock_open):
             result = detector._check_django_dependency(str(tmp_path))
         assert result is False
@@ -284,17 +298,20 @@ class TestCheckDjangoDependencyOSError:
         (tmp_path / "pyproject.toml").write_text('[project]\ndependencies = ["django"]\n')
         original_open = open
         call_count = [0]
+
         def mock_open(path, *a, **kw):
             if str(path).endswith("requirements.txt"):
                 call_count[0] += 1
                 raise OSError("Permission denied")
             return original_open(path, *a, **kw)
+
         with patch("builtins.open", side_effect=mock_open):
             result = detector._check_django_dependency(str(tmp_path))
         assert result is True  # Found django in pyproject.toml
 
 
 # ── _detect_model self-referencing FK (line 563) ─────────────
+
 
 class TestDetectModelSelfRef:
     def test_self_referencing_foreignkey(self, detector):

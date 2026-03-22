@@ -20,13 +20,13 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from coderag.analysis.networkx_analyzer import NetworkXAnalyzer
-from coderag.storage.sqlite_store import SQLiteStore
 from coderag.session.store import SessionStore
+from coderag.storage.sqlite_store import SQLiteStore
 
 from .resources import register_resources
-from .tools import register_tools
 from .session_tools import register_session_tools
 from .token_tools import register_token_tools
+from .tools import register_tools
 
 logger = logging.getLogger(__name__)
 

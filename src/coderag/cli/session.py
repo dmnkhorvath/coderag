@@ -7,7 +7,6 @@ Provides `coderag session list`, `coderag session show`, and
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import click
 from rich.console import Console
@@ -44,11 +43,12 @@ def session() -> None:
 
 
 @session.command("list")
+@click.option("--limit", "-n", default=10, type=int, help="Number of sessions to show.")
 @click.option(
-    "--limit", "-n", default=10, type=int, help="Number of sessions to show."
-)
-@click.option(
-    "--project", "-p", default=None, type=click.Path(exists=True),
+    "--project",
+    "-p",
+    default=None,
+    type=click.Path(exists=True),
     help="Project directory (default: current directory).",
 )
 def session_list(limit: int, project: str | None) -> None:
@@ -83,7 +83,10 @@ def session_list(limit: int, project: str | None) -> None:
 @session.command("show")
 @click.argument("session_id")
 @click.option(
-    "--project", "-p", default=None, type=click.Path(exists=True),
+    "--project",
+    "-p",
+    default=None,
+    type=click.Path(exists=True),
     help="Project directory (default: current directory).",
 )
 def session_show(session_id: str, project: str | None) -> None:
@@ -132,12 +135,17 @@ def session_show(session_id: str, project: str | None) -> None:
 
 @session.command("context")
 @click.option(
-    "--category", "-c", default=None,
+    "--category",
+    "-c",
+    default=None,
     type=click.Choice(["decision", "task", "fact"]),
     help="Filter by category.",
 )
 @click.option(
-    "--project", "-p", default=None, type=click.Path(exists=True),
+    "--project",
+    "-p",
+    default=None,
+    type=click.Path(exists=True),
     help="Project directory (default: current directory).",
 )
 def session_context(category: str | None, project: str | None) -> None:

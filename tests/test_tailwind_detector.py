@@ -1,13 +1,16 @@
 import json
-import os
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
 from coderag.core.models import (
-    Node, NodeKind, Edge, EdgeKind, FrameworkPattern,
+    EdgeKind,
+    Node,
+    NodeKind,
 )
 from coderag.plugins.css.frameworks.tailwind import (
-    TailwindDetector, _detect_token_namespace,
+    TailwindDetector,
+    _detect_token_namespace,
 )
 
 
@@ -17,6 +20,7 @@ def detector():
 
 
 # ── _detect_token_namespace ───────────────────────────────────
+
 
 class TestDetectTokenNamespace:
     def test_color_prefix(self):
@@ -33,6 +37,7 @@ class TestDetectTokenNamespace:
 
 
 # ── detect_framework ──────────────────────────────────────────
+
 
 class TestDetectFramework:
     def test_v3_config_js(self, detector, tmp_path):
@@ -52,21 +57,15 @@ class TestDetectFramework:
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_package_json_deps(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"tailwindcss": "^3.4.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"tailwindcss": "^3.4.0"}}))
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_package_json_devdeps(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "devDependencies": {"tailwindcss": "^4.0.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"devDependencies": {"tailwindcss": "^4.0.0"}}))
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_package_json_no_tailwind(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"react": "^18.0.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"react": "^18.0.0"}}))
         assert detector.detect_framework(str(tmp_path)) is False
 
     def test_package_json_malformed(self, detector, tmp_path):
@@ -82,13 +81,13 @@ class TestDetectFramework:
     def test_v3_tailwind_directive(self, detector, tmp_path):
         css_dir = tmp_path / "src"
         css_dir.mkdir()
-        (css_dir / "app.css").write_text('@tailwind base;\n@tailwind components;\n@tailwind utilities;\n')
+        (css_dir / "app.css").write_text("@tailwind base;\n@tailwind components;\n@tailwind utilities;\n")
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_skips_node_modules(self, detector, tmp_path):
         nm = tmp_path / "node_modules" / "tailwindcss"
         nm.mkdir(parents=True)
-        (nm / "base.css").write_text('@tailwind base;')
+        (nm / "base.css").write_text("@tailwind base;")
         assert detector.detect_framework(str(tmp_path)) is False
 
     def test_skips_deep_directories(self, detector, tmp_path):
@@ -97,7 +96,6 @@ class TestDetectFramework:
         (deep / "app.css").write_text('@import "tailwindcss";')
         assert detector.detect_framework(str(tmp_path)) is False
 
-
     def test_no_indicators(self, detector, tmp_path):
         (tmp_path / "style.css").write_text("body { color: red; }")
         assert detector.detect_framework(str(tmp_path)) is False
@@ -105,18 +103,15 @@ class TestDetectFramework:
 
 # ── _detect_versions ──────────────────────────────────────────
 
+
 class TestDetectVersions:
     def test_v3_from_package_json(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"tailwindcss": "^3.4.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"tailwindcss": "^3.4.0"}}))
         versions = detector._detect_versions(str(tmp_path))
         assert "v3" in versions
 
     def test_v4_from_package_json(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "devDependencies": {"tailwindcss": "^4.0.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"devDependencies": {"tailwindcss": "^4.0.0"}}))
         versions = detector._detect_versions(str(tmp_path))
         assert "v4" in versions
 
@@ -126,9 +121,7 @@ class TestDetectVersions:
         assert "v3" in versions
 
     def test_both_versions(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"tailwindcss": "^4.0.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"tailwindcss": "^4.0.0"}}))
         (tmp_path / "tailwind.config.js").write_text("module.exports = {}")
         versions = detector._detect_versions(str(tmp_path))
         assert "v3" in versions
@@ -144,23 +137,17 @@ class TestDetectVersions:
         assert len(versions) == 0
 
     def test_tilde_v3(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"tailwindcss": "~3.2.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"tailwindcss": "~3.2.0"}}))
         versions = detector._detect_versions(str(tmp_path))
         assert "v3" in versions
 
     def test_exact_v4(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"tailwindcss": "4.1.0"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"tailwindcss": "4.1.0"}}))
         versions = detector._detect_versions(str(tmp_path))
         assert "v4" in versions
 
     def test_unknown_version(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text(json.dumps({
-            "dependencies": {"tailwindcss": "latest"}
-        }))
+        (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"tailwindcss": "latest"}}))
         versions = detector._detect_versions(str(tmp_path))
         # "latest" doesn't start with 3 or 4
         assert "v3" not in versions
@@ -169,13 +156,14 @@ class TestDetectVersions:
 
 # ── detect (per-file) ─────────────────────────────────────────
 
+
 class TestDetectPerFile:
     def _make_tree_mock(self):
         tree = MagicMock()
         return tree
 
     def test_v4_theme_block(self, detector):
-        source = b'''@import "tailwindcss";
+        source = b"""@import "tailwindcss";
 
 @theme {
   --color-primary: oklch(0.84 0.18 117.33);
@@ -183,7 +171,7 @@ class TestDetectPerFile:
   --spacing-128: 32rem;
   --font-display: "Satoshi", sans-serif;
 }
-'''
+"""
         tree = self._make_tree_mock()
         patterns = detector.detect("app.css", tree, source, [], [])
         theme_patterns = [p for p in patterns if p.pattern_type == "theme_tokens"]
@@ -191,14 +179,14 @@ class TestDetectPerFile:
         assert theme_patterns[0].metadata["token_count"] == 4
 
     def test_v4_utility_block(self, detector):
-        source = b'''@utility tab-4 {
+        source = b"""@utility tab-4 {
   tab-size: 4;
 }
 
 @utility content-auto {
   content-visibility: auto;
 }
-'''
+"""
         tree = self._make_tree_mock()
         patterns = detector.detect("app.css", tree, source, [], [])
         utility_patterns = [p for p in patterns if p.pattern_type == "utilities"]
@@ -206,13 +194,13 @@ class TestDetectPerFile:
         assert utility_patterns[0].metadata["utility_count"] == 2
 
     def test_apply_directives(self, detector):
-        source = b'''.btn {
+        source = b""".btn {
   @apply px-4 py-2 bg-blue-500 text-white rounded;
 }
 .card {
   @apply shadow-lg p-6;
 }
-'''
+"""
         tree = self._make_tree_mock()
         patterns = detector.detect("components.css", tree, source, [], [])
         apply_patterns = [p for p in patterns if p.pattern_type == "apply_directives"]
@@ -221,10 +209,10 @@ class TestDetectPerFile:
         assert apply_patterns[0].metadata["apply_count"] == 7
 
     def test_source_directives(self, detector):
-        source = b'''@import "tailwindcss";
+        source = b"""@import "tailwindcss";
 @source "../node_modules/@my-company/ui-lib";
 @source "../shared/components";
-'''
+"""
         tree = self._make_tree_mock()
         patterns = detector.detect("app.css", tree, source, [], [])
         source_patterns = [p for p in patterns if p.pattern_type == "source_directives"]
@@ -232,21 +220,21 @@ class TestDetectPerFile:
         assert source_patterns[0].metadata["source_count"] == 2
 
     def test_no_patterns(self, detector):
-        source = b'''body {
+        source = b"""body {
   color: red;
   font-size: 16px;
 }
-'''
+"""
         tree = self._make_tree_mock()
         patterns = detector.detect("plain.css", tree, source, [], [])
         assert len(patterns) == 0
 
     def test_apply_with_class_nodes(self, detector):
         """Test that @apply edges link to enclosing CSS class nodes."""
-        source = b'''.btn-primary {
+        source = b""".btn-primary {
   @apply bg-blue-500 text-white;
 }
-'''
+"""
         btn_node = Node(
             id="btn-id",
             kind=NodeKind.CSS_CLASS,
@@ -268,6 +256,7 @@ class TestDetectPerFile:
 
 # ── detect_global_patterns ────────────────────────────────────
 
+
 class TestDetectGlobalPatterns:
     def test_no_file_nodes(self, detector):
         store = MagicMock()
@@ -278,7 +267,7 @@ class TestDetectGlobalPatterns:
     def test_with_project_root_metadata(self, detector, tmp_path):
         # Create a v3 config
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   content: ["./src/**/*.{html,js}"],
   theme: {
     extend: {
@@ -288,14 +277,18 @@ class TestDetectGlobalPatterns:
       },
     },
   },
-}''')
+}""")
 
         store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.css",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.css",
             qualified_name="app.css",
             file_path=str(tmp_path / "src" / "app.css"),
-            start_line=1, end_line=1, language="css",
+            start_line=1,
+            end_line=1,
+            language="css",
         )
         store.find_nodes.return_value = [file_node]
         store.get_metadata.return_value = str(tmp_path)
@@ -307,19 +300,23 @@ class TestDetectGlobalPatterns:
 
     def test_infer_project_root_from_package_json(self, detector, tmp_path):
         # Create package.json and config
-        (tmp_path / "package.json").write_text('{}')
+        (tmp_path / "package.json").write_text("{}")
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   content: ["./src/**/*.html"],
   theme: { extend: { spacing: { "128": "32rem" } } },
-}''')
+}""")
 
         store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.css",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.css",
             qualified_name="app.css",
             file_path=str(tmp_path / "src" / "app.css"),
-            start_line=1, end_line=1, language="css",
+            start_line=1,
+            end_line=1,
+            language="css",
         )
         store.find_nodes.return_value = [file_node]
         store.get_metadata.side_effect = Exception("no metadata")
@@ -331,10 +328,14 @@ class TestDetectGlobalPatterns:
     def test_no_project_root_found(self, detector, tmp_path):
         store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.css",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.css",
             qualified_name="app.css",
             file_path="relative/path/app.css",  # not absolute
-            start_line=1, end_line=1, language="css",
+            start_line=1,
+            end_line=1,
+            language="css",
         )
         store.find_nodes.return_value = [file_node]
         store.get_metadata.side_effect = Exception("no metadata")
@@ -343,14 +344,18 @@ class TestDetectGlobalPatterns:
         assert patterns == []
 
     def test_no_config_file(self, detector, tmp_path):
-        (tmp_path / "package.json").write_text('{}')
+        (tmp_path / "package.json").write_text("{}")
 
         store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.css",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.css",
             qualified_name="app.css",
             file_path=str(tmp_path / "src" / "app.css"),
-            start_line=1, end_line=1, language="css",
+            start_line=1,
+            end_line=1,
+            language="css",
         )
         store.find_nodes.return_value = [file_node]
         store.get_metadata.return_value = str(tmp_path)
@@ -361,10 +366,11 @@ class TestDetectGlobalPatterns:
 
 # ── _parse_v3_config ──────────────────────────────────────────
 
+
 class TestParseV3Config:
     def test_full_config(self, detector, tmp_path):
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   content: [
     "./src/**/*.{html,js,jsx}",
     "./public/index.html",
@@ -389,7 +395,7 @@ class TestParseV3Config:
       },
     },
   },
-}''')
+}""")
 
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
@@ -434,9 +440,9 @@ class TestParseV3Config:
 
     def test_content_only(self, detector, tmp_path):
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   content: ["./src/**/*.html", "./components/**/*.vue"],
-}''')
+}""")
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
         content_edges = [e for e in pattern.edges if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS]
@@ -444,7 +450,7 @@ class TestParseV3Config:
 
     def test_theme_extend_only(self, detector, tmp_path):
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   theme: {
     extend: {
       colors: {
@@ -452,7 +458,7 @@ class TestParseV3Config:
       },
     },
   },
-}''')
+}""")
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
         token_nodes = [n for n in pattern.nodes if n.kind == NodeKind.TAILWIND_THEME_TOKEN]
@@ -463,7 +469,7 @@ class TestParseV3Config:
 
     def test_theme_defines_edges(self, detector, tmp_path):
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   theme: {
     extend: {
       colors: {
@@ -471,7 +477,7 @@ class TestParseV3Config:
       },
     },
   },
-}''')
+}""")
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
         defines_edges = [e for e in pattern.edges if e.kind == EdgeKind.TAILWIND_THEME_DEFINES]
@@ -481,7 +487,7 @@ class TestParseV3Config:
     def test_screens_section(self, detector, tmp_path):
         """Test screens section produces breakpoint namespace tokens."""
         config = tmp_path / "tailwind.config.js"
-        config.write_text('''module.exports = {
+        config.write_text("""module.exports = {
   theme: {
     extend: {
       screens: {
@@ -490,7 +496,7 @@ class TestParseV3Config:
       },
     },
   },
-}''')
+}""")
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
         token_nodes = [n for n in pattern.nodes if n.kind == NodeKind.TAILWIND_THEME_TOKEN]
@@ -500,16 +506,17 @@ class TestParseV3Config:
 
 # ── Edge cases ────────────────────────────────────────────────
 
+
 class TestEdgeCases:
     def test_empty_theme_block(self, detector):
-        source = b'@theme {\n}\n'
+        source = b"@theme {\n}\n"
         tree = MagicMock()
         patterns = detector.detect("app.css", tree, source, [], [])
         theme_patterns = [p for p in patterns if p.pattern_type == "theme_tokens"]
         assert len(theme_patterns) == 0
 
     def test_empty_apply(self, detector):
-        source = b'.btn {\n  @apply ;\n}\n'
+        source = b".btn {\n  @apply ;\n}\n"
         tree = MagicMock()
         patterns = detector.detect("app.css", tree, source, [], [])
         apply_patterns = [p for p in patterns if p.pattern_type == "apply_directives"]
@@ -517,14 +524,14 @@ class TestEdgeCases:
         assert len(apply_patterns) == 0
 
     def test_multiple_theme_blocks(self, detector):
-        source = b'''@theme {
+        source = b"""@theme {
   --color-primary: #007bff;
 }
 
 @theme {
   --spacing-lg: 2rem;
 }
-'''
+"""
         tree = MagicMock()
         patterns = detector.detect("app.css", tree, source, [], [])
         theme_patterns = [p for p in patterns if p.pattern_type == "theme_tokens"]

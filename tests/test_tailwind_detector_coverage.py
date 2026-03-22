@@ -7,13 +7,11 @@ Focuses on:
 - Line 720: non-font namespace in _parse_v3_config array values
 """
 
-import json
-import os
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coderag.core.models import Edge, EdgeKind, FrameworkPattern, Node, NodeKind
+from coderag.core.models import EdgeKind, Node, NodeKind
 from coderag.plugins.css.frameworks.tailwind import TailwindDetector
 
 
@@ -112,9 +110,7 @@ class TestParseV3ConfigNamespaceBranches:
         )
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
-        token_nodes = [
-            n for n in pattern.nodes if n.kind == NodeKind.TAILWIND_THEME_TOKEN
-        ]
+        token_nodes = [n for n in pattern.nodes if n.kind == NodeKind.TAILWIND_THEME_TOKEN]
         assert len(token_nodes) == 2
         for node in token_nodes:
             assert node.metadata["namespace"] == "spacing"
@@ -252,9 +248,7 @@ class TestParseV3ConfigEdgeCases:
         )
         pattern = detector._parse_v3_config(str(config), str(tmp_path))
         assert pattern is not None
-        content_edges = [
-            e for e in pattern.edges if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS
-        ]
+        content_edges = [e for e in pattern.edges if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS]
         assert len(content_edges) == 3
 
     def test_config_with_all_sections(self, detector, tmp_path):
@@ -289,9 +283,7 @@ class TestParseV3ConfigEdgeCases:
         assert "spacing" in namespaces
         assert "font" in namespaces
         assert "breakpoint" in namespaces
-        content_edges = [
-            e for e in pattern.edges if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS
-        ]
+        content_edges = [e for e in pattern.edges if e.kind == EdgeKind.TAILWIND_SOURCE_SCANS]
         assert len(content_edges) == 1
 
 

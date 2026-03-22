@@ -1,11 +1,14 @@
 """Extra tests for DjangoDetector to cover remaining gaps."""
-import json
+
 import os
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, PropertyMock
 
 from coderag.core.models import (
-    Node, NodeKind, Edge, EdgeKind, FrameworkPattern,
+    EdgeKind,
+    Node,
+    NodeKind,
 )
 from coderag.plugins.python.frameworks.django import DjangoDetector
 
@@ -30,15 +33,14 @@ def _make_node(kind, name, file_path="test.py", start=1, end=50, qname=None):
 
 # ── detect_framework edge cases ───────────────────────────────
 
+
 class TestDetectFrameworkEdgeCases:
     def test_settings_py_with_installed_apps(self, detector, tmp_path):
         """Detect via settings.py containing INSTALLED_APPS."""
         (tmp_path / "requirements.txt").write_text("django==4.2\n")
         sub = tmp_path / "myproject"
         sub.mkdir()
-        (sub / "settings.py").write_text(
-            "INSTALLED_APPS = ['django.contrib.admin']\n"
-        )
+        (sub / "settings.py").write_text("INSTALLED_APPS = ['django.contrib.admin']\n")
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_wsgi_py_with_django(self, detector, tmp_path):
@@ -48,8 +50,8 @@ class TestDetectFrameworkEdgeCases:
         sub.mkdir()
         (sub / "wsgi.py").write_text(
             'import os\nos.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings")\n'
-            'from django.core.wsgi import get_wsgi_application\n'
-            'application = get_wsgi_application()\n'
+            "from django.core.wsgi import get_wsgi_application\n"
+            "application = get_wsgi_application()\n"
         )
         assert detector.detect_framework(str(tmp_path)) is True
 
@@ -59,8 +61,7 @@ class TestDetectFrameworkEdgeCases:
         sub = tmp_path / "myproject"
         sub.mkdir()
         (sub / "asgi.py").write_text(
-            'from django.core.asgi import get_asgi_application\n'
-            'application = get_asgi_application()\n'
+            "from django.core.asgi import get_asgi_application\napplication = get_asgi_application()\n"
         )
         assert detector.detect_framework(str(tmp_path)) is True
 
@@ -97,17 +98,13 @@ class TestDetectFrameworkEdgeCases:
 
     def test_dep_in_pyproject_toml(self, detector, tmp_path):
         """Detect django in pyproject.toml."""
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\ndependencies = ["django>=4.2"]\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\ndependencies = ["django>=4.2"]\n')
         (tmp_path / "manage.py").write_text("#!/usr/bin/env python\n")
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_dep_in_pipfile(self, detector, tmp_path):
         """Detect django in Pipfile."""
-        (tmp_path / "Pipfile").write_text(
-            '[packages]\ndjango = "*"\n'
-        )
+        (tmp_path / "Pipfile").write_text('[packages]\ndjango = "*"\n')
         (tmp_path / "manage.py").write_text("#!/usr/bin/env python\n")
         assert detector.detect_framework(str(tmp_path)) is True
 
@@ -123,6 +120,7 @@ class TestDetectFrameworkEdgeCases:
 
 # ── _check_django_dependency ──────────────────────────────────
 
+
 class TestCheckDjangoDependency:
     def test_requirements_base(self, detector, tmp_path):
         reqs = tmp_path / "requirements"
@@ -131,15 +129,11 @@ class TestCheckDjangoDependency:
         assert detector._check_django_dependency(str(tmp_path)) is True
 
     def test_setup_py(self, detector, tmp_path):
-        (tmp_path / "setup.py").write_text(
-            'install_requires=["django>=4.2"]\n'
-        )
+        (tmp_path / "setup.py").write_text('install_requires=["django>=4.2"]\n')
         assert detector._check_django_dependency(str(tmp_path)) is True
 
     def test_setup_cfg(self, detector, tmp_path):
-        (tmp_path / "setup.cfg").write_text(
-            '[options]\ninstall_requires = django>=4.2\n'
-        )
+        (tmp_path / "setup.cfg").write_text("[options]\ninstall_requires = django>=4.2\n")
         assert detector._check_django_dependency(str(tmp_path)) is True
 
     def test_no_dep_files(self, detector, tmp_path):
@@ -147,6 +141,7 @@ class TestCheckDjangoDependency:
 
 
 # ── _is_middleware_class edge cases ───────────────────────────
+
 
 class TestIsMiddlewareClass:
     def test_middleware_by_name_with_call(self, detector):
@@ -175,13 +170,11 @@ class TestIsMiddlewareClass:
 
 # ── _detect_signals - signal.connect() ────────────────────────
 
+
 class TestDetectSignals:
     def test_signal_connect(self, detector):
         """Detect signal.connect(handler) pattern."""
-        source = (
-            "from django.db.models.signals import post_save\n"
-            "post_save.connect(my_handler, sender=MyModel)\n"
-        )
+        source = "from django.db.models.signals import post_save\npost_save.connect(my_handler, sender=MyModel)\n"
         patterns = detector._detect_signals(source, "signals.py", [])
         assert len(patterns) >= 1
         signal_p = [p for p in patterns if p.metadata.get("handler") == "my_handler"]
@@ -204,6 +197,7 @@ class TestDetectSignals:
 
 # ── _extract_view_name ────────────────────────────────────────
 
+
 class TestExtractViewName:
     def test_as_view(self, detector):
         assert detector._extract_view_name("views.UserListView.as_view()") == "UserListView"
@@ -216,6 +210,7 @@ class TestExtractViewName:
 
 
 # ── _resolve_view ─────────────────────────────────────────────
+
 
 class TestResolveView:
     def test_resolve_controller(self, detector):
@@ -255,6 +250,7 @@ class TestResolveView:
 
 
 # ── _build_route_tree ─────────────────────────────────────────
+
 
 class TestBuildRouteTree:
     def test_build_route_tree_with_include(self, detector, tmp_path):
@@ -310,6 +306,7 @@ class TestBuildRouteTree:
 
 # ── _extract_middleware_chain ─────────────────────────────────
 
+
 class TestExtractMiddlewareChain:
     def test_extract_middleware_chain(self, detector, tmp_path):
         """Extract MIDDLEWARE list from settings.py."""
@@ -335,9 +332,7 @@ class TestExtractMiddlewareChain:
         settings_dir = tmp_path / "myproject" / "settings"
         settings_dir.mkdir(parents=True)
         (settings_dir / "base.py").write_text(
-            "MIDDLEWARE = [\n"
-            "    'django.middleware.security.SecurityMiddleware',\n"
-            "]\n"
+            "MIDDLEWARE = [\n    'django.middleware.security.SecurityMiddleware',\n]\n"
         )
         store = MagicMock()
         pattern = detector._extract_middleware_chain(store, str(tmp_path))
@@ -360,6 +355,7 @@ class TestExtractMiddlewareChain:
 
 # ── detect_global_patterns ────────────────────────────────────
 
+
 class TestDetectGlobalPatterns:
     def test_infer_project_root_none(self, detector):
         """When store has no file nodes, returns empty."""
@@ -374,30 +370,23 @@ class TestDetectGlobalPatterns:
         (tmp_path / "manage.py").write_text("#!/usr/bin/env python\n")
         # Create urls.py
         (tmp_path / "urls.py").write_text(
-            "from django.urls import path\n"
-            "urlpatterns = [\n"
-            "    path('home/', views.home, name='home'),\n"
-            "]\n"
+            "from django.urls import path\nurlpatterns = [\n    path('home/', views.home, name='home'),\n]\n"
         )
         # Create settings.py
         (tmp_path / "settings.py").write_text(
-            "MIDDLEWARE = [\n"
-            "    'django.middleware.security.SecurityMiddleware',\n"
-            "]\n"
+            "MIDDLEWARE = [\n    'django.middleware.security.SecurityMiddleware',\n]\n"
         )
         # Mock store to return a file node with absolute path inside tmp_path
-        file_node = _make_node(NodeKind.FILE, "models.py",
-                               file_path=os.path.join(str(tmp_path), "models.py"))
+        file_node = _make_node(NodeKind.FILE, "models.py", file_path=os.path.join(str(tmp_path), "models.py"))
         store = MagicMock()
-        store.find_nodes.side_effect = lambda **kw: (
-            [file_node] if kw.get("kind") == NodeKind.FILE else []
-        )
+        store.find_nodes.side_effect = lambda **kw: [file_node] if kw.get("kind") == NodeKind.FILE else []
         patterns = detector.detect_global_patterns(store)
         pattern_types = {p.pattern_type for p in patterns}
         assert "routes" in pattern_types or "middleware_chain" in pattern_types
 
 
 # ── _detect_url_patterns ──────────────────────────────────────
+
 
 class TestDetectUrlPatterns:
     def test_url_patterns_with_as_view(self, detector):

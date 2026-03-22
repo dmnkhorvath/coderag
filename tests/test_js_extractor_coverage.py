@@ -2,26 +2,26 @@
 
 Focuses on uncovered lines from the coverage report.
 """
+
 import pytest
 import tree_sitter
 import tree_sitter_javascript as tsjs
 
+from coderag.core.models import EdgeKind, NodeKind
 from coderag.plugins.javascript.extractor import (
     JavaScriptExtractor,
     _child_by_field,
     _children_of_type,
-    _node_text,
-    _is_pascal_case,
-    _find_preceding_docblock,
-    _is_async,
-    _is_static,
-    _is_generator,
-    _extract_parameters,
-    _get_method_kind,
     _contains_jsx,
+    _extract_parameters,
+    _find_preceding_docblock,
+    _get_method_kind,
+    _is_async,
+    _is_generator,
+    _is_pascal_case,
+    _is_static,
+    _node_text,
 )
-from coderag.core.models import EdgeKind, NodeKind
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -48,6 +48,7 @@ def _extract(ext, code: str, filename: str = "test.js"):
 # ---------------------------------------------------------------------------
 # Helper function tests
 # ---------------------------------------------------------------------------
+
 
 class TestNodeText:
     def test_node_text_none_returns_empty(self):
@@ -198,14 +199,14 @@ class TestIsGenerator:
 
 class TestExtractParameters:
     def test_simple_params(self):
-        src = b'function foo(a, b, c) {}'
+        src = b"function foo(a, b, c) {}"
         root = _parse(src)
         func = root.children[0]
         params = _extract_parameters(func, src)
         assert len(params) == 3
-        assert params[0]['name'] == 'a'
-        assert params[1]['name'] == 'b'
-        assert params[2]['name'] == 'c'
+        assert params[0]["name"] == "a"
+        assert params[1]["name"] == "b"
+        assert params[2]["name"] == "c"
 
     def test_default_params(self):
         src = b"function foo(a = 1, b = 'hello') {}"
@@ -213,42 +214,42 @@ class TestExtractParameters:
         func = root.children[0]
         params = _extract_parameters(func, src)
         assert len(params) == 2
-        assert params[0]['name'] == 'a'
-        assert 'default' in params[0]
+        assert params[0]["name"] == "a"
+        assert "default" in params[0]
 
     def test_rest_params(self):
-        src = b'function foo(...args) {}'
+        src = b"function foo(...args) {}"
         root = _parse(src)
         func = root.children[0]
         params = _extract_parameters(func, src)
         assert len(params) == 1
-        assert '...' in params[0]['name']
+        assert "..." in params[0]["name"]
 
     def test_destructured_object_params(self):
-        src = b'function foo({ a, b }) {}'
+        src = b"function foo({ a, b }) {}"
         root = _parse(src)
         func = root.children[0]
         params = _extract_parameters(func, src)
         assert len(params) >= 1
-        assert any(p.get('destructured') for p in params)
+        assert any(p.get("destructured") for p in params)
 
     def test_destructured_array_params(self):
-        src = b'function foo([a, b]) {}'
+        src = b"function foo([a, b]) {}"
         root = _parse(src)
         func = root.children[0]
         params = _extract_parameters(func, src)
         assert len(params) >= 1
-        assert any(p.get('destructured') for p in params)
+        assert any(p.get("destructured") for p in params)
 
     def test_no_params(self):
-        src = b'function foo() {}'
+        src = b"function foo() {}"
         root = _parse(src)
         func = root.children[0]
         params = _extract_parameters(func, src)
         assert params == []
 
     def test_mixed_params(self):
-        src = b'function foo(a, b = 2, ...rest) {}'
+        src = b"function foo(a, b = 2, ...rest) {}"
         root = _parse(src)
         func = root.children[0]
         params = _extract_parameters(func, src)
@@ -319,6 +320,7 @@ class TestGetMethodKind:
 # Extractor interface tests
 # ---------------------------------------------------------------------------
 
+
 class TestExtractorInterface:
     def test_supported_node_kinds(self, ext):
         kinds = ext.supported_node_kinds()
@@ -336,6 +338,7 @@ class TestExtractorInterface:
 # ---------------------------------------------------------------------------
 # Integration tests via extract()
 # ---------------------------------------------------------------------------
+
 
 class TestImportHandling:
     def test_named_import(self, ext):
@@ -510,8 +513,7 @@ class TestClassHandling:
         classes = [n for n in result.nodes if n.kind == NodeKind.CLASS]
         assert len(classes) == 1
         assert classes[0].metadata.get("superclass") == "Animal"
-        extends_refs = [u for u in result.unresolved_references
-                        if u.reference_kind == EdgeKind.EXTENDS]
+        extends_refs = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.EXTENDS]
         assert len(extends_refs) >= 1
         assert extends_refs[0].reference_name == "Animal"
 
@@ -628,8 +630,7 @@ class TestFunctionDeclarations:
         result = _extract(ext, code)
         funcs = [n for n in result.nodes if n.kind == NodeKind.FUNCTION]
         assert len(funcs) == 1
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
 
     def test_function_with_docblock(self, ext):
@@ -675,8 +676,7 @@ class TestArrowFunctions:
     def test_arrow_with_calls_in_body(self, ext):
         code = "const run = () => { helper(); doStuff(); };"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
 
     def test_arrow_component_jsx(self, ext):
@@ -795,54 +795,47 @@ class TestCallScanning:
     def test_dynamic_import(self, ext):
         code = "async function load() { const m = await import('./mod'); }"
         result = _extract(ext, code)
-        dyn_imports = [u for u in result.unresolved_references
-                       if u.reference_kind == EdgeKind.DYNAMIC_IMPORTS]
+        dyn_imports = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.DYNAMIC_IMPORTS]
         assert len(dyn_imports) >= 1
         assert dyn_imports[0].reference_name == "./mod"
 
     def test_simple_call(self, ext):
         code = "function main() { helper(); }"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
         assert any(u.reference_name == "helper" for u in calls)
 
     def test_method_call(self, ext):
         code = "function main() { console.log('hi'); }"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
         assert any("console.log" in u.reference_name for u in calls)
 
     def test_nested_calls(self, ext):
         code = "function main() { foo(bar()); }"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 2
 
     def test_call_in_arrow_body(self, ext):
         code = "const run = () => { doWork(); };"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
 
     def test_call_in_class_method(self, ext):
         code = "class Svc { run() { this.helper(); external(); } }"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
 
     def test_require_not_in_calls(self, ext):
         """require() calls should not appear as CALLS references."""
         code = "function f() { const x = require('fs'); helper(); }"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         call_names = {u.reference_name for u in calls}
         assert "require" not in call_names
         assert "helper" in call_names
@@ -852,24 +845,21 @@ class TestNewExpression:
     def test_new_expression_basic(self, ext):
         code = "function f() { const x = new Foo(); }"
         result = _extract(ext, code)
-        inst = [u for u in result.unresolved_references
-                if u.reference_kind == EdgeKind.INSTANTIATES]
+        inst = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.INSTANTIATES]
         assert len(inst) >= 1
         assert inst[0].reference_name == "Foo"
 
     def test_new_expression_member(self, ext):
         code = "function f() { const x = new pkg.Widget(); }"
         result = _extract(ext, code)
-        inst = [u for u in result.unresolved_references
-                if u.reference_kind == EdgeKind.INSTANTIATES]
+        inst = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.INSTANTIATES]
         assert len(inst) >= 1
         assert "pkg.Widget" in inst[0].reference_name
 
     def test_new_in_class_method(self, ext):
         code = "class F { create() { return new Bar(); } }"
         result = _extract(ext, code)
-        inst = [u for u in result.unresolved_references
-                if u.reference_kind == EdgeKind.INSTANTIATES]
+        inst = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.INSTANTIATES]
         assert len(inst) >= 1
 
 
@@ -1016,8 +1006,7 @@ export function readFile() { return new Buffer(); }
         assert any(n.name == "fs" for n in imports)
         funcs = [n for n in result.nodes if n.kind == NodeKind.FUNCTION]
         assert any(n.name == "readFile" for n in funcs)
-        inst = [u for u in result.unresolved_references
-                if u.reference_kind == EdgeKind.INSTANTIATES]
+        inst = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.INSTANTIATES]
         assert len(inst) >= 1
 
     def test_export_multiple_const(self, ext):
@@ -1031,15 +1020,13 @@ export function readFile() { return new Buffer(); }
         result = _extract(ext, code)
         funcs = [n for n in result.nodes if n.kind == NodeKind.FUNCTION]
         assert len(funcs) == 1
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 2
 
     def test_class_with_new_in_static(self, ext):
         code = "class Foo { static create() { return new Foo(); } }"
         result = _extract(ext, code)
-        inst = [u for u in result.unresolved_references
-                if u.reference_kind == EdgeKind.INSTANTIATES]
+        inst = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.INSTANTIATES]
         assert len(inst) >= 1
 
     def test_arrow_with_destructured_params(self, ext):
@@ -1064,25 +1051,21 @@ export function readFile() { return new Buffer(); }
         assert len(classes) == 1
         methods = [n for n in result.nodes if n.kind == NodeKind.METHOD]
         assert len(methods) >= 2
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
-        inst = [u for u in result.unresolved_references
-                if u.reference_kind == EdgeKind.INSTANTIATES]
+        inst = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.INSTANTIATES]
         assert len(inst) >= 1
 
     def test_dynamic_import_in_arrow(self, ext):
         code = "const load = async () => { const m = await import('./lazy'); };"
         result = _extract(ext, code)
-        dyn = [u for u in result.unresolved_references
-               if u.reference_kind == EdgeKind.DYNAMIC_IMPORTS]
+        dyn = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.DYNAMIC_IMPORTS]
         assert len(dyn) >= 1
 
     def test_chained_member_call(self, ext):
         code = "function f() { a.b.c(); }"
         result = _extract(ext, code)
-        calls = [u for u in result.unresolved_references
-                 if u.reference_kind == EdgeKind.CALLS]
+        calls = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.CALLS]
         assert len(calls) >= 1
 
     def test_export_default_identifier(self, ext):
@@ -1108,6 +1091,7 @@ class TestFallbackPaths:
     def test_parse_failure(self, ext, monkeypatch):
         """Lines 240-249: tree-sitter parse failure."""
         from unittest.mock import MagicMock
+
         mock_parser = MagicMock()
         mock_parser.parse.side_effect = RuntimeError("parse failed")
         monkeypatch.setattr(ext, "_parser", mock_parser)
@@ -1119,11 +1103,13 @@ class TestFallbackPaths:
         """Lines 325-326: exception during dispatch."""
         original = ext._dispatch_top_level
         call_count = [0]
+
         def bad_dispatch(node, ctx, parent_id):
             call_count[0] += 1
             if call_count[0] == 1:
                 raise ValueError("dispatch error")
             return original(node, ctx, parent_id)
+
         monkeypatch.setattr(ext, "_dispatch_top_level", bad_dispatch)
         result = ext.extract("test.js", b"function foo() {}\nfunction bar() {}")
         assert len(result.errors) >= 1
@@ -1131,6 +1117,7 @@ class TestFallbackPaths:
     def test_is_generator_no_paren(self):
         """Line 92: _is_generator with node text having no parenthesis."""
         from unittest.mock import MagicMock
+
         # Create a mock node whose text has no parenthesis
         mock_node = MagicMock()
         mock_node.start_byte = 0
@@ -1145,11 +1132,13 @@ class TestFallbackPaths:
         func = root.children[0]
         original_cbf = _ext_mod._child_by_field
         call_count = [0]
+
         def patched_cbf(node, field_name):
             call_count[0] += 1
             if field_name == "parameters" and call_count[0] == 1:
                 return None  # Force fallback
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         params = _extract_parameters(func, src)
         assert len(params) == 2
@@ -1157,10 +1146,12 @@ class TestFallbackPaths:
     def test_import_source_fallback(self, ext, monkeypatch):
         """Lines 376-379: import source fallback to string child."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "source":
                 return None  # Force fallback
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"import { foo } from 'bar';")
         imports = [n for n in result.nodes if n.kind == NodeKind.IMPORT]
@@ -1169,10 +1160,12 @@ class TestFallbackPaths:
     def test_import_no_source_at_all(self, ext, monkeypatch):
         """Line 381: import with no source node at all."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "source":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         # Use a bare import that has no string child
         result = ext.extract("test.js", b"import foo;")
@@ -1181,10 +1174,12 @@ class TestFallbackPaths:
     def test_import_specifier_fallback(self, ext, monkeypatch):
         """Lines 499-502: import specifier name fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "import_specifier":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"import { foo, bar } from 'baz';")
         imports = [n for n in result.nodes if n.kind == NodeKind.IMPORT]
@@ -1193,10 +1188,12 @@ class TestFallbackPaths:
     def test_export_source_fallback(self, ext, monkeypatch):
         """Lines 543-544: export source fallback to string child."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "source" and node.type == "export_statement":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"export { foo } from 'bar';")
         exports = [n for n in result.nodes if n.kind == NodeKind.EXPORT]
@@ -1205,10 +1202,12 @@ class TestFallbackPaths:
     def test_export_specifier_name_fallback(self, ext, monkeypatch):
         """Lines 654-657: export specifier name fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "export_specifier":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const x = 1;\nexport { x };")
         exports = [n for n in result.nodes if n.kind == NodeKind.EXPORT]
@@ -1224,20 +1223,24 @@ class TestFallbackPaths:
     def test_reexport_specifier_name_fallback(self, ext, monkeypatch):
         """Lines 750-753: re-export specifier name fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "export_specifier":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"export { foo } from 'bar';")
 
     def test_function_no_name_no_default(self, ext, monkeypatch):
         """Line 807: function with no name and no default_name returns None."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "function_declaration":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() {}")
         # Should not crash, function may be skipped
@@ -1245,10 +1248,12 @@ class TestFallbackPaths:
     def test_class_body_fallback(self, ext, monkeypatch):
         """Lines 864-867: class body fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "body" and node.type == "class_declaration":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"class Foo { bar() {} }")
         classes = [n for n in result.nodes if n.kind == NodeKind.CLASS]
@@ -1257,8 +1262,10 @@ class TestFallbackPaths:
     def test_class_member_exception(self, ext, monkeypatch):
         """Lines 879-880: exception during class member handling."""
         original = ext._handle_method
+
         def bad_method(node, ctx, parent_id, qname):
             raise ValueError("method error")
+
         monkeypatch.setattr(ext, "_handle_method", bad_method)
         result = ext.extract("test.js", b"class Foo { bar() {} }")
         assert len(result.errors) >= 1
@@ -1266,22 +1273,26 @@ class TestFallbackPaths:
     def test_property_name_fallback(self, ext, monkeypatch):
         """Lines 908-911: property name fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "method_definition":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"class Foo { bar() {} }")
 
     def test_property_name_none(self, ext, monkeypatch):
         """Line 913: property with no name at all returns None."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "method_definition":
                 return None
             if field_name == "property" and node.type == "method_definition":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         # Also need to prevent finding property_identifier in children
         result = ext.extract("test.js", b"class Foo { [Symbol.iterator]() {} }")
@@ -1289,30 +1300,36 @@ class TestFallbackPaths:
     def test_method_params_fallback(self, ext, monkeypatch):
         """Lines 939-942: method parameters fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "parameters" and node.type == "method_definition":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"class Foo { bar(x) {} }")
 
     def test_method_body_fallback(self, ext, monkeypatch):
         """Lines 978-981: method body fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "body" and node.type == "method_definition":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"class Foo { bar() { console.log(1); } }")
 
     def test_getter_setter_property_fallback(self, ext, monkeypatch):
         """Lines 999-1002: getter/setter property name fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "property" and node.type == "method_definition":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"class Foo { get name() { return this._name; } }")
 
@@ -1320,12 +1337,14 @@ class TestFallbackPaths:
         """Line 1004: getter/setter with no property at all."""
         original_cbf = _ext_mod._child_by_field
         call_count = {}
+
         def patched_cbf(node, field_name):
             key = (node.type, field_name)
             call_count[key] = call_count.get(key, 0) + 1
             if node.type == "method_definition" and field_name in ("property", "name"):
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"class Foo { get [Symbol.iterator]() {} }")
 
@@ -1339,52 +1358,62 @@ class TestFallbackPaths:
     def test_arrow_params_fallback(self, ext, monkeypatch):
         """Lines 1060-1063: arrow function params fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "parameters" and node.type == "arrow_function":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const fn = (a, b) => a + b;")
 
     def test_arrow_body_fallback(self, ext, monkeypatch):
         """Lines 1101-1104: arrow function body fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "body" and node.type == "arrow_function":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const fn = () => { console.log(1); };")
 
     def test_arrow_formal_params_fallback(self, ext, monkeypatch):
         """Lines 1130-1131: arrow function formal_parameters fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "parameters" and node.type == "arrow_function":
                 return None
             if field_name == "parameter" and node.type == "arrow_function":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const fn = (x) => x * 2;")
 
     def test_variable_declarator_name_fallback(self, ext, monkeypatch):
         """Lines 1217-1220: variable declarator name fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "name" and node.type == "variable_declarator":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const x = 42;")
 
     def test_variable_declarator_name_none(self, ext, monkeypatch):
         """Line 1222: variable declarator with no name at all."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if node.type == "variable_declarator" and field_name == "name":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         # Destructured pattern has no identifier child
         result = ext.extract("test.js", b"const { a, b } = obj;")
@@ -1392,10 +1421,12 @@ class TestFallbackPaths:
     def test_variable_declarator_value_fallback(self, ext, monkeypatch):
         """Lines 1232-1234: variable declarator value fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "value" and node.type == "variable_declarator":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const x = 42;")
 
@@ -1409,20 +1440,24 @@ class TestFallbackPaths:
     def test_require_func_fallback(self, ext, monkeypatch):
         """Lines 1287-1290: require() function node fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "function" and node.type == "call_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const fs = require('fs');")
 
     def test_require_args_fallback(self, ext, monkeypatch):
         """Lines 1296-1299: require() arguments node fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "arguments" and node.type == "call_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const fs = require('fs');")
 
@@ -1434,10 +1469,12 @@ class TestFallbackPaths:
     def test_expression_statement_empty(self, ext, monkeypatch):
         """Line 1374: expression_statement with no children."""
         original_dispatch = ext._dispatch_top_level
+
         def patched_dispatch(node, ctx, parent_id):
             if node.type == "expression_statement":
                 # Simulate empty children
                 from unittest.mock import MagicMock
+
                 fake_node = MagicMock()
                 fake_node.children = []
                 fake_node.type = "expression_statement"
@@ -1445,6 +1482,7 @@ class TestFallbackPaths:
                 ext._handle_expression_statement(fake_node, ctx, parent_id)
                 return
             return original_dispatch(node, ctx, parent_id)
+
         monkeypatch.setattr(ext, "_dispatch_top_level", patched_dispatch)
         result = ext.extract("test.js", b"foo();")
 
@@ -1457,8 +1495,10 @@ class TestFallbackPaths:
     def test_scan_calls_exception(self, ext, monkeypatch):
         """Lines 1471-1472: exception during call scanning."""
         original = ext._handle_call_expression
+
         def bad_call(node, ctx, owner_id):
             raise ValueError("call error")
+
         monkeypatch.setattr(ext, "_handle_call_expression", bad_call)
         result = ext.extract("test.js", b"function foo() { bar(); baz(); }")
         # Should not crash - best-effort scanning
@@ -1466,50 +1506,60 @@ class TestFallbackPaths:
     def test_call_expression_func_fallback(self, ext, monkeypatch):
         """Lines 1483-1486: call expression function node fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "function" and node.type == "call_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() { bar(); }")
 
     def test_call_expression_args_fallback(self, ext, monkeypatch):
         """Lines 1497-1500: call expression arguments fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "arguments" and node.type == "call_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() { bar(baz()); }")
 
     def test_new_expression_args_fallback(self, ext, monkeypatch):
         """Lines 1538-1541: new expression arguments fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "arguments" and node.type == "new_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() { new Bar(baz()); }")
 
     def test_new_expression_constructor_fallback(self, ext, monkeypatch):
         """Lines 1554-1557: new expression constructor fallback."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if field_name == "constructor" and node.type == "new_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() { new Bar(); }")
 
     def test_new_expression_constructor_none(self, ext, monkeypatch):
         """Line 1559: new expression with no constructor at all."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if node.type == "new_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() { new Bar(); }")
 
@@ -1525,6 +1575,7 @@ class TestFallbackPaths:
         """Line 1301: require() with no arguments node at all."""
         original_cbf = _ext_mod._child_by_field
         call_count = [0]
+
         def patched_cbf(node, field_name):
             if field_name == "arguments" and node.type == "call_expression":
                 call_count[0] += 1
@@ -1532,16 +1583,19 @@ class TestFallbackPaths:
             if field_name == "function" and node.type == "call_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"const fs = require('fs');")
 
     def test_call_expression_func_none(self, ext, monkeypatch):
         """Line 1488: call expression with no function node at all."""
         original_cbf = _ext_mod._child_by_field
+
         def patched_cbf(node, field_name):
             if node.type == "call_expression":
                 return None
             return original_cbf(node, field_name)
+
         monkeypatch.setattr(_ext_mod, "_child_by_field", patched_cbf)
         result = ext.extract("test.js", b"function foo() { bar(); }")
 
@@ -1562,6 +1616,7 @@ class TestFallbackPaths:
 # Additional targeted tests for remaining uncovered lines
 # ============================================================
 
+
 class TestRemainingUncoveredLines:
     """Target the last ~32 uncovered lines."""
 
@@ -1574,11 +1629,14 @@ class TestRemainingUncoveredLines:
         """Line 381: import statement where source_node is None.
         We patch _child_by_field to return None for 'source' on import_statement."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if node.type == "import_statement" and field == "source":
                 return None
             return original(node, field)
+
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", b"import foo from 'bar';")
         # Should not crash; import may be skipped
@@ -1610,11 +1668,14 @@ class TestRemainingUncoveredLines:
     def test_class_no_name_no_default(self, ext):
         """Line 807: anonymous class expression with no default_name returns None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if node.type == "class" and field == "name":
                 return None
             return original(node, field)
+
         # Use a class expression in a context where no default_name is provided
         code = b"const x = class { method() {} };"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
@@ -1625,13 +1686,16 @@ class TestRemainingUncoveredLines:
     def test_property_no_property_field(self, ext):
         """Lines 999-1004: field_definition where _child_by_field('property') is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
         call_count = [0]
+
         def patched(node, field):
             if node.type in ("field_definition", "public_field_definition") and field == "property":
                 call_count[0] += 1
                 return None
             return original(node, field)
+
         code = b"class Foo { bar = 42; }"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1641,11 +1705,18 @@ class TestRemainingUncoveredLines:
     def test_function_no_parameters_field(self, ext):
         """Lines 1060-1063: function where _child_by_field('parameters') is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
-            if node.type in ("function_declaration", "function", "generator_function_declaration", "generator_function") and field == "parameters":
+            if (
+                node.type
+                in ("function_declaration", "function", "generator_function_declaration", "generator_function")
+                and field == "parameters"
+            ):
                 return None
             return original(node, field)
+
         code = b"function foo(a, b) { return a + b; }"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1656,11 +1727,18 @@ class TestRemainingUncoveredLines:
     def test_function_no_body_field(self, ext):
         """Lines 1101-1104: function where _child_by_field('body') is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
-            if node.type in ("function_declaration", "function", "generator_function_declaration", "generator_function") and field == "body":
+            if (
+                node.type
+                in ("function_declaration", "function", "generator_function_declaration", "generator_function")
+                and field == "body"
+            ):
                 return None
             return original(node, field)
+
         code = b"function foo() { console.log('hi'); }"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1670,11 +1748,14 @@ class TestRemainingUncoveredLines:
     def test_variable_declarator_no_name(self, ext):
         """Line 1222: variable_declarator where name_node is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if node.type == "variable_declarator" and field == "name":
                 return None
             return original(node, field)
+
         code = b"const x = 42;"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1693,11 +1774,14 @@ class TestRemainingUncoveredLines:
     def test_require_no_args(self, ext):
         """Line 1301: require call where args_node is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if node.type == "call_expression" and field == "arguments":
                 return None
             return original(node, field)
+
         code = b"const x = require('lodash');"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1716,11 +1800,14 @@ class TestRemainingUncoveredLines:
     def test_call_expression_no_func(self, ext):
         """Line 1488: call_expression where func_node is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if node.type == "call_expression" and field == "function":
                 return None
             return original(node, field)
+
         code = b"foo();"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1730,11 +1817,14 @@ class TestRemainingUncoveredLines:
     def test_call_expression_args_fallback(self, ext):
         """Lines 1497-1500: import() call where _child_by_field('arguments') is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if field == "arguments":
                 return None
             return original(node, field)
+
         code = b"import('./module.js');"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)
@@ -1744,11 +1834,14 @@ class TestRemainingUncoveredLines:
     def test_new_expression_no_constructor(self, ext):
         """Line 1559: new expression where constructor_node is None."""
         from unittest.mock import patch
+
         original = _ext_mod._child_by_field
+
         def patched(node, field):
             if node.type == "new_expression" and field == "constructor":
                 return None
             return original(node, field)
+
         code = b"const x = new Foo();"
         with patch.object(_ext_mod, "_child_by_field", side_effect=patched):
             result = ext.extract("test.js", code)

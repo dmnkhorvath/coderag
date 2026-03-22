@@ -2607,3 +2607,7 @@ cli.add_command(benchmark)
 from coderag.cli.update import update  # noqa: E402
 
 cli.add_command(update)
+
+from coderag.cli.visualize import visualize  # noqa: E402
+
+cli.add_command(visualize)

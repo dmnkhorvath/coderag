@@ -234,7 +234,6 @@ def build_preload_context(
             sections.append(entry_points)
             tokens_used += entry_tokens
 
-
     # 6. Session context (if available, remaining budget)
     remaining = token_budget - tokens_used
     if remaining > 200:

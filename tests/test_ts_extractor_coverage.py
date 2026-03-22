@@ -2,13 +2,15 @@
 
 Focuses on uncovered lines identified by coverage report.
 """
+
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
 
+import pytest
+
+from coderag.core.models import EdgeKind, NodeKind
 from coderag.plugins.typescript.extractor import TypeScriptExtractor
-from coderag.core.models import NodeKind, EdgeKind
 
 
 @pytest.fixture
@@ -52,13 +54,16 @@ class TestHelperFunctions:
     def test_node_text_with_none(self, ext):
         """_node_text(None, source) should return empty string (line 47)."""
         from coderag.plugins.typescript.extractor import _node_text
+
         assert _node_text(None, b"hello") == ""
 
     def test_children_of_type(self, ext):
         """_children_of_type filters by type."""
-        from coderag.plugins.typescript.extractor import _children_of_type
         import tree_sitter
         import tree_sitter_typescript as tsts
+
+        from coderag.plugins.typescript.extractor import _children_of_type
+
         lang = tree_sitter.Language(tsts.language_typescript())
         parser = tree_sitter.Parser(lang)
         tree = parser.parse(b"const x = 1;")
@@ -69,9 +74,11 @@ class TestHelperFunctions:
 
     def test_find_preceding_docblock_no_prev(self, ext):
         """_find_preceding_docblock returns None when no prev sibling (line 53)."""
-        from coderag.plugins.typescript.extractor import _find_preceding_docblock
         import tree_sitter
         import tree_sitter_typescript as tsts
+
+        from coderag.plugins.typescript.extractor import _find_preceding_docblock
+
         lang = tree_sitter.Language(tsts.language_typescript())
         parser = tree_sitter.Parser(lang)
         tree = parser.parse(b"function foo() {}")
@@ -82,9 +89,11 @@ class TestHelperFunctions:
 
     def test_find_preceding_docblock_non_jsdoc(self, ext):
         """_find_preceding_docblock returns None for non-JSDoc comments."""
-        from coderag.plugins.typescript.extractor import _find_preceding_docblock
         import tree_sitter
         import tree_sitter_typescript as tsts
+
+        from coderag.plugins.typescript.extractor import _find_preceding_docblock
+
         lang = tree_sitter.Language(tsts.language_typescript())
         parser = tree_sitter.Parser(lang)
         code = b"// regular comment\nfunction foo() {}"
@@ -95,9 +104,11 @@ class TestHelperFunctions:
 
     def test_find_preceding_docblock_jsdoc(self, ext):
         """_find_preceding_docblock returns JSDoc text."""
-        from coderag.plugins.typescript.extractor import _find_preceding_docblock
         import tree_sitter
         import tree_sitter_typescript as tsts
+
+        from coderag.plugins.typescript.extractor import _find_preceding_docblock
+
         lang = tree_sitter.Language(tsts.language_typescript())
         parser = tree_sitter.Parser(lang)
         code = b"/** My doc */\nfunction foo() {}"
@@ -136,9 +147,11 @@ class TestHelperFunctions:
 
     def test_is_generator_no_paren(self):
         """_is_generator returns False when no paren found (line 93)."""
-        from coderag.plugins.typescript.extractor import _is_generator
         import tree_sitter
         import tree_sitter_typescript as tsts
+
+        from coderag.plugins.typescript.extractor import _is_generator
+
         lang = tree_sitter.Language(tsts.language_typescript())
         parser = tree_sitter.Parser(lang)
         tree = parser.parse(b"const x = 1;")
@@ -376,11 +389,14 @@ class TestImports:
         # import = require(...) has no source field
         # This is hard to trigger naturally, use mock
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "import_statement" and field == "source":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"import React from 'react';")
         # Should not crash, just skip the import
@@ -918,7 +934,10 @@ class TestVariables:
     def test_const_with_type_annotation(self, ext):
         result = ext.extract("test.ts", b"const x: string = 'hello';")
         consts = _nodes(result, NodeKind.CONSTANT)
-        assert consts[0].metadata.get("type_annotation") == "string" or consts[0].metadata.get("declaration_kind") == "const"
+        assert (
+            consts[0].metadata.get("type_annotation") == "string"
+            or consts[0].metadata.get("declaration_kind") == "const"
+        )
 
     def test_class_expression_variable(self, ext):
         """const Foo = class { ... } creates class expression (line 1999-2002)."""
@@ -1239,7 +1258,7 @@ class TestEdgeCases:
         assert result is not None
 
     def test_template_literal_type(self, ext):
-        code = b"type EventName = `on${string}`;"  
+        code = b"type EventName = `on${string}`;"
         result = ext.extract("test.ts", code)
         types = _nodes(result, NodeKind.TYPE_ALIAS)
         assert len(types) >= 1
@@ -1266,11 +1285,14 @@ class TestDefensivePaths:
     def test_class_no_name_node(self, ext):
         """Class with no name node returns early (line 832)."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type in ("class_declaration", "abstract_class_declaration") and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"class Foo {}")
         # Class should be skipped
@@ -1280,11 +1302,14 @@ class TestDefensivePaths:
     def test_function_no_name_node(self, ext):
         """Function with no name node returns early."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "function_declaration" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"function foo() {}")
         funcs = _nodes(result, NodeKind.FUNCTION)
@@ -1293,11 +1318,14 @@ class TestDefensivePaths:
     def test_interface_no_name_node(self, ext):
         """Interface with no name node returns early."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "interface_declaration" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"interface Foo { x: number; }")
         ifaces = _nodes(result, NodeKind.INTERFACE)
@@ -1306,11 +1334,14 @@ class TestDefensivePaths:
     def test_enum_no_name_node(self, ext):
         """Enum with no name node returns early."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "enum_declaration" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"enum Color { Red }")
         enums = _nodes(result, NodeKind.ENUM)
@@ -1319,11 +1350,14 @@ class TestDefensivePaths:
     def test_type_alias_no_name_node(self, ext):
         """Type alias with no name node returns early."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "type_alias_declaration" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"type ID = string;")
         types = _nodes(result, NodeKind.TYPE_ALIAS)
@@ -1332,11 +1366,14 @@ class TestDefensivePaths:
     def test_method_no_name_node(self, ext):
         """Method with no name node returns early."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "method_definition" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"class Foo { bar() {} }")
         methods = _nodes(result, NodeKind.METHOD)
@@ -1345,11 +1382,14 @@ class TestDefensivePaths:
     def test_property_no_name_node(self, ext):
         """Property with no name node returns early (line 1246)."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type in ("public_field_definition", "property_definition") and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"class Foo { x: number = 1; }")
         props = _nodes(result, NodeKind.PROPERTY)
@@ -1358,11 +1398,14 @@ class TestDefensivePaths:
     def test_variable_no_name_node(self, ext):
         """Variable declarator with no name returns early (line 1764, 1767)."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "variable_declarator" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"const x = 1;")
         consts = _nodes(result, NodeKind.CONSTANT)
@@ -1371,11 +1414,14 @@ class TestDefensivePaths:
     def test_module_no_name_node(self, ext):
         """Module with no name node returns early."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "module" and field == "name":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"declare module 'foo' {}")
         modules = _nodes(result, NodeKind.MODULE)
@@ -1384,11 +1430,14 @@ class TestDefensivePaths:
     def test_scan_calls_no_function_node(self, ext):
         """Call expression with no function node (line 2206)."""
         import coderag.plugins.typescript.extractor as ext_module
+
         real_cbf = ext_module._child_by_field
+
         def patched(node, field):
             if node.type == "call_expression" and field == "function":
                 return None
             return real_cbf(node, field)
+
         with patch.object(ext_module, "_child_by_field", side_effect=patched):
             result = ext.extract("test.ts", b"function foo() { bar(); }")
         # Should not crash
