@@ -956,8 +956,10 @@ class PipelineOrchestrator:
             elapsed,
         )
 
-        # Store detected frameworks as metadata
-        fw_names = [det.framework_name for det, _ in active_detectors]
+        # Store detected frameworks as metadata (deduplicated)
+        fw_names = list(dict.fromkeys(
+            det.framework_name for det, _ in active_detectors
+        ))
         self._store.set_metadata("detected_frameworks", ",".join(fw_names))
 
         return total_fw_nodes, total_fw_edges

@@ -109,9 +109,13 @@ class NetworkXAnalyzer:
 
         # Bulk load nodes
         node_count = 0
+        null_count = 0
         cursor = conn.execute("SELECT * FROM nodes")
         for row in cursor:
             node_id = row["id"]
+            if node_id is None:
+                null_count += 1
+                continue
             try:
                 meta = json.loads(row["metadata"]) if row["metadata"] else {}
             except (json.JSONDecodeError, TypeError):
@@ -131,6 +135,12 @@ class NetworkXAnalyzer:
                 community_id=row["community_id"],
             )
             node_count += 1
+
+        if null_count:
+            logger.warning(
+                "Skipped %d nodes with NULL id (corrupted data)",
+                null_count,
+            )
 
         # Bulk load edges
         edge_count = 0

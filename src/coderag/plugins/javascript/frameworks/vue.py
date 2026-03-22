@@ -240,19 +240,53 @@ class VueDetector(FrameworkDetector):
         return "vue"
 
     def detect_framework(self, project_root: str) -> bool:
-        """Check package.json for vue dependency."""
-        pkg_json = os.path.join(project_root, "package.json")
-        if not os.path.isfile(pkg_json):
-            return False
+        """Check package.json for vue/nuxt dependency.
 
-        try:
-            with open(pkg_json, encoding="utf-8") as f:
-                data = json.load(f)
-            deps = data.get("dependencies", {})
-            dev_deps = data.get("devDependencies", {})
-            return "vue" in deps or "vue" in dev_deps
-        except (json.JSONDecodeError, OSError):
-            return False
+        Scans the root package.json first, then checks monorepo
+        subdirectories (up to 2 levels deep) for vue or nuxt.
+        Also detects .vue files as a strong signal.
+        """
+        vue_indicators = {"vue", "nuxt", "nuxt3", "@nuxt/kit"}
+
+        def _check_pkg(pkg_path: str) -> bool:
+            if not os.path.isfile(pkg_path):
+                return False
+            try:
+                with open(pkg_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                deps = set(data.get("dependencies", {}).keys())
+                dev_deps = set(data.get("devDependencies", {}).keys())
+                all_deps = deps | dev_deps
+                return bool(all_deps & vue_indicators)
+            except (json.JSONDecodeError, OSError):
+                return False
+
+        # Check root package.json
+        if _check_pkg(os.path.join(project_root, "package.json")):
+            return True
+
+        # Check monorepo subdirectories (packages/*, apps/*, src/*)
+        for subdir in ("packages", "apps", "src", "frontend", "client"):
+            subdir_path = os.path.join(project_root, subdir)
+            if os.path.isdir(subdir_path):
+                try:
+                    for entry in os.listdir(subdir_path):
+                        pkg = os.path.join(subdir_path, entry, "package.json")
+                        if _check_pkg(pkg):
+                            return True
+                except OSError:
+                    continue
+
+        # Fallback: check for .vue files
+        for dirpath, _dirs, files in os.walk(project_root):
+            if any(f.endswith(".vue") for f in files):
+                return True
+            # Don't recurse too deep
+            depth = dirpath.replace(project_root, "").count(os.sep)
+            if depth >= 3:
+                _dirs.clear()
+
+        return False
 
     def detect(
         self,

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as _dc_replace
 from typing import Any
 
 import tree_sitter
@@ -442,7 +442,6 @@ class TypeScriptExtractor(ASTExtractor):
         if root.has_error:
             ctx.add_error("Tree-sitter reported parse errors", line=1)
 
-        from dataclasses import replace as _dc_replace
 
         file_node = _dc_replace(file_node, end_line=root.end_point[0] + 1)
         ctx.add_node(file_node)
@@ -766,11 +765,9 @@ class TypeScriptExtractor(ASTExtractor):
                     last_node = ctx.nodes[-1]
                     if is_default:
                         ctx.default_export_name = last_node.name
-                        last_node = Node(
-                            **{
-                                **last_node.__dict__,
-                                "metadata": {**last_node.metadata, "is_default_export": True},
-                            }
+                        last_node = _dc_replace(
+                            last_node,
+                            metadata={**last_node.metadata, "is_default_export": True},
                         )
                         ctx.nodes[-1] = last_node
                     else:
