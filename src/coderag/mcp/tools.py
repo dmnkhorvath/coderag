@@ -676,6 +676,11 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
     ) -> str:
         """Get architecture overview.
 
+        Uses pre-computed PageRank scores and community assignments
+        from the SQLite store (written by Phase 9 of the pipeline).
+        This avoids expensive live graph analysis that can timeout
+        on large codebases.
+
         Args:
             focus: Which part of the architecture to focus on.
             token_budget: Maximum tokens for the response.
@@ -683,74 +688,66 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
         try:
             token_budget = min(max(token_budget, 1000), 32000)
 
-            # Compute analyses
-            communities_raw = analyzer.community_detection()
-            analyzer.pagerank()
-
             # Determine kind/language filters based on focus
             language_filter = None
             kind_filter = None
+            frontend_languages = ("javascript", "typescript")
             if focus == ArchitectureFocus.backend:
                 language_filter = "php"
             elif focus == ArchitectureFocus.frontend:
-                language_filter = None  # JS + TS
+                language_filter = None  # filtered below
             elif focus == ArchitectureFocus.api_layer:
                 kind_filter = "route"
             elif focus == ArchitectureFocus.data_layer:
                 kind_filter = "model"
 
-            # Get top nodes
-            if kind_filter:
-                top_nodes_raw = analyzer.get_top_nodes("pagerank", limit=20, kind_filter=kind_filter)
-            else:
-                top_nodes_raw = analyzer.get_top_nodes("pagerank", limit=20)
+            # ── Read pre-computed data from SQLite store ──────────
+            # Communities: already grouped and sorted by size
+            raw_communities = store.get_communities(
+                max_communities=15, max_per_community=50
+            )
 
-            # Get entry points
-            entry_point_ids = analyzer.get_entry_points(limit=15)
-
-            # Resolve node objects
-            def _get_node(nid: str) -> Node | None:
-                return store.get_node(nid)
-
-            # Build communities with Node objects, applying filters
+            # Apply focus filters to communities
             communities: list[tuple[int, list[Node]]] = []
-            for idx, community_ids in enumerate(communities_raw[:15]):
-                nodes_in_community: list[Node] = []
-                for nid in list(community_ids)[:50]:  # Cap per community
-                    n = _get_node(nid)
-                    if n is None:
-                        continue
-                    if language_filter and n.language.lower() != language_filter:
-                        continue
-                    if focus == ArchitectureFocus.frontend and n.language.lower() not in ("javascript", "typescript"):
-                        continue
-                    nodes_in_community.append(n)
-                if nodes_in_community:
-                    communities.append((idx, nodes_in_community))
+            for cid, nodes in raw_communities:
+                filtered = nodes
+                if language_filter:
+                    filtered = [
+                        n for n in filtered
+                        if n.language.lower() == language_filter
+                    ]
+                elif focus == ArchitectureFocus.frontend:
+                    filtered = [
+                        n for n in filtered
+                        if n.language.lower() in frontend_languages
+                    ]
+                if filtered:
+                    communities.append((cid, filtered))
 
-            # Build important nodes list
-            important_nodes: list[tuple[Node, float]] = []
-            for nid, score in top_nodes_raw:
-                n = _get_node(nid)
-                if n is None:
-                    continue
-                if language_filter and n.language.lower() != language_filter:
-                    continue
-                if focus == ArchitectureFocus.frontend and n.language.lower() not in ("javascript", "typescript"):
-                    continue
-                important_nodes.append((n, score))
+            # Important nodes: read pre-computed PageRank from store
+            important_nodes_raw = store.get_top_nodes_by_pagerank(
+                limit=20,
+                kind_filter=kind_filter,
+                language_filter=language_filter,
+            )
+            # Apply frontend filter if needed
+            if focus == ArchitectureFocus.frontend:
+                important_nodes_raw = [
+                    (n, s) for n, s in important_nodes_raw
+                    if n.language.lower() in frontend_languages
+                ]
+            important_nodes: list[tuple[Node, float]] = important_nodes_raw
 
-            # Build entry points list
-            entry_points: list[Node] = []
-            for nid in entry_point_ids:
-                n = _get_node(nid)
-                if n is None:
-                    continue
-                if language_filter and n.language.lower() != language_filter:
-                    continue
-                if focus == ArchitectureFocus.frontend and n.language.lower() not in ("javascript", "typescript"):
-                    continue
-                entry_points.append(n)
+            # Entry points: computed from edge counts in SQL
+            entry_points_raw = store.get_entry_points(
+                limit=15, language_filter=language_filter
+            )
+            if focus == ArchitectureFocus.frontend:
+                entry_points_raw = [
+                    n for n in entry_points_raw
+                    if n.language.lower() in frontend_languages
+                ]
+            entry_points: list[Node] = entry_points_raw
 
             # Format
             text = formatter.format_architecture_overview(

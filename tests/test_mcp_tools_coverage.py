@@ -369,7 +369,7 @@ def test_architecture_coverage(mock_mcp, mock_store, mock_analyzer):
     register_tools(mock_mcp, mock_store, mock_analyzer)
     architecture = mock_mcp.tools["coderag_architecture"]
 
-    mock_analyzer.community_detection.side_effect = Exception("test error")
+    mock_store.get_communities.side_effect = Exception("test error")
     assert "Error generating architecture" in architecture()
 
 
@@ -377,11 +377,9 @@ def test_architecture_none_nodes(mock_mcp, mock_store, mock_analyzer):
     register_tools(mock_mcp, mock_store, mock_analyzer)
     architecture = mock_mcp.tools["coderag_architecture"]
 
-    mock_analyzer.community_detection.return_value = [(0, ["1"])]
-    mock_analyzer.get_important_nodes.return_value = [("2", 0.9)]
-    mock_analyzer.get_entry_points.return_value = ["3"]
-
-    mock_store.find_nodes.return_value = []
+    mock_store.get_communities.return_value = []
+    mock_store.get_top_nodes_by_pagerank.return_value = []
+    mock_store.get_entry_points.return_value = []
     result = architecture()
     assert "## Architecture Overview" in result
 

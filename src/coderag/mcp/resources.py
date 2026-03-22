@@ -117,37 +117,18 @@ def register_resources(mcp: Any, store: Any, analyzer: Any) -> None:
         mime_type="text/markdown",
     )
     def get_architecture() -> str:
-        """Return high-level architecture overview."""
+        """Return high-level architecture overview.
+
+        Uses pre-computed PageRank scores and community assignments
+        from the SQLite store (written by Phase 9 of the pipeline).
+        """
         try:
-            # Compute analyses
-            communities_raw = analyzer.community_detection()
-            top_nodes_raw = analyzer.get_top_nodes("pagerank", limit=20)
-            entry_point_ids = analyzer.get_entry_points(limit=15)
-
-            # Resolve node objects for communities
-            communities: list[tuple[int, list[Node]]] = []
-            for idx, community_ids in enumerate(communities_raw[:15]):
-                nodes_in_community: list[Node] = []
-                for nid in list(community_ids)[:50]:
-                    n = store.get_node(nid)
-                    if n is not None:
-                        nodes_in_community.append(n)
-                if nodes_in_community:
-                    communities.append((idx, nodes_in_community))
-
-            # Resolve important nodes
-            important_nodes: list[tuple[Node, float]] = []
-            for nid, score in top_nodes_raw:
-                n = store.get_node(nid)
-                if n is not None:
-                    important_nodes.append((n, score))
-
-            # Resolve entry points
-            entry_points: list[Node] = []
-            for nid in entry_point_ids:
-                n = store.get_node(nid)
-                if n is not None:
-                    entry_points.append(n)
+            # Read pre-computed data from SQLite store
+            communities = store.get_communities(
+                max_communities=15, max_per_community=50
+            )
+            important_nodes = store.get_top_nodes_by_pagerank(limit=20)
+            entry_points = store.get_entry_points(limit=15)
 
             text = formatter.format_architecture_overview(
                 communities=communities,

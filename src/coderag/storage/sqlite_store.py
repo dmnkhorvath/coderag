@@ -777,6 +777,129 @@ class SQLiteStore:
 
     # ── Graph Metadata ────────────────────────────────────────
 
+
+    # ── Pre-computed Graph Data Queries ────────────────────────
+
+    def get_communities(
+        self, max_communities: int = 15, max_per_community: int = 50
+    ) -> list[tuple[int, list["Node"]]]:
+        """Read pre-computed communities from the nodes table.
+
+        Returns list of (community_id, [Node, ...]) tuples sorted by
+        community size (largest first).  Data is written by Phase 9
+        of the pipeline orchestrator.
+        """
+        conn = self.connection
+        rows = conn.execute(
+            """SELECT community_id, COUNT(*) AS cnt
+               FROM nodes
+               WHERE community_id IS NOT NULL
+               GROUP BY community_id
+               ORDER BY cnt DESC
+               LIMIT ?""",
+            (max_communities,),
+        ).fetchall()
+
+        communities: list[tuple[int, list[Node]]] = []
+        for row in rows:
+            cid = row[0]
+            node_rows = conn.execute(
+                """SELECT * FROM nodes
+                   WHERE community_id = ?
+                   ORDER BY pagerank DESC
+                   LIMIT ?""",
+                (cid, max_per_community),
+            ).fetchall()
+            nodes = [self._row_to_node(r) for r in node_rows]
+            communities.append((cid, nodes))
+
+        return communities
+
+    def get_top_nodes_by_pagerank(
+        self,
+        limit: int = 20,
+        kind_filter: str | None = None,
+        language_filter: str | None = None,
+    ) -> list[tuple["Node", float]]:
+        """Read top nodes by pre-computed PageRank score.
+
+        Returns list of (Node, pagerank_score) tuples sorted descending.
+        """
+        conn = self.connection
+        conditions = ["pagerank > 0"]
+        params: list = []
+
+        if kind_filter:
+            conditions.append("kind = ?")
+            params.append(kind_filter)
+        if language_filter:
+            conditions.append("LOWER(language) = LOWER(?)")
+            params.append(language_filter)
+
+        where = " AND ".join(conditions)
+        params.append(limit)
+
+        rows = conn.execute(
+            f"""SELECT * FROM nodes
+                WHERE {where}
+                ORDER BY pagerank DESC
+                LIMIT ?""",
+            params,
+        ).fetchall()
+
+        return [(self._row_to_node(r), r["pagerank"]) for r in rows]
+
+    def get_entry_points(
+        self,
+        limit: int = 15,
+        language_filter: str | None = None,
+    ) -> list["Node"]:
+        """Find likely entry points using pre-computed edge counts.
+
+        Entry points are nodes with high in-degree weighted by node
+        kind importance.  Uses SQL aggregation instead of loading the
+        full graph into memory.
+        """
+        conn = self.connection
+
+        lang_clause = ""
+        params: list = []
+        if language_filter:
+            lang_clause = "AND LOWER(n.language) = LOWER(?)"
+            params.append(language_filter)
+
+        params.append(limit)
+
+        rows = conn.execute(
+            f"""SELECT n.*,
+                    COUNT(e.source_id) AS in_degree,
+                    CASE n.kind
+                        WHEN 'class'      THEN 1.0
+                        WHEN 'interface'  THEN 0.95
+                        WHEN 'trait'      THEN 0.9
+                        WHEN 'model'      THEN 0.9
+                        WHEN 'enum'       THEN 0.85
+                        WHEN 'controller' THEN 0.85
+                        WHEN 'function'   THEN 0.8
+                        WHEN 'method'     THEN 0.75
+                        WHEN 'route'      THEN 0.7
+                        WHEN 'component'  THEN 0.7
+                        WHEN 'middleware' THEN 0.65
+                        WHEN 'module'     THEN 0.6
+                        ELSE 0.5
+                    END AS kind_weight
+               FROM nodes n
+               LEFT JOIN edges e ON e.target_id = n.id
+               WHERE n.pagerank > 0 {lang_clause}
+               GROUP BY n.id
+               HAVING in_degree > 0
+               ORDER BY (in_degree * kind_weight) DESC
+               LIMIT ?""",
+            params,
+        ).fetchall()
+
+        return [self._row_to_node(r) for r in rows]
+
     def get_summary(self) -> GraphSummary:
         """Get a summary of the current graph state."""
         conn = self.connection

@@ -465,17 +465,15 @@ class TestArchitecture:
 
     def test_architecture_full(self):
         node = _make_node("UserService", NodeKind.CLASS, qualified_name="App.UserService")
-        self.analyzer.community_detection.return_value = [[node.id]]
-        self.analyzer.pagerank.return_value = None
-        self.analyzer.get_top_nodes.return_value = [(node.id, 0.15)]
-        self.analyzer.get_entry_points.return_value = [node.id]
-        self.store.get_node.return_value = node
+        self.store.get_communities.return_value = [(0, [node])]
+        self.store.get_top_nodes_by_pagerank.return_value = [(node, 0.15)]
+        self.store.get_entry_points.return_value = [node]
         self.mock_formatter.format_architecture_overview.return_value = "## Architecture\nOverview"
         result = self.tool()
         assert isinstance(result, str)
 
     def test_exception_returns_error(self):
-        self.analyzer.community_detection.side_effect = RuntimeError("fail")
+        self.store.get_communities.side_effect = RuntimeError("fail")
         result = self.tool()
         assert "error" in result.lower()
 
@@ -613,7 +611,7 @@ class TestArchitectureResource:
         self.resource = self.mcp.resources["coderag://architecture"]
 
     def test_architecture_exception(self):
-        self.analyzer.community_detection.side_effect = RuntimeError("fail")
+        self.store.get_communities.side_effect = RuntimeError("fail")
         result = self.resource()
         assert "error" in result.lower()
 
