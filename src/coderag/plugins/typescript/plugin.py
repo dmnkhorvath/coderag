@@ -60,14 +60,15 @@ class TypeScriptPlugin(LanguagePlugin):
 
     def get_framework_detectors(self) -> list[FrameworkDetector]:
 
-        # React detector works for TSX files too
+        # React/NextJS detectors work for TSX files too
         # Vue detector needed for .vue SFC files in TypeScript projects
 
+        from coderag.plugins.javascript.frameworks.nextjs import NextJSDetector
         from coderag.plugins.javascript.frameworks.react import ReactDetector
         from coderag.plugins.javascript.frameworks.vue import VueDetector
         from coderag.plugins.typescript.frameworks.angular import AngularDetector
 
-        return [ReactDetector(), AngularDetector(), VueDetector()]
+        return [ReactDetector(), NextJSDetector(), AngularDetector(), VueDetector()]
 
     def cleanup(self) -> None:
         self._extractor = None

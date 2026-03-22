@@ -68,19 +68,43 @@ class ExpressDetector(FrameworkDetector):
         return "express"
 
     def detect_framework(self, project_root: str) -> bool:
-        """Check package.json for express dependency."""
-        pkg_json = os.path.join(project_root, "package.json")
-        if not os.path.isfile(pkg_json):
-            return False
+        """Check package.json for express dependency.
 
-        try:
-            with open(pkg_json, encoding="utf-8") as f:
-                data = json.load(f)
-            deps = data.get("dependencies", {})
-            dev_deps = data.get("devDependencies", {})
-            return "express" in deps or "express" in dev_deps
-        except (json.JSONDecodeError, OSError):
-            return False
+        Scans the root package.json first, then checks monorepo
+        subdirectories (packages/*, apps/*, etc.) for express.
+        """
+        express_indicators = {"express"}
+
+        def _check_pkg(pkg_path: str) -> bool:
+            if not os.path.isfile(pkg_path):
+                return False
+            try:
+                with open(pkg_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                deps = set(data.get("dependencies", {}).keys())
+                dev_deps = set(data.get("devDependencies", {}).keys())
+                all_deps = deps | dev_deps
+                return bool(all_deps & express_indicators)
+            except (json.JSONDecodeError, OSError):
+                return False
+
+        # Check root package.json
+        if _check_pkg(os.path.join(project_root, "package.json")):
+            return True
+
+        # Check monorepo subdirectories (packages/*, apps/*, src/*)
+        for subdir in ("packages", "apps", "src", "frontend", "client", "server", "backend"):
+            subdir_path = os.path.join(project_root, subdir)
+            if os.path.isdir(subdir_path):
+                try:
+                    for entry in os.listdir(subdir_path):
+                        pkg = os.path.join(subdir_path, entry, "package.json")
+                        if _check_pkg(pkg):
+                            return True
+                except OSError:
+                    continue
+
+        return False
 
     def detect(
         self,

@@ -444,7 +444,9 @@ class SQLiteStore:
                         """SELECT n.* FROM nodes_fts fts
                            JOIN nodes n ON n.rowid = fts.rowid
                            WHERE nodes_fts MATCH ? AND n.kind = ?
-                           ORDER BY rank
+                           ORDER BY
+                               CASE WHEN n.file_path = '<external>' THEN 1 ELSE 0 END,
+                               rank
                            LIMIT ?""",
                         (safe_query, kind, search_limit),
                     ).fetchall()
@@ -453,7 +455,9 @@ class SQLiteStore:
                         """SELECT n.* FROM nodes_fts fts
                            JOIN nodes n ON n.rowid = fts.rowid
                            WHERE nodes_fts MATCH ?
-                           ORDER BY rank
+                           ORDER BY
+                               CASE WHEN n.file_path = '<external>' THEN 1 ELSE 0 END,
+                               rank
                            LIMIT ?""",
                         (safe_query, search_limit),
                     ).fetchall()
@@ -800,7 +804,12 @@ class SQLiteStore:
         ).fetchone()[0]
 
         top_nodes = conn.execute(
-            "SELECT name, qualified_name, pagerank FROM nodes ORDER BY pagerank DESC LIMIT 10"
+            """SELECT name, qualified_name, pagerank FROM nodes
+               WHERE kind NOT IN ('css_class', 'css_variable', 'css_id',
+                                  'css_keyframes', 'css_layer', 'css_media_query',
+                                  'css_font_face')
+                 AND file_path != '<external>'
+               ORDER BY pagerank DESC LIMIT 10"""
         ).fetchall()
 
         last_parsed = self.get_metadata("last_parsed")

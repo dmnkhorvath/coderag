@@ -78,19 +78,53 @@ class ReactDetector(FrameworkDetector):
         return "react"
 
     def detect_framework(self, project_root: str) -> bool:
-        """Check package.json for react dependency."""
-        pkg_json = os.path.join(project_root, "package.json")
-        if not os.path.isfile(pkg_json):
-            return False
+        """Check package.json for react dependency.
 
-        try:
-            with open(pkg_json, encoding="utf-8") as f:
-                data = json.load(f)
-            deps = data.get("dependencies", {})
-            dev_deps = data.get("devDependencies", {})
-            return "react" in deps or "react" in dev_deps
-        except (json.JSONDecodeError, OSError):
-            return False
+        Scans the root package.json first, then checks monorepo
+        subdirectories (packages/*, apps/*, etc.) for react.
+        Also detects .tsx/.jsx files as a fallback signal.
+        """
+        react_indicators = {"react", "react-dom", "react-native"}
+
+        def _check_pkg(pkg_path: str) -> bool:
+            if not os.path.isfile(pkg_path):
+                return False
+            try:
+                with open(pkg_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                deps = set(data.get("dependencies", {}).keys())
+                dev_deps = set(data.get("devDependencies", {}).keys())
+                all_deps = deps | dev_deps
+                return bool(all_deps & react_indicators)
+            except (json.JSONDecodeError, OSError):
+                return False
+
+        # Check root package.json
+        if _check_pkg(os.path.join(project_root, "package.json")):
+            return True
+
+        # Check monorepo subdirectories (packages/*, apps/*, src/*)
+        for subdir in ("packages", "apps", "src", "frontend", "client"):
+            subdir_path = os.path.join(project_root, subdir)
+            if os.path.isdir(subdir_path):
+                try:
+                    for entry in os.listdir(subdir_path):
+                        pkg = os.path.join(subdir_path, entry, "package.json")
+                        if _check_pkg(pkg):
+                            return True
+                except OSError:
+                    continue
+
+        # Fallback: check for .tsx/.jsx files (strong React signal)
+        for dirpath, _dirs, files in os.walk(project_root):
+            if any(f.endswith((".tsx", ".jsx")) for f in files):
+                return True
+            # Don't recurse too deep
+            depth = dirpath.replace(project_root, "").count(os.sep)
+            if depth >= 3:
+                _dirs.clear()
+
+        return False
 
     def detect(
         self,

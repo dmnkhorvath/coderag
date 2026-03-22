@@ -106,19 +106,52 @@ class NextJSDetector(FrameworkDetector):
         return "nextjs"
 
     def detect_framework(self, project_root: str) -> bool:
-        """Check package.json for next dependency."""
-        pkg_json = os.path.join(project_root, "package.json")
-        if not os.path.isfile(pkg_json):
-            return False
+        """Check package.json for next dependency.
 
-        try:
-            with open(pkg_json, encoding="utf-8") as f:
-                data = json.load(f)
-            deps = data.get("dependencies", {})
-            dev_deps = data.get("devDependencies", {})
-            return "next" in deps or "next" in dev_deps
-        except (json.JSONDecodeError, OSError):
-            return False
+        Scans the root package.json first, then checks monorepo
+        subdirectories (packages/*, apps/*, etc.) for next.
+        Also detects next.config.* files as a fallback signal.
+        """
+        next_indicators = {"next", "@next/core"}
+
+        def _check_pkg(pkg_path: str) -> bool:
+            if not os.path.isfile(pkg_path):
+                return False
+            try:
+                with open(pkg_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                deps = set(data.get("dependencies", {}).keys())
+                dev_deps = set(data.get("devDependencies", {}).keys())
+                all_deps = deps | dev_deps
+                return bool(all_deps & next_indicators)
+            except (json.JSONDecodeError, OSError):
+                return False
+
+        # Check root package.json
+        if _check_pkg(os.path.join(project_root, "package.json")):
+            return True
+
+        # Check monorepo subdirectories (packages/*, apps/*, src/*)
+        for subdir in ("packages", "apps", "src", "frontend", "client"):
+            subdir_path = os.path.join(project_root, subdir)
+            if os.path.isdir(subdir_path):
+                try:
+                    for entry in os.listdir(subdir_path):
+                        pkg = os.path.join(subdir_path, entry, "package.json")
+                        if _check_pkg(pkg):
+                            return True
+                except OSError:
+                    continue
+
+        # Fallback: check for next.config.* files
+        for dirpath, _dirs, files in os.walk(project_root):
+            if any(f.startswith("next.config.") for f in files):
+                return True
+            depth = dirpath.replace(project_root, "").count(os.sep)
+            if depth >= 3:
+                _dirs.clear()
+
+        return False
 
     def detect(
         self,
