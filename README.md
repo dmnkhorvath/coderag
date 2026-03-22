@@ -20,6 +20,10 @@
 
 - [Features](#-features)
 - [Quick Start](#-quick-start)
+- [Documentation](#-documentation)
+- [Cost Savings](#-cost-savings)
+- [Session Memory](#-session-memory)
+- [Auto-Update](#-auto-update)
 - [CLI Reference](#-cli-reference)
 - [TUI Monitor](#-tui-monitor)
 - [MCP Server](#-mcp-server)
@@ -162,6 +166,8 @@ Press `:` to enter command mode (vim-style):
 
 ## 🚀 Quick Start
 
+> 📖 **New to CodeRAG?** See the full [Quick Start Guide](docs/quickstart.md) for a step-by-step walkthrough.
+
 ### Prerequisites
 
 - Python 3.11 or higher
@@ -221,6 +227,92 @@ $ coderag info /path/to/laravel-app
 ├── Frameworks: Laravel, React
 └── Parse time: 14.2s
 ```
+
+---
+
+## 📚 Documentation
+
+Comprehensive guides for every CodeRAG feature:
+
+| Guide | Description |
+|-------|-------------|
+| [Quick Start](docs/quickstart.md) | Installation, first parse, first query, first AI session |
+| [Smart Launcher](docs/launcher.md) | One-command AI session setup with `--dry-run`, `--context-only`, and `--token-budget` |
+| [Session Memory](docs/session-memory.md) | Cross-session context persistence — decisions, tasks, facts, hot files |
+| [Cost Savings](docs/cost-savings.md) | Token cost benchmarking methodology and results (86.4% savings) |
+| [AI Tool Setup](docs/ai-tool-setup.md) | Configure Claude Code, Cursor, or Codex CLI with MCP integration |
+
+Additional documentation:
+- [Architecture Design](docs/architecture/) — System design and component diagrams
+- [Development Plan](docs/plan/) — Roadmap and phase tracking
+- [Research Notes](docs/research/) — Language parsing, framework detection, and cross-language analysis research
+
+---
+
+## 💰 Cost Savings
+
+CodeRAG reduces AI coding tool token costs by providing precise, graph-ranked context instead of dumping entire files into the context window.
+
+**Benchmark results** against the [Slim PHP framework](https://github.com/slimphp/Slim) (125 files, 1,883 nodes, 7,998 edges):
+
+| Metric | Without CodeRAG | With CodeRAG | Savings |
+|--------|----------------:|-------------:|--------:|
+| Avg tokens/task | 17,617 | 2,400 | **86.4%** |
+| Est. cost/month (100 tasks) | $42.28 | $5.76 | **86.4%** |
+
+Supports 8 pricing models: Claude Sonnet 4, Claude Opus 4, Claude Haiku 3.5, GPT-4o, GPT-4.1, GPT-4.1 Mini, Gemini 2.5 Pro, Gemini 2.5 Flash.
+
+```bash
+# Run your own benchmark
+coderag benchmark /path/to/project
+coderag benchmark /path/to/project --model gpt-4o --format markdown
+```
+
+> 📖 See [Cost Savings Guide](docs/cost-savings.md) for full methodology and per-task breakdown.
+
+---
+
+## 🧠 Session Memory
+
+Session Memory gives CodeRAG cross-session context persistence. It tracks file reads, edits, queries, decisions, tasks, and facts — then injects the most relevant context into future AI sessions.
+
+```bash
+# View recent sessions
+coderag session list
+
+# View persisted decisions, tasks, and facts
+coderag session context
+
+# Session context is auto-injected into AI sessions
+coderag launch . --context-only
+```
+
+8 MCP tools let AI assistants log and query session data automatically. Context injection is token-budgeted and priority-ordered: hot files → decisions → tasks → facts → recent activity.
+
+> 📖 See [Session Memory Guide](docs/session-memory.md) for full details.
+
+---
+
+## 🔄 Auto-Update
+
+CodeRAG includes a built-in update system that checks for new releases from GitHub:
+
+```bash
+# Check for updates
+coderag update check
+
+# View update configuration
+coderag update config
+
+# Install latest update
+coderag update install
+```
+
+Configuration options:
+- **Auto-check**: Enabled by default (checks every 2 hours)
+- **Auto-install**: Disabled by default (manual install required)
+- **Channel**: `stable` (only stable releases)
+- **GitHub repo**: `dmnkhorvath/coderag`
 
 ---
 
