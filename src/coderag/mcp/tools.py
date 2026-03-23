@@ -1,6 +1,6 @@
 """MCP Tools for CodeRAG.
 
-Registers 8 tools on a FastMCP server instance that expose
+Registers 9 tools on a FastMCP server instance that expose
 the knowledge graph to LLMs via the Model Context Protocol.
 """
 
@@ -703,24 +703,16 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
 
             # ── Read pre-computed data from SQLite store ──────────
             # Communities: already grouped and sorted by size
-            raw_communities = store.get_communities(
-                max_communities=15, max_per_community=50
-            )
+            raw_communities = store.get_communities(max_communities=15, max_per_community=50)
 
             # Apply focus filters to communities
             communities: list[tuple[int, list[Node]]] = []
             for cid, nodes in raw_communities:
                 filtered = nodes
                 if language_filter:
-                    filtered = [
-                        n for n in filtered
-                        if n.language.lower() == language_filter
-                    ]
+                    filtered = [n for n in filtered if n.language.lower() == language_filter]
                 elif focus == ArchitectureFocus.frontend:
-                    filtered = [
-                        n for n in filtered
-                        if n.language.lower() in frontend_languages
-                    ]
+                    filtered = [n for n in filtered if n.language.lower() in frontend_languages]
                 if filtered:
                     communities.append((cid, filtered))
 
@@ -733,20 +725,14 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
             # Apply frontend filter if needed
             if focus == ArchitectureFocus.frontend:
                 important_nodes_raw = [
-                    (n, s) for n, s in important_nodes_raw
-                    if n.language.lower() in frontend_languages
+                    (n, s) for n, s in important_nodes_raw if n.language.lower() in frontend_languages
                 ]
             important_nodes: list[tuple[Node, float]] = important_nodes_raw
 
             # Entry points: computed from edge counts in SQL
-            entry_points_raw = store.get_entry_points(
-                limit=15, language_filter=language_filter
-            )
+            entry_points_raw = store.get_entry_points(limit=15, language_filter=language_filter)
             if focus == ArchitectureFocus.frontend:
-                entry_points_raw = [
-                    n for n in entry_points_raw
-                    if n.language.lower() in frontend_languages
-                ]
+                entry_points_raw = [n for n in entry_points_raw if n.language.lower() in frontend_languages]
             entry_points: list[Node] = entry_points_raw
 
             # Format
@@ -872,3 +858,181 @@ def register_tools(mcp: Any, store: Any, analyzer: Any) -> None:
         except Exception as exc:
             logger.exception("Error in coderag_dependency_graph")
             return f"Error building dependency graph for `{target}`: {exc}"
+
+    # ── Tool 9: coderag_grep ─────────────────────────────────
+
+    @mcp.tool(
+        name="coderag_grep",
+        description=(
+            "Search actual source code content with graph-aware context. "
+            "Unlike coderag_search (which searches symbol names via FTS5), "
+            "grep searches the raw source text of every symbol and enriches "
+            "results with knowledge-graph data like PageRank importance. "
+            "Use this to find TODOs, specific patterns, string literals, or "
+            "any text inside function/class bodies."
+        ),
+    )
+    def coderag_grep(
+        pattern: str,
+        kind: str | None = None,
+        use_regex: bool = False,
+        context_lines: int = 3,
+        rank_by_pagerank: bool = True,
+        limit: int = 20,
+        token_budget: int = 4000,
+    ) -> str:
+        """Search source code content with graph-aware context.
+
+        Args:
+            pattern: Text or regex pattern to search for in source code.
+            kind: Filter by node kind (class, function, method, etc.).
+            use_regex: Treat pattern as a regular expression.
+            context_lines: Lines of context around each match (default: 3).
+            rank_by_pagerank: Sort results by PageRank importance (default: true).
+            limit: Maximum number of results (1-100).
+            token_budget: Maximum tokens for the response.
+        """
+        import re as _re
+
+        try:
+            token_budget = min(max(token_budget, 500), 16000)
+            limit = min(max(limit, 1), 100)
+
+            # Compile regex if requested
+            if use_regex:
+                try:
+                    compiled = _re.compile(pattern)
+                except _re.error as exc:
+                    return f"Invalid regex pattern: {exc}"
+            else:
+                compiled = None
+
+            # Get nodes, optionally filtered by kind
+            if kind:
+                try:
+                    node_kind = NodeKind(kind)
+                except ValueError:
+                    return "Unknown kind '{}'. Valid: {}".format(kind, ", ".join(k.value for k in NodeKind))
+                all_nodes = store.find_nodes(kind=node_kind, limit=100_000)
+            else:
+                all_nodes = store.get_all_nodes()
+
+            # Exclude external / synthetic nodes
+            all_nodes = [n for n in all_nodes if n.file_path != "<external>"]
+
+            results: list[dict[str, Any]] = []
+            matched_ids: set[str] = set()
+
+            def _matches(line: str) -> bool:
+                if compiled:
+                    return bool(compiled.search(line))
+                return pattern.lower() in line.lower()
+
+            # Search node source_text
+            for node in all_nodes:
+                if not node.source_text:
+                    continue
+                src_lines = node.source_text.splitlines()
+                for i, line in enumerate(src_lines):
+                    if _matches(line):
+                        match_line = node.start_line + i
+                        ctx_start = max(0, i - context_lines)
+                        ctx_end = min(len(src_lines), i + context_lines + 1)
+                        context = src_lines[ctx_start:ctx_end]
+                        results.append(
+                            {
+                                "node": node,
+                                "match_line": match_line,
+                                "match_text": line.strip(),
+                                "context": context,
+                                "context_start_line": node.start_line + ctx_start,
+                            }
+                        )
+                        matched_ids.add(node.id)
+                        break  # one match per node
+
+            # Fallback: read files for nodes without source_text
+            project_root = store.get_metadata("project_root") or ""
+            if project_root:
+                nodes_by_file: dict[str, list[Node]] = {}
+                for node in all_nodes:
+                    if node.id not in matched_ids and node.file_path:
+                        nodes_by_file.setdefault(node.file_path, []).append(node)
+
+                for file_path, file_nodes in nodes_by_file.items():
+                    abs_path = os.path.join(project_root, file_path)
+                    if not os.path.isfile(abs_path):
+                        continue
+                    try:
+                        with open(abs_path, errors="replace") as fh:
+                            file_lines = fh.readlines()
+                    except OSError:
+                        continue
+
+                    for i, line in enumerate(file_lines, 1):
+                        if not _matches(line):
+                            continue
+                        for node in file_nodes:
+                            if node.id in matched_ids:
+                                continue
+                            if node.start_line <= i <= node.end_line:
+                                ctx_s = max(1, i - context_lines)
+                                ctx_e = min(len(file_lines), i + context_lines)
+                                context = [ln.rstrip("\n").rstrip("\r") for ln in file_lines[ctx_s - 1 : ctx_e]]
+                                results.append(
+                                    {
+                                        "node": node,
+                                        "match_line": i,
+                                        "match_text": line.strip(),
+                                        "context": context,
+                                        "context_start_line": ctx_s,
+                                    }
+                                )
+                                matched_ids.add(node.id)
+                                break
+
+            # Sort by PageRank if requested
+            if rank_by_pagerank:
+                results.sort(key=lambda r: r["node"].pagerank, reverse=True)
+
+            results = results[:limit]
+
+            if not results:
+                return (
+                    f"No matches found for pattern: `{pattern}`"
+                    + (f" (kind: {kind})" if kind else "")
+                    + f".\nSearched {len(all_nodes)} nodes."
+                )
+
+            lines_out = [
+                f"## Grep results for `{pattern}`\n",
+                f"**Matches**: {len(results)} | **Ranked by PageRank**: {rank_by_pagerank} | **Searched**: {len(all_nodes)} nodes\n",
+            ]
+
+            for idx, r in enumerate(results, 1):
+                node = r["node"]
+                nk = node.kind.value if isinstance(node.kind, NodeKind) else str(node.kind)
+                pr_str = f" | PR: {node.pagerank:.4f}" if node.pagerank > 0 else ""
+                lines_out.append(f"### {idx}. `{node.name}` ({nk}){pr_str}")
+                lines_out.append(
+                    "**File**: `{}` | **Line**: {} | **Language**: {}".format(
+                        node.file_path, r["match_line"], node.language
+                    )
+                )
+                if node.qualified_name and node.qualified_name != node.name:
+                    lines_out.append(f"**Qualified**: `{node.qualified_name}`")
+                lines_out.append("")
+                lines_out.append("```")
+                for ci, ctx_line in enumerate(r["context"]):
+                    line_num = r["context_start_line"] + ci
+                    marker = ">>>" if line_num == r["match_line"] else "   "
+                    lines_out.append(f"{marker} {line_num:4d} | {ctx_line}")
+                lines_out.append("```")
+                lines_out.append("")
+
+            text = "\n".join(lines_out)
+            return _truncate_to_budget(text, token_budget)
+
+        except Exception as exc:
+            logger.exception("Error in coderag_grep")
+            return f"Error searching for `{pattern}`: {exc}"

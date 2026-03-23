@@ -2584,6 +2584,269 @@ from coderag.cli.session import session  # noqa: E402
 cli.add_command(session)
 
 
+# ── grep ──────────────────────────────────────────────────────
+
+
+@cli.command()
+@click.argument("pattern")
+@click.option(
+    "--kind",
+    "-k",
+    default=None,
+    help="Filter by node kind (class, function, method, etc.).",
+)
+@click.option(
+    "--context-lines",
+    "-C",
+    default=3,
+    type=int,
+    help="Lines of context around each match (default: 3).",
+)
+@click.option(
+    "--limit",
+    "-l",
+    default=20,
+    type=int,
+    help="Maximum number of results.",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["markdown", "json"]),
+    default="markdown",
+    help="Output format.",
+)
+@click.option(
+    "--rank/--no-rank",
+    default=True,
+    help="Sort results by PageRank importance (default: --rank).",
+)
+@click.option(
+    "--regex",
+    "-r",
+    "use_regex",
+    is_flag=True,
+    default=False,
+    help="Treat pattern as a regular expression.",
+)
+@click.pass_context
+def grep(
+    ctx: click.Context,
+    pattern: str,
+    kind: str | None,
+    context_lines: int,
+    limit: int,
+    fmt: str,
+    rank: bool,
+    use_regex: bool,
+) -> None:
+    """Search source code content with graph-aware context.
+
+    Unlike `query` (which searches symbol names via FTS5), `grep` searches
+    actual source code text and enriches results with knowledge-graph data
+    like PageRank importance and symbol relationships.
+
+    Examples:
+        coderag grep "authentication"
+        coderag grep -r "def\\s+test_" --kind function
+        coderag grep "TODO" --no-rank -C 5
+    """
+    import re as _re
+
+    config = _load_config(ctx.obj["config_path"])
+    if ctx.obj["db_override"]:
+        config.db_path = ctx.obj["db_override"]
+
+    store = _open_store(config)
+
+    try:
+        # Compile regex if requested
+        if use_regex:
+            try:
+                compiled = _re.compile(pattern)
+            except _re.error as exc:
+                console.print(f"[red]Invalid regex pattern: {exc}[/red]")
+                raise SystemExit(1) from exc
+        else:
+            compiled = None
+
+        # Determine project root for file-level fallback
+        project_root = store.get_metadata("project_root") or ""
+
+        # Get nodes, optionally filtered by kind
+        if kind:
+            try:
+                node_kind = NodeKind(kind)
+            except ValueError:
+                console.print(
+                    "[red]Unknown kind '{}'. Valid: {}[/red]".format(kind, ", ".join(k.value for k in NodeKind))
+                )
+                raise SystemExit(1)
+            all_nodes = store.find_nodes(kind=node_kind, limit=100_000)
+        else:
+            all_nodes = store.get_all_nodes()
+
+        # Exclude external / synthetic nodes
+        all_nodes = [n for n in all_nodes if n.file_path != "<external>"]
+
+        results: list[dict[str, Any]] = []
+        matched_ids: set[str] = set()
+
+        def _matches(line: str) -> bool:
+            if compiled:
+                return bool(compiled.search(line))
+            return pattern.lower() in line.lower()
+
+        # Strategy 1: search node source_text (fast, in-memory)
+        for node in all_nodes:
+            if not node.source_text:
+                continue
+            src_lines = node.source_text.splitlines()
+            for i, line in enumerate(src_lines):
+                if _matches(line):
+                    match_line = node.start_line + i
+                    ctx_start = max(0, i - context_lines)
+                    ctx_end = min(len(src_lines), i + context_lines + 1)
+                    context = src_lines[ctx_start:ctx_end]
+                    results.append(
+                        {
+                            "node": node,
+                            "match_line": match_line,
+                            "match_text": line.strip(),
+                            "context": context,
+                            "context_start_line": node.start_line + ctx_start,
+                        }
+                    )
+                    matched_ids.add(node.id)
+                    break  # one match per node
+
+        # Strategy 2: fall back to reading files for nodes without source_text
+        if project_root:
+            nodes_by_file: dict[str, list[Node]] = {}
+            for node in all_nodes:
+                if node.id not in matched_ids and node.file_path:
+                    nodes_by_file.setdefault(node.file_path, []).append(node)
+
+            for file_path, file_nodes in nodes_by_file.items():
+                abs_path = os.path.join(project_root, file_path)
+                if not os.path.isfile(abs_path):
+                    continue
+                try:
+                    with open(abs_path, errors="replace") as fh:
+                        file_lines = fh.readlines()
+                except OSError:
+                    continue
+
+                for i, line in enumerate(file_lines, 1):
+                    if not _matches(line):
+                        continue
+                    for node in file_nodes:
+                        if node.id in matched_ids:
+                            continue
+                        if node.start_line <= i <= node.end_line:
+                            ctx_s = max(1, i - context_lines)
+                            ctx_e = min(len(file_lines), i + context_lines)
+                            context = [ln.rstrip("\n").rstrip("\r") for ln in file_lines[ctx_s - 1 : ctx_e]]
+                            results.append(
+                                {
+                                    "node": node,
+                                    "match_line": i,
+                                    "match_text": line.strip(),
+                                    "context": context,
+                                    "context_start_line": ctx_s,
+                                }
+                            )
+                            matched_ids.add(node.id)
+                            break
+
+        # Sort by PageRank if requested
+        if rank:
+            results.sort(key=lambda r: r["node"].pagerank, reverse=True)
+
+        results = results[:limit]
+
+        if not results:
+            console.print(f"[yellow]No matches found for pattern: {pattern}[/yellow]")
+            console.print(f"Searched {len(all_nodes)} nodes.")
+            return
+
+        if fmt == "json":
+            data: dict[str, Any] = {
+                "pattern": pattern,
+                "regex": use_regex,
+                "total_matches": len(results),
+                "ranked_by_pagerank": rank,
+                "results": [],
+            }
+            for r in results:
+                node = r["node"]
+                nk = node.kind.value if hasattr(node.kind, "value") else str(node.kind)
+                data["results"].append(
+                    {
+                        "name": node.name,
+                        "qualified_name": node.qualified_name,
+                        "kind": nk,
+                        "file_path": node.file_path,
+                        "match_line": r["match_line"],
+                        "match_text": r["match_text"],
+                        "pagerank": round(node.pagerank, 6),
+                        "language": node.language,
+                        "context": r["context"],
+                        "context_start_line": r["context_start_line"],
+                    }
+                )
+            click.echo(json.dumps(data, indent=2, default=str))
+        else:
+            # Markdown / Rich output
+            table = Table(
+                title=f"Grep results for '{pattern}'",
+                show_lines=True,
+            )
+            table.add_column("#", style="dim", width=4)
+            table.add_column("Symbol", style="cyan")
+            table.add_column("Kind", style="green", width=10)
+            table.add_column("File:Line", style="yellow")
+            table.add_column("PageRank", style="magenta", width=10)
+            table.add_column("Match", style="white")
+
+            for idx, r in enumerate(results, 1):
+                node = r["node"]
+                nk = node.kind.value if hasattr(node.kind, "value") else str(node.kind)
+                pr_str = f"{node.pagerank:.4f}" if node.pagerank > 0 else "-"
+                loc = "{}:{}".format(node.file_path, r["match_line"])
+                table.add_row(
+                    str(idx),
+                    node.name,
+                    nk,
+                    loc,
+                    pr_str,
+                    r["match_text"][:80],
+                )
+
+            console.print(table)
+            console.print(
+                f"\n[dim]{len(results)} matches | ranked by PageRank: {rank} | searched {len(all_nodes)} nodes[/dim]"
+            )
+
+            # Show detailed context for top 5
+            top_n = min(5, len(results))
+            if top_n > 0:
+                console.print(f"\n[bold]Context for top {top_n} matches:[/bold]\n")
+                for idx, r in enumerate(results[:top_n], 1):
+                    node = r["node"]
+                    nk = node.kind.value if hasattr(node.kind, "value") else str(node.kind)
+                    console.print(f"[cyan]{idx}. {node.name} ({nk})[/cyan] — {node.file_path}")
+                    for ci, ctx_line in enumerate(r["context"]):
+                        line_num = r["context_start_line"] + ci
+                        if line_num == r["match_line"]:
+                            console.print(f"  [bold red]>>> {line_num:4d}[/bold red] | {ctx_line}")
+                        else:
+                            console.print(f"  [dim]    {line_num:4d}[/dim] | {ctx_line}")
+                    console.print()
+    finally:
+        store.close()
+
+
 # ── Monitor Command (TUI Dashboard) ──────────────────────────
 
 
