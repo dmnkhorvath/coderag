@@ -51,6 +51,7 @@ dependencies = [
     "tree-sitter-css>=0.23.0",
     "tree-sitter-scss>=0.0.1",
     "tree-sitter-go>=0.23.0",
+    "tree-sitter-rust>=0.23.0",
     "networkx>=3.2",
     "numpy>=1.26",
     "scipy>=1.12",

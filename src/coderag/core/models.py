@@ -177,6 +177,7 @@ class Language(enum.StrEnum):
     CSS = "css"
     SCSS = "scss"
     GO = "go"
+    RUST = "rust"
 
 
 class DetailLevel(enum.StrEnum):
