@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def _node_text(node: tree_sitter.Node, source: bytes) -> str:
-    return source[node.start_byte:node.end_byte].decode(errors="replace")
+    return source[node.start_byte : node.end_byte].decode(errors="replace")
 
 
 def _find_doc_comment(node: tree_sitter.Node, source: bytes) -> str | None:
@@ -55,29 +55,33 @@ class RustExtractor(ASTExtractor):
         self._parser = tree_sitter.Parser(self._language)
 
     def supported_node_kinds(self) -> frozenset[NodeKind]:
-        return frozenset({
-            NodeKind.FILE,
-            NodeKind.PACKAGE,
-            NodeKind.CLASS,
-            NodeKind.INTERFACE,
-            NodeKind.FUNCTION,
-            NodeKind.METHOD,
-            NodeKind.PROPERTY,
-            NodeKind.CONSTANT,
-            NodeKind.IMPORT,
-            NodeKind.TYPE_ALIAS,
-        })
+        return frozenset(
+            {
+                NodeKind.FILE,
+                NodeKind.PACKAGE,
+                NodeKind.CLASS,
+                NodeKind.INTERFACE,
+                NodeKind.FUNCTION,
+                NodeKind.METHOD,
+                NodeKind.PROPERTY,
+                NodeKind.CONSTANT,
+                NodeKind.IMPORT,
+                NodeKind.TYPE_ALIAS,
+            }
+        )
 
     def supported_edge_kinds(self) -> frozenset[EdgeKind]:
-        return frozenset({
-            EdgeKind.CONTAINS,
-            EdgeKind.IMPLEMENTS,
-            EdgeKind.CALLS,
-            EdgeKind.IMPORTS,
-            EdgeKind.HAS_TYPE,
-            EdgeKind.RETURNS_TYPE,
-            EdgeKind.EXTENDS,
-        })
+        return frozenset(
+            {
+                EdgeKind.CONTAINS,
+                EdgeKind.IMPLEMENTS,
+                EdgeKind.CALLS,
+                EdgeKind.IMPORTS,
+                EdgeKind.HAS_TYPE,
+                EdgeKind.RETURNS_TYPE,
+                EdgeKind.EXTENDS,
+            }
+        )
 
     def extract(self, file_path: str, source: bytes) -> ExtractionResult:
         start_time = time.perf_counter()
@@ -155,13 +159,19 @@ class RustExtractor(ASTExtractor):
             if child.type == "use_declaration":
                 self._extract_import(child, source, file_path, container_id, nodes, edges)
             elif child.type == "struct_item":
-                self._extract_struct(child, source, file_path, container_id, module_name, nodes, edges, unresolved, known_types)
+                self._extract_struct(
+                    child, source, file_path, container_id, module_name, nodes, edges, unresolved, known_types
+                )
             elif child.type == "enum_item":
                 self._extract_enum(child, source, file_path, container_id, module_name, nodes, edges, known_types)
             elif child.type == "trait_item":
-                self._extract_trait(child, source, file_path, container_id, module_name, nodes, edges, unresolved, known_types)
+                self._extract_trait(
+                    child, source, file_path, container_id, module_name, nodes, edges, unresolved, known_types
+                )
             elif child.type == "impl_item":
-                self._extract_impl(child, source, file_path, container_id, module_name, nodes, edges, unresolved, known_types)
+                self._extract_impl(
+                    child, source, file_path, container_id, module_name, nodes, edges, unresolved, known_types
+                )
             elif child.type == "function_item":
                 self._extract_function(child, source, file_path, container_id, module_name, nodes, edges, unresolved)
             elif child.type in {"const_item", "static_item"}:
@@ -233,12 +243,14 @@ class RustExtractor(ASTExtractor):
                     nodes.append(prop_node)
                     edges.append(Edge(struct_node.id, prop_node.id, EdgeKind.CONTAINS, 1.0, field.start_point[0] + 1))
                     if ftype:
-                        unresolved.append(UnresolvedReference(
-                            source_node_id=prop_node.id,
-                            reference_name=_node_text(ftype, source),
-                            reference_kind=EdgeKind.HAS_TYPE,
-                            line_number=field.start_point[0] + 1,
-                        ))
+                        unresolved.append(
+                            UnresolvedReference(
+                                source_node_id=prop_node.id,
+                                reference_name=_node_text(ftype, source),
+                                reference_kind=EdgeKind.HAS_TYPE,
+                                line_number=field.start_point[0] + 1,
+                            )
+                        )
 
     def _extract_enum(self, node, source, file_path, parent_id, module_name, nodes, edges, known_types):
         name_node = node.child_by_field_name("name")
@@ -310,12 +322,14 @@ class RustExtractor(ASTExtractor):
         edges.append(Edge(parent_id, method_node.id, EdgeKind.CONTAINS, 1.0, node.start_point[0] + 1))
         ret = node.child_by_field_name("return_type")
         if ret:
-            unresolved.append(UnresolvedReference(
-                source_node_id=method_node.id,
-                reference_name=_node_text(ret, source),
-                reference_kind=EdgeKind.RETURNS_TYPE,
-                line_number=node.start_point[0] + 1,
-            ))
+            unresolved.append(
+                UnresolvedReference(
+                    source_node_id=method_node.id,
+                    reference_name=_node_text(ret, source),
+                    reference_kind=EdgeKind.RETURNS_TYPE,
+                    line_number=node.start_point[0] + 1,
+                )
+            )
 
     def _extract_impl(self, node, source, file_path, parent_id, module_name, nodes, edges, unresolved, known_types):
         type_node = node.child_by_field_name("type")
@@ -326,15 +340,19 @@ class RustExtractor(ASTExtractor):
         type_name = _node_text(type_node, source)
         target_parent = known_types.get(type_name, parent_id)
         if trait_node:
-            unresolved.append(UnresolvedReference(
-                source_node_id=known_types.get(type_name, target_parent),
-                reference_name=_node_text(trait_node, source),
-                reference_kind=EdgeKind.IMPLEMENTS,
-                line_number=node.start_point[0] + 1,
-            ))
+            unresolved.append(
+                UnresolvedReference(
+                    source_node_id=known_types.get(type_name, target_parent),
+                    reference_name=_node_text(trait_node, source),
+                    reference_kind=EdgeKind.IMPLEMENTS,
+                    line_number=node.start_point[0] + 1,
+                )
+            )
         for child in body_node.children:
             if child.type == "function_item":
-                self._extract_method(child, source, file_path, target_parent, module_name, type_name, nodes, edges, unresolved)
+                self._extract_method(
+                    child, source, file_path, target_parent, module_name, type_name, nodes, edges, unresolved
+                )
 
     def _extract_function(self, node, source, file_path, parent_id, module_name, nodes, edges, unresolved):
         name_node = node.child_by_field_name("name")
@@ -358,12 +376,14 @@ class RustExtractor(ASTExtractor):
         edges.append(Edge(parent_id, func_node.id, EdgeKind.CONTAINS, 1.0, node.start_point[0] + 1))
         ret = node.child_by_field_name("return_type")
         if ret:
-            unresolved.append(UnresolvedReference(
-                source_node_id=func_node.id,
-                reference_name=_node_text(ret, source),
-                reference_kind=EdgeKind.RETURNS_TYPE,
-                line_number=node.start_point[0] + 1,
-            ))
+            unresolved.append(
+                UnresolvedReference(
+                    source_node_id=func_node.id,
+                    reference_name=_node_text(ret, source),
+                    reference_kind=EdgeKind.RETURNS_TYPE,
+                    line_number=node.start_point[0] + 1,
+                )
+            )
         body = node.child_by_field_name("body")
         if body:
             self._scan_body_for_calls(body, source, func_node.id, unresolved)
@@ -390,12 +410,14 @@ class RustExtractor(ASTExtractor):
         edges.append(Edge(parent_id, method_node.id, EdgeKind.CONTAINS, 1.0, node.start_point[0] + 1))
         ret = node.child_by_field_name("return_type")
         if ret:
-            unresolved.append(UnresolvedReference(
-                source_node_id=method_node.id,
-                reference_name=_node_text(ret, source),
-                reference_kind=EdgeKind.RETURNS_TYPE,
-                line_number=node.start_point[0] + 1,
-            ))
+            unresolved.append(
+                UnresolvedReference(
+                    source_node_id=method_node.id,
+                    reference_name=_node_text(ret, source),
+                    reference_kind=EdgeKind.RETURNS_TYPE,
+                    line_number=node.start_point[0] + 1,
+                )
+            )
         body = node.child_by_field_name("body")
         if body:
             self._scan_body_for_calls(body, source, method_node.id, unresolved)
@@ -445,18 +467,22 @@ class RustExtractor(ASTExtractor):
             if node.type == "call_expression":
                 fn_node = node.child_by_field_name("function") or (node.children[0] if node.children else None)
                 if fn_node:
-                    unresolved.append(UnresolvedReference(
-                        source_node_id=caller_id,
-                        reference_name=_node_text(fn_node, source),
-                        reference_kind=EdgeKind.CALLS,
-                        line_number=node.start_point[0] + 1,
-                    ))
+                    unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=caller_id,
+                            reference_name=_node_text(fn_node, source),
+                            reference_kind=EdgeKind.CALLS,
+                            line_number=node.start_point[0] + 1,
+                        )
+                    )
             elif node.type == "macro_invocation":
                 name_node = node.child_by_field_name("macro") or (node.children[0] if node.children else None)
                 if name_node:
-                    unresolved.append(UnresolvedReference(
-                        source_node_id=caller_id,
-                        reference_name=_node_text(name_node, source),
-                        reference_kind=EdgeKind.CALLS,
-                        line_number=node.start_point[0] + 1,
-                    ))
+                    unresolved.append(
+                        UnresolvedReference(
+                            source_node_id=caller_id,
+                            reference_name=_node_text(name_node, source),
+                            reference_kind=EdgeKind.CALLS,
+                            line_number=node.start_point[0] + 1,
+                        )
+                    )

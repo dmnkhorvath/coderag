@@ -1,10 +1,13 @@
 import pytest
+
+from coderag.core.models import EdgeKind, NodeKind
 from coderag.plugins.go.extractor import GoExtractor
 from coderag.plugins.go.plugin import GoPlugin
-from coderag.core.models import NodeKind, EdgeKind
+
 
 def _kinds(nodes, kind):
     return [n for n in nodes if n.kind == kind]
+
 
 class TestGoExtractor:
     @pytest.fixture(autouse=True)
@@ -38,7 +41,8 @@ type User struct {
         assert len(_kinds(result.nodes, NodeKind.CLASS)) == 2
         user_node = next(n for n in result.nodes if n.name == "User")
         extends_refs = [
-            ref for ref in result.unresolved_references 
+            ref
+            for ref in result.unresolved_references
             if ref.source_node_id == user_node.id and ref.reference_kind == EdgeKind.EXTENDS
         ]
         assert len(extends_refs) == 1
@@ -49,6 +53,7 @@ type User struct {
 type Repository interface { Find(id int) error }"""
         result = self.extractor.extract("repo.go", source)
         assert len(_kinds(result.nodes, NodeKind.INTERFACE)) == 1
+
 
 class TestGoPlugin:
     def test_plugin_properties(self):

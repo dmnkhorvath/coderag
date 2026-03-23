@@ -111,7 +111,6 @@ _PHP_METHOD_RE = re.compile(r"(?:public|protected|private)\s+function\s+(?P<name
 _NAMESPACE_RE = re.compile(r"namespace\s+(?P<ns>[\w\\]+)\s*;")
 
 
-
 # ---------------------------------------------------------------------------
 # Twig template patterns (for .twig file analysis)
 # ---------------------------------------------------------------------------
@@ -127,7 +126,9 @@ _TWIG_PATH_RE = re.compile(r"""(?:path|url)\s*\(\s*['"](?P<route>[^'"]+)['"]""")
 # ---------------------------------------------------------------------------
 _STIMULUS_DATA_CONTROLLER_RE = re.compile(r"""data-controller\s*=\s*['"](?P<controllers>[^'"]+)['"]""")
 _STIMULUS_FUNCTION_RE = re.compile(r"""stimulus_controller\s*\(\s*['"](?P<controller>[^'"]+)['"]""")
-_ASSET_ENCORE_RE = re.compile(r"""(?:encore_entry_link_tags|encore_entry_script_tags)\s*\(\s*['"](?P<entry>[^'"]+)['"]""")
+_ASSET_ENCORE_RE = re.compile(
+    r"""(?:encore_entry_link_tags|encore_entry_script_tags)\s*\(\s*['"](?P<entry>[^'"]+)['"]"""
+)
 _ASSET_VITE_RE = re.compile(r"""(?:vite_entry_link_tags|vite_entry_script_tags)\s*\(\s*['"](?P<entry>[^'"]+)['"]""")
 
 # ---------------------------------------------------------------------------
@@ -1373,7 +1374,7 @@ class SymfonyDetector(FrameworkDetector):
             return None
 
         new_edges: list[Edge] = []
-        namespace = self._extract_namespace(source_text)
+        namespace = self._extract_namespace(source_text)  # noqa: F841
 
         for am in matches:
             constraint = am.group("constraint")
@@ -1384,9 +1385,7 @@ class SymfonyDetector(FrameworkDetector):
             if cls_node:
                 source_id = cls_node.id
             else:
-                source_id = generate_node_id(
-                    file_path, line_no, NodeKind.CLASS, "unknown"
-                )
+                source_id = generate_node_id(file_path, line_no, NodeKind.CLASS, "unknown")
 
             new_edges.append(
                 Edge(
@@ -1719,4 +1718,3 @@ class SymfonyDetector(FrameworkDetector):
                 "edge_count": len(new_edges),
             },
         )
-

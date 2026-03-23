@@ -19,7 +19,6 @@ from coderag.cli.benchmark_cost import (
 from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 from coderag.storage.sqlite_store import SQLiteStore
 
-
 # ── Fixtures ─────────────────────────────────────────────────
 
 

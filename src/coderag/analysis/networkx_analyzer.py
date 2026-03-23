@@ -295,6 +295,7 @@ class NetworkXAnalyzer:
             if node_count < 10_000:
                 logger.info("Community detection: using greedy modularity (%d nodes)", node_count)
                 from networkx.algorithms.community import greedy_modularity_communities
+
                 communities = list(greedy_modularity_communities(undirected))
             elif node_count < 500_000:
                 logger.info("Community detection: using Leiden algorithm (%d nodes)", node_count)
@@ -302,6 +303,7 @@ class NetworkXAnalyzer:
             else:
                 logger.info("Community detection: using label propagation (%d nodes)", node_count)
                 from networkx.algorithms.community import label_propagation_communities
+
                 communities = [set(c) for c in label_propagation_communities(undirected)]
         except Exception as exc:
             logger.warning("Community detection failed: %s", exc)

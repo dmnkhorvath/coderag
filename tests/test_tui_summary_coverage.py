@@ -3,10 +3,10 @@
 Targets missing lines: 78-130, 137, 141
 SummaryScreen compose() and action methods.
 """
+
 from __future__ import annotations
 
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 class TestSummaryScreenCompose:
@@ -14,6 +14,7 @@ class TestSummaryScreenCompose:
 
     def _make_screen(self, **kwargs):
         from coderag.tui.screens.summary import SummaryScreen
+
         defaults = dict(
             success=True,
             duration_s=65.5,
@@ -90,6 +91,7 @@ class TestSummaryScreenActions:
 
     def _make_screen(self):
         from coderag.tui.screens.summary import SummaryScreen
+
         screen = SummaryScreen.__new__(SummaryScreen)
         screen._success = True
         screen._duration_s = 10.0

@@ -5,18 +5,16 @@ Targets missing lines: 95, 100-105, 109-117, 121-130, 137-138, 142-149,
 223-229, 232, 235, 238, 241, 244-246, 249-250, 256-262, 266-279, 284-287,
 290-292, 295-297, 300-302, 305-307, 310-312, 315-317, 320-322, 325-327
 """
+
 from __future__ import annotations
 
-import re
-from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 def _make_logs_screen():
     """Create a LogsScreen with mocked Textual internals."""
     from coderag.tui.screens.logs import LogsScreen
+
     screen = LogsScreen.__new__(LogsScreen)
     screen._search_visible = False
     screen._match_indices = []
@@ -58,6 +56,7 @@ class TestLogBuffer:
 
     def test_log_buffer_creates_if_missing(self):
         from coderag.tui.screens.logs import LogsScreen
+
         screen = LogsScreen.__new__(LogsScreen)
         mock_app = MagicMock(spec=[])
         screen.app = mock_app
@@ -67,6 +66,7 @@ class TestLogBuffer:
 
     def test_log_buffer_returns_existing(self):
         from coderag.tui.screens.logs import LogsScreen
+
         screen = LogsScreen.__new__(LogsScreen)
         mock_app = MagicMock()
         mock_app._shared_log_buffer = [("INFO", "test", "")]

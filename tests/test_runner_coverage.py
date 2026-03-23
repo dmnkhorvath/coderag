@@ -2,18 +2,17 @@
 
 Covers: _cleanup_children, launch_mcp_server, launch_tool, stop_process.
 """
+
 from __future__ import annotations
 
 import subprocess
-import sys
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coderag.launcher import runner
 from coderag.launcher.runner import (
-    _cleanup_children,
     _child_processes,
+    _cleanup_children,
     launch_mcp_server,
     launch_tool,
     stop_process,
@@ -31,6 +30,7 @@ def _clear_children():
 # ---------------------------------------------------------------------------
 # _cleanup_children
 # ---------------------------------------------------------------------------
+
 
 class TestCleanupChildren:
     def test_cleanup_terminates_running_processes(self):
@@ -94,6 +94,7 @@ class TestCleanupChildren:
 # ---------------------------------------------------------------------------
 # launch_mcp_server
 # ---------------------------------------------------------------------------
+
 
 class TestLaunchMcpServer:
     @patch("coderag.launcher.runner.time.sleep")
@@ -166,6 +167,7 @@ class TestLaunchMcpServer:
 # ---------------------------------------------------------------------------
 # launch_tool
 # ---------------------------------------------------------------------------
+
 
 class TestLaunchTool:
     @patch("coderag.launcher.runner.subprocess.Popen")
@@ -243,6 +245,7 @@ class TestLaunchTool:
 # ---------------------------------------------------------------------------
 # stop_process
 # ---------------------------------------------------------------------------
+
 
 class TestStopProcess:
     def test_stop_already_exited(self):

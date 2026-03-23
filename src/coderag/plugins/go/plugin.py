@@ -17,6 +17,7 @@ from coderag.plugins.go.resolver import GoResolver
 
 logger = logging.getLogger(__name__)
 
+
 class GoPlugin(LanguagePlugin):
     """Language plugin for Go source files."""
 

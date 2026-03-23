@@ -3,14 +3,13 @@
 Targets missing lines: 206-207, 212-216, 256-257, 473, 531-533, 556,
 792-816, 828-850, 863-901, 984, 988, 992, 1004-1010, 1132, 1149, 1158, 1161-1162, 1165
 """
-import json
+
 import sqlite3
-from contextlib import contextmanager
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 from coderag.storage.sqlite_store import SQLiteStore
 
 
@@ -26,18 +25,46 @@ def store(tmp_path):
 def populated_store(store):
     """Store with some nodes and edges."""
     nodes = [
-        Node(id="n1", kind=NodeKind.CLASS, name="UserService",
-             qualified_name="app.UserService", file_path="app/service.py",
-             start_line=1, end_line=50, language="python"),
-        Node(id="n2", kind=NodeKind.FUNCTION, name="get_user",
-             qualified_name="app.get_user", file_path="app/service.py",
-             start_line=10, end_line=20, language="python"),
-        Node(id="n3", kind=NodeKind.CLASS, name="AuthController",
-             qualified_name="app.AuthController", file_path="app/auth.py",
-             start_line=1, end_line=30, language="python"),
-        Node(id="n4", kind=NodeKind.FUNCTION, name="login",
-             qualified_name="app.login", file_path="app/auth.py",
-             start_line=5, end_line=15, language="python"),
+        Node(
+            id="n1",
+            kind=NodeKind.CLASS,
+            name="UserService",
+            qualified_name="app.UserService",
+            file_path="app/service.py",
+            start_line=1,
+            end_line=50,
+            language="python",
+        ),
+        Node(
+            id="n2",
+            kind=NodeKind.FUNCTION,
+            name="get_user",
+            qualified_name="app.get_user",
+            file_path="app/service.py",
+            start_line=10,
+            end_line=20,
+            language="python",
+        ),
+        Node(
+            id="n3",
+            kind=NodeKind.CLASS,
+            name="AuthController",
+            qualified_name="app.AuthController",
+            file_path="app/auth.py",
+            start_line=1,
+            end_line=30,
+            language="python",
+        ),
+        Node(
+            id="n4",
+            kind=NodeKind.FUNCTION,
+            name="login",
+            qualified_name="app.login",
+            file_path="app/auth.py",
+            start_line=5,
+            end_line=15,
+            language="python",
+        ),
     ]
     for n in nodes:
         store.upsert_node(n)
@@ -54,6 +81,7 @@ def populated_store(store):
 
 # ── PRAGMA / Initialize Tests ────────────────────────────────
 
+
 class TestInitialize:
     """Test initialize with PRAGMA errors (lines 206-207, 212-216)."""
 
@@ -66,8 +94,10 @@ class TestInitialize:
         class PragmaFailConn:
             def __init__(self, conn):
                 self._conn = conn
+
             def __getattr__(self, name):
                 return getattr(self._conn, name)
+
             def execute(self, sql, *args, **kwargs):
                 if "PRAGMA" in sql.upper() and "busy_timeout" in sql.lower():
                     raise sqlite3.OperationalError("not supported")
@@ -89,6 +119,7 @@ class TestInitialize:
 
 # ── Delete Nodes For File Tests ──────────────────────────────
 
+
 class TestDeleteNodesForFile:
     """Test delete_nodes_for_file method."""
 
@@ -108,6 +139,7 @@ class TestDeleteNodesForFile:
 
 
 # ── Search Nodes Tests ───────────────────────────────────────
+
 
 class TestSearchNodes:
     """Test search_nodes with FTS and LIKE fallback (lines 473, 531-533, 556)."""
@@ -142,6 +174,7 @@ class TestSearchNodes:
 
 # ── Get Communities Tests ────────────────────────────────────
 
+
 class TestGetCommunities:
     """Test get_communities method (lines 792-816)."""
 
@@ -163,6 +196,7 @@ class TestGetCommunities:
 
 
 # ── Get Top Nodes By PageRank Tests ──────────────────────────
+
 
 class TestGetTopNodesByPagerank:
     """Test get_top_nodes_by_pagerank method (lines 828-850)."""
@@ -198,6 +232,7 @@ class TestGetTopNodesByPagerank:
 
 # ── Get Entry Points Tests ───────────────────────────────────
 
+
 class TestGetEntryPoints:
     """Test get_entry_points method (lines 863-901)."""
 
@@ -222,6 +257,7 @@ class TestGetEntryPoints:
 
 # ── Get Summary Tests ────────────────────────────────────────
 
+
 class TestGetSummary:
     """Test get_summary method (lines 903+)."""
 
@@ -238,6 +274,7 @@ class TestGetSummary:
 
 # ── Transaction Context Manager Tests ────────────────────────
 
+
 class TestTransaction:
     """Test transaction context manager (lines 984, 988, 992, 1004-1010)."""
 
@@ -247,12 +284,10 @@ class TestTransaction:
                 """INSERT INTO nodes (id, kind, name, qualified_name, file_path,
                    start_line, end_line, language, metadata)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                ("tx1", "function", "tx_func", "tx_func", "tx.py", 1, 5, "python", "{}")
+                ("tx1", "function", "tx_func", "tx_func", "tx.py", 1, 5, "python", "{}"),
             )
         # Node should be committed
-        row = store.connection.execute(
-            "SELECT COUNT(*) FROM nodes WHERE id = 'tx1'"
-        ).fetchone()[0]
+        row = store.connection.execute("SELECT COUNT(*) FROM nodes WHERE id = 'tx1'").fetchone()[0]
         assert row == 1
 
     def test_failed_transaction_rollback(self, store):
@@ -262,19 +297,18 @@ class TestTransaction:
                     """INSERT INTO nodes (id, kind, name, qualified_name, file_path,
                        start_line, end_line, language, metadata)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    ("tx2", "function", "tx_fail", "tx_fail", "tx.py", 1, 5, "python", "{}")
+                    ("tx2", "function", "tx_fail", "tx_fail", "tx.py", 1, 5, "python", "{}"),
                 )
                 raise ValueError("Simulated error")
         except ValueError:
             pass
         # Node should be rolled back
-        result = store.connection.execute(
-            "SELECT COUNT(*) FROM nodes WHERE id = 'tx2'"
-        ).fetchone()[0]
+        result = store.connection.execute("SELECT COUNT(*) FROM nodes WHERE id = 'tx2'").fetchone()[0]
         assert result == 0
 
 
 # ── Dunder Methods Tests ─────────────────────────────────────
+
 
 class TestDunderMethods:
     """Test __repr__, __enter__, __exit__ (lines 1132, 1149, 1158, 1161-1162, 1165)."""
@@ -287,11 +321,18 @@ class TestDunderMethods:
     def test_context_manager(self, tmp_path):
         db = str(tmp_path / "ctx.db")
         with SQLiteStore(db) as s:
-            s.upsert_node(Node(
-                id="cm1", kind=NodeKind.CLASS, name="CtxClass",
-                qualified_name="CtxClass", file_path="ctx.py",
-                start_line=1, end_line=10, language="python",
-            ))
+            s.upsert_node(
+                Node(
+                    id="cm1",
+                    kind=NodeKind.CLASS,
+                    name="CtxClass",
+                    qualified_name="CtxClass",
+                    file_path="ctx.py",
+                    start_line=1,
+                    end_line=10,
+                    language="python",
+                )
+            )
         # After exit, store should be closed
         assert s._conn is None
 

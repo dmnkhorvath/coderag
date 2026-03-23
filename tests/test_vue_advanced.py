@@ -2,12 +2,11 @@
 
 Covers all 29 new/renamed edge types across 9 categories.
 """
+
 import pytest
-from unittest.mock import MagicMock
 
 from coderag.core.models import Edge, EdgeKind, Node, NodeKind, generate_node_id
 from coderag.plugins.javascript.frameworks.vue import VueDetector
-
 
 # ── Helpers ────────────────────────────────────────────────────
 

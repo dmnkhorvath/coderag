@@ -2,17 +2,18 @@
 
 Covers: _load_config, _open_store, visualize command (html/json, symbol, filter, auto_open).
 """
+
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
-from coderag.cli.visualize import visualize, _load_config, _open_store
+from coderag.cli.visualize import _load_config, _open_store, visualize
 
 
 @pytest.fixture()
@@ -23,6 +24,7 @@ def runner() -> CliRunner:
 # ---------------------------------------------------------------------------
 # _load_config
 # ---------------------------------------------------------------------------
+
 
 class TestLoadConfig:
     def test_load_from_explicit_path(self, tmp_path):
@@ -79,6 +81,7 @@ class TestLoadConfig:
 # _open_store
 # ---------------------------------------------------------------------------
 
+
 class TestOpenStore:
     def test_open_store_success(self, tmp_path):
         db_file = tmp_path / "graph.db"
@@ -102,12 +105,13 @@ class TestOpenStore:
 # visualize command
 # ---------------------------------------------------------------------------
 
+
 class TestVisualizeCommand:
     def _make_data(self, nodes=5, edges=3):
         return {
             "metadata": {"total_nodes": nodes, "total_edges": edges},
             "nodes": [{"id": f"n{i}"} for i in range(nodes)],
-            "edges": [{"source": "n0", "target": f"n{i+1}"} for i in range(edges)],
+            "edges": [{"source": "n0", "target": f"n{i + 1}"} for i in range(edges)],
         }
 
     @patch("coderag.cli.visualize._open_store")
@@ -143,8 +147,10 @@ class TestVisualizeCommand:
         out_file = tmp_path / "graph.html"
         out_file.write_text("<html></html>")
 
-        with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls, \
-             patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls:
+        with (
+            patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls,
+            patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls,
+        ):
             mock_exporter_cls.export_full.return_value = data
             mock_renderer_cls.render.return_value = out_file
             result = runner.invoke(visualize, [str(tmp_path), "-o", str(out_file)], obj={})
@@ -163,11 +169,15 @@ class TestVisualizeCommand:
         out_file = tmp_path / "graph.html"
         out_file.write_text("<html></html>")
 
-        with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls, \
-             patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls:
+        with (
+            patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls,
+            patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls,
+        ):
             mock_exporter_cls.export_neighborhood.return_value = data
             mock_renderer_cls.render.return_value = out_file
-            result = runner.invoke(visualize, [str(tmp_path), "-s", "UserService", "-d", "3", "-o", str(out_file)], obj={})
+            result = runner.invoke(
+                visualize, [str(tmp_path), "-s", "UserService", "-d", "3", "-o", str(out_file)], obj={}
+            )
             assert result.exit_code == 0
             mock_exporter_cls.export_neighborhood.assert_called_once()
 
@@ -184,11 +194,15 @@ class TestVisualizeCommand:
         out_file = tmp_path / "graph.html"
         out_file.write_text("<html></html>")
 
-        with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls, \
-             patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls:
+        with (
+            patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls,
+            patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls,
+        ):
             mock_exporter_cls.export_filtered.return_value = data
             mock_renderer_cls.render.return_value = out_file
-            result = runner.invoke(visualize, [str(tmp_path), "-l", "php", "-l", "javascript", "-o", str(out_file)], obj={})
+            result = runner.invoke(
+                visualize, [str(tmp_path), "-l", "php", "-l", "javascript", "-o", str(out_file)], obj={}
+            )
             assert result.exit_code == 0
             mock_exporter_cls.export_filtered.assert_called_once()
 
@@ -206,7 +220,9 @@ class TestVisualizeCommand:
 
         with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls:
             mock_exporter_cls.export_filtered.return_value = data
-            result = runner.invoke(visualize, [str(tmp_path), "-k", "class", "--format", "json", "-o", str(out_file)], obj={})
+            result = runner.invoke(
+                visualize, [str(tmp_path), "-k", "class", "--format", "json", "-o", str(out_file)], obj={}
+            )
             assert result.exit_code == 0
 
     @patch("coderag.cli.visualize._open_store")
@@ -222,9 +238,11 @@ class TestVisualizeCommand:
         out_file = tmp_path / "graph.html"
         out_file.write_text("<html></html>")
 
-        with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls, \
-             patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls, \
-             patch("coderag.cli.visualize.webbrowser.open") as mock_open:
+        with (
+            patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls,
+            patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls,
+            patch("coderag.cli.visualize.webbrowser.open") as mock_open,
+        ):
             mock_exporter_cls.export_full.return_value = data
             mock_renderer_cls.render.return_value = out_file
             result = runner.invoke(visualize, [str(tmp_path), "--open", "-o", str(out_file)], obj={})
@@ -259,8 +277,11 @@ class TestVisualizeCommand:
 
         with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls:
             mock_exporter_cls.export_full.return_value = data
-            result = runner.invoke(visualize, [str(tmp_path), "--format", "json", "-o", out_file],
-                                   obj={"db_override": "/custom/db.sqlite", "config_path": None})
+            result = runner.invoke(
+                visualize,
+                [str(tmp_path), "--format", "json", "-o", out_file],
+                obj={"db_override": "/custom/db.sqlite", "config_path": None},
+            )
             assert result.exit_code == 0
 
     @patch("coderag.cli.visualize._open_store")
@@ -276,8 +297,10 @@ class TestVisualizeCommand:
 
         data = self._make_data()
 
-        with patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls, \
-             patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls:
+        with (
+            patch("coderag.visualization.exporter.GraphExporter") as mock_exporter_cls,
+            patch("coderag.visualization.renderer.GraphRenderer") as mock_renderer_cls,
+        ):
             mock_exporter_cls.export_full.return_value = data
             out_path = db_dir / "graph.html"
             out_path.write_text("<html></html>")

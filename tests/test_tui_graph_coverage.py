@@ -4,18 +4,18 @@ Targets missing lines: 83, 89-95, 123-124, 140-142, 145-146, 156-157,
 167-168, 187-188, 192-196, 212-213, 230-231, 238-240, 243-245, 248-249,
 254-263, 266-268, 271-273, 276-278, 281-283, 286-288, 291-293
 """
+
 from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 def _make_graph_screen():
     """Create a GraphScreen with mocked Textual internals."""
     from coderag.tui.screens.graph import GraphScreen
+
     screen = GraphScreen.__new__(GraphScreen)
     screen.__dict__["active_tab"] = "overview"
     screen._css_styles = MagicMock()
@@ -46,8 +46,15 @@ def _make_graph_screen():
         return result
 
     screen.query_one = MagicMock(side_effect=query_one_side_effect)
-    return (screen, mock_summary, mock_tab_bar, mock_overview_table,
-            mock_nodes_table, mock_edges_table, mock_languages_table)
+    return (
+        screen,
+        mock_summary,
+        mock_tab_bar,
+        mock_overview_table,
+        mock_nodes_table,
+        mock_edges_table,
+        mock_languages_table,
+    )
 
 
 class TestGetDbPath:

@@ -41,6 +41,7 @@ def _edges_of_type(patterns, edge_type: str):
 # 1. doctrine_maps_to
 # =========================================================================
 
+
 class TestDoctrineMapsto:
     """Entity maps to database table."""
 
@@ -50,7 +51,7 @@ class TestDoctrineMapsto:
             b"namespace App\\Entity;\n\n"
             b"use Doctrine\\ORM\\Mapping as ORM;\n\n"
             b"#[ORM\\Entity]\n"
-            b"#[ORM\\Table(name: \'users\')]\n"
+            b"#[ORM\\Table(name: 'users')]\n"
             b"class User\n{\n"
             b"    #[ORM\\Id]\n"
             b"    #[ORM\\Column]\n"
@@ -90,9 +91,10 @@ class TestDoctrineMapsto:
 # 2-7. Twig template patterns
 # =========================================================================
 
+
 class TestTwigExtends:
     def test_extends_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{% extends \'base.html.twig\' %}\n{% block body %}<h1>Hello</h1>{% endblock %}"
+        src = b"{% extends 'base.html.twig' %}\n{% block body %}<h1>Hello</h1>{% endblock %}"
         fp = "templates/page.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "twig_extends")
@@ -104,7 +106,7 @@ class TestTwigExtends:
 
 class TestTwigIncludes:
     def test_include_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{% include \'partials/header.html.twig\' %}\n<div>Content</div>"
+        src = b"{% include 'partials/header.html.twig' %}\n<div>Content</div>"
         fp = "templates/page.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "twig_includes")
@@ -115,7 +117,7 @@ class TestTwigIncludes:
 
 class TestTwigEmbeds:
     def test_embed_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{% embed \'components/card.html.twig\' %}\n{% block title %}My Card{% endblock %}\n{% endembed %}"
+        src = b"{% embed 'components/card.html.twig' %}\n{% block title %}My Card{% endblock %}\n{% endembed %}"
         fp = "templates/page.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "twig_embeds")
@@ -126,7 +128,7 @@ class TestTwigEmbeds:
 
 class TestTwigImportsMacro:
     def test_macro_import_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{% from \'macros/forms.html.twig\' import input, button %}\n{{ input(\'email\') }}"
+        src = b"{% from 'macros/forms.html.twig' import input, button %}\n{{ input('email') }}"
         fp = "templates/page.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "twig_imports_macro")
@@ -138,7 +140,7 @@ class TestTwigImportsMacro:
 
 class TestRendersController:
     def test_render_controller_detected(self, detector: SymfonyDetector) -> None:
-        src = b"<div>{{ render(controller(\'App\\\\Controller\\\\HeaderController::index\')) }}</div>"
+        src = b"<div>{{ render(controller('App\\\\Controller\\\\HeaderController::index')) }}</div>"
         fp = "templates/base.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "renders_controller")
@@ -150,7 +152,7 @@ class TestRendersController:
 
 class TestReferencesRoute:
     def test_path_function_detected(self, detector: SymfonyDetector) -> None:
-        src = b"<a href=\"{{ path(\'app_login\') }}\">Login</a>\n<a href=\"{{ url(\'app_home\') }}\">Home</a>"
+        src = b"<a href=\"{{ path('app_login') }}\">Login</a>\n<a href=\"{{ url('app_home') }}\">Home</a>"
         fp = "templates/nav.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "references_route")
@@ -165,6 +167,7 @@ class TestReferencesRoute:
 # 8-9. Form patterns
 # =========================================================================
 
+
 class TestFormMapsEntity:
     def test_data_class_detected(self, detector: SymfonyDetector) -> None:
         src = (
@@ -177,13 +180,13 @@ class TestFormMapsEntity:
             b"class UserType extends AbstractType\n{\n"
             b"    public function buildForm(FormBuilderInterface $builder, array $options): void\n"
             b"    {\n"
-            b"        $builder->add(\'username\')\n"
-            b"                ->add(\'email\')\n"
-            b"                ->add(\'password\');\n"
+            b"        $builder->add('username')\n"
+            b"                ->add('email')\n"
+            b"                ->add('password');\n"
             b"    }\n\n"
             b"    public function configureOptions(OptionsResolver $resolver): void\n"
             b"    {\n"
-            b"        $resolver->setDefaults([\'data_class\' => User::class]);\n"
+            b"        $resolver->setDefaults(['data_class' => User::class]);\n"
             b"    }\n"
             b"}\n"
         )
@@ -203,6 +206,7 @@ class TestFormMapsEntity:
 # =========================================================================
 # 10. voter_protects
 # =========================================================================
+
 
 class TestVoterProtects:
     def test_voter_instanceof_detected(self, detector: SymfonyDetector) -> None:
@@ -235,6 +239,7 @@ class TestVoterProtects:
 # 11. validates_with
 # =========================================================================
 
+
 class TestValidatesWith:
     def test_assert_attributes_detected(self, detector: SymfonyDetector) -> None:
         src = (
@@ -265,6 +270,7 @@ class TestValidatesWith:
 # 12. bundle_provides
 # =========================================================================
 
+
 class TestBundleProvides:
     def test_bundle_class_detected(self, detector: SymfonyDetector) -> None:
         src = (
@@ -286,9 +292,10 @@ class TestBundleProvides:
 # 13. stimulus_controls
 # =========================================================================
 
+
 class TestStimulusControls:
     def test_data_controller_detected(self, detector: SymfonyDetector) -> None:
-        src = b"<div data-controller=\"hello dropdown\">\n    <button data-action=\"click->hello#greet\">Greet</button>\n</div>"
+        src = b'<div data-controller="hello dropdown">\n    <button data-action="click->hello#greet">Greet</button>\n</div>'
         fp = "templates/page.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "stimulus_controls")
@@ -299,7 +306,7 @@ class TestStimulusControls:
         assert all(e.confidence == 0.90 for e in edges)
 
     def test_stimulus_function_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{{ stimulus_controller(\'chart\') }}"
+        src = b"{{ stimulus_controller('chart') }}"
         fp = "templates/page.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "stimulus_controls")
@@ -311,9 +318,10 @@ class TestStimulusControls:
 # 14. asset_references
 # =========================================================================
 
+
 class TestAssetReferences:
     def test_encore_tags_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{{ encore_entry_link_tags(\'app\') }}\n{{ encore_entry_script_tags(\'app\') }}"
+        src = b"{{ encore_entry_link_tags('app') }}\n{{ encore_entry_script_tags('app') }}"
         fp = "templates/base.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "asset_references")
@@ -323,7 +331,7 @@ class TestAssetReferences:
         assert all(e.confidence == 0.85 for e in edges)
 
     def test_vite_tags_detected(self, detector: SymfonyDetector) -> None:
-        src = b"{{ vite_entry_link_tags(\'app\') }}\n{{ vite_entry_script_tags(\'styles\') }}"
+        src = b"{{ vite_entry_link_tags('app') }}\n{{ vite_entry_script_tags('styles') }}"
         fp = "templates/base.html.twig"
         patterns = detector.detect(fp, None, src, [], [])
         edges = _edges_of_type(patterns, "asset_references")
@@ -337,16 +345,17 @@ class TestAssetReferences:
 # Combined: Twig file with multiple patterns
 # =========================================================================
 
+
 class TestTwigCombined:
     def test_multiple_patterns_in_one_template(self, detector: SymfonyDetector) -> None:
         src = (
-            b"{% extends \'base.html.twig\' %}\n"
-            b"{% include \'partials/nav.html.twig\' %}\n"
-            b"{% from \'macros/forms.html.twig\' import input %}\n"
+            b"{% extends 'base.html.twig' %}\n"
+            b"{% include 'partials/nav.html.twig' %}\n"
+            b"{% from 'macros/forms.html.twig' import input %}\n"
             b"{% block body %}\n"
-            b"<a href=\"{{ path(\'app_home\') }}\">Home</a>\n"
-            b"{{ encore_entry_script_tags(\'app\') }}\n"
-            b"<div data-controller=\"modal\">Content</div>\n"
+            b"<a href=\"{{ path('app_home') }}\">Home</a>\n"
+            b"{{ encore_entry_script_tags('app') }}\n"
+            b'<div data-controller="modal">Content</div>\n'
             b"{% endblock %}"
         )
         fp = "templates/page.html.twig"
@@ -365,14 +374,15 @@ class TestTwigCombined:
 # Edge case: Non-twig, non-php files should be ignored
 # =========================================================================
 
+
 class TestFileTypeFiltering:
     def test_js_file_ignored(self, detector: SymfonyDetector) -> None:
-        src = b"console.log(\'hello\');"
+        src = b"console.log('hello');"
         patterns = detector.detect("app.js", None, src, [], [])
         assert patterns == []
 
     def test_twig_file_processed(self, detector: SymfonyDetector) -> None:
-        src = b"{% extends \'base.html.twig\' %}"
+        src = b"{% extends 'base.html.twig' %}"
         patterns = detector.detect("templates/page.html.twig", None, src, [], [])
         assert len(patterns) >= 1
 
@@ -383,10 +393,10 @@ class TestFileTypeFiltering:
             b"use Symfony\\Bundle\\FrameworkBundle\\Controller\\AbstractController;\n"
             b"use Symfony\\Component\\Routing\\Attribute\\Route;\n\n"
             b"class HomeController extends AbstractController\n{\n"
-            b"    #[Route(\'/\', name: \'app_home\')]\n"
+            b"    #[Route('/', name: 'app_home')]\n"
             b"    public function index()\n"
             b"    {\n"
-            b"        return $this->render(\'home/index.html.twig\');\n"
+            b"        return $this->render('home/index.html.twig');\n"
             b"    }\n"
             b"}\n"
         )

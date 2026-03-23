@@ -1,6 +1,7 @@
 """Coverage tests for session store - Pass 2."""
+
 import sqlite3
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -22,6 +23,7 @@ class TestPragmaOperationalError:
 
         class PragmaFailConnection:
             """Wrapper that fails on PRAGMA but delegates everything else."""
+
             def __getattr__(self, name):
                 return getattr(real_conn, name)
 

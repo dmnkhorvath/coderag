@@ -10,10 +10,6 @@ import logging
 from collections import defaultdict
 from typing import Any
 
-from coderag.core.models import (
-    Node,
-)
-
 logger = logging.getLogger(__name__)
 
 
@@ -124,9 +120,7 @@ def register_resources(mcp: Any, store: Any, analyzer: Any) -> None:
         """
         try:
             # Read pre-computed data from SQLite store
-            communities = store.get_communities(
-                max_communities=15, max_per_community=50
-            )
+            communities = store.get_communities(max_communities=15, max_per_community=50)
             important_nodes = store.get_top_nodes_by_pagerank(limit=20)
             entry_points = store.get_entry_points(limit=15)
 

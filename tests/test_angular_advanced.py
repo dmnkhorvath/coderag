@@ -1,10 +1,11 @@
 """Tests for advanced Angular edge types (10 new edge types)."""
+
 from __future__ import annotations
 
 import pytest
 
+from coderag.core.models import EdgeKind
 from coderag.plugins.typescript.frameworks.angular import AngularDetector
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind, FrameworkPattern
 
 
 @pytest.fixture
@@ -31,6 +32,7 @@ def _all_edges(patterns):
 # ===========================================================================
 # 1. angular_resolves
 # ===========================================================================
+
 
 class TestAngularResolves:
     """Edge #1: angular_resolves in _detect_routes."""
@@ -99,6 +101,7 @@ const routes: Routes = [
 # 2. angular_uses_pipe
 # ===========================================================================
 
+
 class TestAngularUsesPipe:
     """Edge #2: angular_uses_pipe in _detect_component."""
 
@@ -153,6 +156,7 @@ export class TestComponent {}
 # 3. angular_uses_directive
 # ===========================================================================
 
+
 class TestAngularUsesDirective:
     """Edge #3: angular_uses_directive in _detect_component."""
 
@@ -192,6 +196,7 @@ export class TestComponent {}
 # 4. angular_binds_input
 # ===========================================================================
 
+
 class TestAngularBindsInput:
     """Edge #4: angular_binds_input in _detect_component."""
 
@@ -217,6 +222,7 @@ export class ParentComponent {}
 # ===========================================================================
 # 5. angular_emits_output
 # ===========================================================================
+
 
 class TestAngularEmitsOutput:
     """Edge #5: angular_emits_output in _detect_component."""
@@ -274,6 +280,7 @@ export class TestComponent {}
 # 6. angular_projects_content
 # ===========================================================================
 
+
 class TestAngularProjectsContent:
     """Edge #6: angular_projects_content in _detect_component."""
 
@@ -312,6 +319,7 @@ export class SimpleComponent {}
 # ===========================================================================
 # 7. angular_subscribes_to
 # ===========================================================================
+
 
 class TestAngularSubscribesTo:
     """Edge #7: angular_subscribes_to in _detect_rxjs_patterns and _detect_component."""
@@ -369,6 +377,7 @@ export class MultiService {
 # 8. angular_signal_depends
 # ===========================================================================
 
+
 class TestAngularSignalDepends:
     """Edge #8: angular_signal_depends in _detect_signals."""
 
@@ -418,6 +427,7 @@ export class PlainComponent {
 # 9. angular_template_ref
 # ===========================================================================
 
+
 class TestAngularTemplateRef:
     """Edge #9: angular_template_ref in _detect_component."""
 
@@ -453,6 +463,7 @@ export class InlineComponent {}
 # ===========================================================================
 # 10. angular_style_ref
 # ===========================================================================
+
 
 class TestAngularStyleRef:
     """Edge #10: angular_style_ref in _detect_component."""
@@ -506,6 +517,7 @@ export class PlainComponent {}
 # ===========================================================================
 # Combined / Integration tests
 # ===========================================================================
+
 
 class TestCombinedEdgeTypes:
     """Test multiple new edge types in a single component."""
@@ -626,6 +638,7 @@ const routes: Routes = [
 # ===========================================================================
 # Edge type metadata validation
 # ===========================================================================
+
 
 class TestEdgeMetadata:
     """Verify all new edges have correct metadata structure."""

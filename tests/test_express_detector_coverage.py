@@ -2,13 +2,12 @@
 
 Targets missing lines: 103-105, 203, 272-273, 279-283, 301-305
 """
-import os
-import re
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+from coderag.core.models import Node, NodeKind
 from coderag.plugins.javascript.frameworks.express import ExpressDetector
 
 
@@ -18,6 +17,7 @@ def detector():
 
 
 # ── detect_framework Tests ───────────────────────────────────
+
 
 class TestDetectFramework:
     """Test detect_framework method."""
@@ -63,6 +63,7 @@ class TestDetectFramework:
 
 # ── _find_handler_near_line Tests ────────────────────────────
 
+
 class TestFindHandlerNearLine:
     """Test _find_handler_near_line method (lines 272-273, 279-283, 301-305)."""
 
@@ -80,9 +81,14 @@ class TestFindHandlerNearLine:
     def test_named_handler_reference(self, detector):
         """Find handler by name reference after path (lines 272-273)."""
         func_node = Node(
-            id="fn1", kind=NodeKind.FUNCTION, name="getUsers",
-            qualified_name="getUsers", file_path="app.js",
-            start_line=1, end_line=5, language="javascript",
+            id="fn1",
+            kind=NodeKind.FUNCTION,
+            name="getUsers",
+            qualified_name="getUsers",
+            file_path="app.js",
+            start_line=1,
+            end_line=5,
+            language="javascript",
         )
         source = "app.get('/users', getUsers)"
         match_end = source.index("getUsers") - 2  # position after path string
@@ -98,9 +104,14 @@ class TestFindHandlerNearLine:
     def test_same_line_function(self, detector):
         """Find handler on same line (lines 279-283)."""
         func_node = Node(
-            id="fn2", kind=NodeKind.FUNCTION, name="handler",
-            qualified_name="handler", file_path="app.js",
-            start_line=5, end_line=10, language="javascript",
+            id="fn2",
+            kind=NodeKind.FUNCTION,
+            name="handler",
+            qualified_name="handler",
+            file_path="app.js",
+            start_line=5,
+            end_line=10,
+            language="javascript",
         )
         result = detector._find_handler_near_line(
             route_line=5,
@@ -114,9 +125,14 @@ class TestFindHandlerNearLine:
     def test_closest_within_2_lines(self, detector):
         """Find closest function within 2 lines (lines 301-305)."""
         func_node = Node(
-            id="fn3", kind=NodeKind.FUNCTION, name="nearby",
-            qualified_name="nearby", file_path="app.js",
-            start_line=7, end_line=15, language="javascript",
+            id="fn3",
+            kind=NodeKind.FUNCTION,
+            name="nearby",
+            qualified_name="nearby",
+            file_path="app.js",
+            start_line=7,
+            end_line=15,
+            language="javascript",
         )
         result = detector._find_handler_near_line(
             route_line=5,
@@ -130,9 +146,14 @@ class TestFindHandlerNearLine:
     def test_too_far_function(self, detector):
         """Function more than 2 lines away returns None."""
         func_node = Node(
-            id="fn4", kind=NodeKind.FUNCTION, name="faraway",
-            qualified_name="faraway", file_path="app.js",
-            start_line=20, end_line=30, language="javascript",
+            id="fn4",
+            kind=NodeKind.FUNCTION,
+            name="faraway",
+            qualified_name="faraway",
+            file_path="app.js",
+            start_line=20,
+            end_line=30,
+            language="javascript",
         )
         result = detector._find_handler_near_line(
             route_line=5,
@@ -146,9 +167,14 @@ class TestFindHandlerNearLine:
     def test_different_file_ignored(self, detector):
         """Functions in different files are ignored."""
         func_node = Node(
-            id="fn5", kind=NodeKind.FUNCTION, name="handler",
-            qualified_name="handler", file_path="other.js",
-            start_line=5, end_line=10, language="javascript",
+            id="fn5",
+            kind=NodeKind.FUNCTION,
+            name="handler",
+            qualified_name="handler",
+            file_path="other.js",
+            start_line=5,
+            end_line=10,
+            language="javascript",
         )
         result = detector._find_handler_near_line(
             route_line=5,
@@ -162,6 +188,7 @@ class TestFindHandlerNearLine:
 
 # ── detect_global_patterns Tests ─────────────────────────────
 
+
 class TestDetectGlobalPatterns:
     """Test detect_global_patterns method (line 203+)."""
 
@@ -173,6 +200,7 @@ class TestDetectGlobalPatterns:
 
 
 # ── _extract_middleware_name Tests ────────────────────────────
+
 
 class TestExtractMiddlewareName:
     """Test _extract_middleware_name method."""

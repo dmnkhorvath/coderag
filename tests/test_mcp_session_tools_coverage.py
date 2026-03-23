@@ -6,7 +6,6 @@ Covers the @mcp.tool decorated wrapper functions that delegate to _impl function
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -29,9 +28,11 @@ class MockMCP:
 
     def tool(self, name: str, description: str = ""):
         """Decorator that captures the function."""
+
         def decorator(func):
             self.tools[name] = func
             return func
+
         return decorator
 
 
@@ -41,6 +42,7 @@ class TestSessionToolWrappers:
     def _register(self, session_store):
         """Register tools and return the mock MCP with captured functions."""
         from coderag.mcp.session_tools import register_session_tools
+
         mock_mcp = MockMCP()
         register_session_tools(mock_mcp, session_store)
         return mock_mcp
@@ -55,41 +57,31 @@ class TestSessionToolWrappers:
     def test_session_log_read_with_lines(self, session_store):
         """Cover session_log_read with line_start and line_end."""
         mcp = self._register(session_store)
-        result = mcp.tools["session_log_read"](
-            file_path="src/main.py", line_start=10, line_end=20
-        )
+        result = mcp.tools["session_log_read"](file_path="src/main.py", line_start=10, line_end=20)
         assert isinstance(result, str)
 
     def test_session_log_edit_wrapper(self, session_store):
         """Cover line 260: session_log_edit wrapper."""
         mcp = self._register(session_store)
-        result = mcp.tools["session_log_edit"](
-            file_path="src/main.py", description="Fixed bug"
-        )
+        result = mcp.tools["session_log_edit"](file_path="src/main.py", description="Fixed bug")
         assert isinstance(result, str)
 
     def test_session_log_decision_wrapper(self, session_store):
         """Cover line 270: session_log_decision wrapper."""
         mcp = self._register(session_store)
-        result = mcp.tools["session_log_decision"](
-            decision="Use JWT for auth", rationale="Better for API"
-        )
+        result = mcp.tools["session_log_decision"](decision="Use JWT for auth", rationale="Better for API")
         assert isinstance(result, str)
 
     def test_session_log_task_wrapper(self, session_store):
         """Cover line 279: session_log_task wrapper."""
         mcp = self._register(session_store)
-        result = mcp.tools["session_log_task"](
-            task="Add rate limiting", status="open"
-        )
+        result = mcp.tools["session_log_task"](task="Add rate limiting", status="open")
         assert isinstance(result, str)
 
     def test_session_log_fact_wrapper(self, session_store):
         """Cover line 289: session_log_fact wrapper."""
         mcp = self._register(session_store)
-        result = mcp.tools["session_log_fact"](
-            fact="Database uses PostgreSQL", source="config.py"
-        )
+        result = mcp.tools["session_log_fact"](fact="Database uses PostgreSQL", source="config.py")
         assert isinstance(result, str)
 
     def test_session_get_history_wrapper(self, session_store):
@@ -120,18 +112,14 @@ class TestSessionToolWrappers:
         """Cover line 316: session_get_context wrapper."""
         mcp = self._register(session_store)
         # Log a decision first
-        mcp.tools["session_log_decision"](
-            decision="Use microservices", rationale="Scale"
-        )
+        mcp.tools["session_log_decision"](decision="Use microservices", rationale="Scale")
         result = mcp.tools["session_get_context"](category=None)
         assert isinstance(result, str)
 
     def test_session_get_context_with_category(self, session_store):
         """Cover session_get_context with category filter."""
         mcp = self._register(session_store)
-        mcp.tools["session_log_decision"](
-            decision="Use JWT", rationale="API auth"
-        )
+        mcp.tools["session_log_decision"](decision="Use JWT", rationale="API auth")
         result = mcp.tools["session_get_context"](category="decision")
         assert isinstance(result, str)
 

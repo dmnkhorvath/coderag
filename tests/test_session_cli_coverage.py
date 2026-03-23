@@ -2,17 +2,16 @@
 
 Covers: _find_db_path, _open_session_store, session_list, session_show, session_context.
 """
+
 from __future__ import annotations
 
-import os
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
-from coderag.cli.session import session, _find_db_path, _open_session_store
+from coderag.cli.session import _find_db_path, session
 
 
 @pytest.fixture()
@@ -23,6 +22,7 @@ def runner() -> CliRunner:
 # ---------------------------------------------------------------------------
 # _find_db_path
 # ---------------------------------------------------------------------------
+
 
 class TestFindDbPath:
     def test_finds_db_in_project_path(self, tmp_path):
@@ -61,6 +61,7 @@ class TestFindDbPath:
 # ---------------------------------------------------------------------------
 # session list
 # ---------------------------------------------------------------------------
+
 
 class TestSessionList:
     def test_list_no_sessions(self, runner):
@@ -135,6 +136,7 @@ class TestSessionList:
 # ---------------------------------------------------------------------------
 # session show
 # ---------------------------------------------------------------------------
+
 
 class TestSessionShow:
     def test_show_not_found(self, runner):
@@ -217,6 +219,7 @@ class TestSessionShow:
 # ---------------------------------------------------------------------------
 # session context
 # ---------------------------------------------------------------------------
+
 
 class TestSessionContext:
     def test_context_no_data(self, runner):

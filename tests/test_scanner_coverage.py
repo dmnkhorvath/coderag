@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
-
-from coderag.core.models import FileInfo
-from coderag.pipeline.scanner import FileScanner, DEFAULT_IGNORE_PATTERNS
+from coderag.pipeline.scanner import FileScanner
 
 
 class TestScanIgnoredFiles:
@@ -174,7 +170,6 @@ class TestScanIncremental:
         unchanged = [fi for fi in results if not fi.is_changed]
         assert len(changed) == 1
         assert len(unchanged) == 1
-
 
 
 class TestIsIgnoredPathComponents:

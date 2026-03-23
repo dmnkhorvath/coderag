@@ -9,7 +9,7 @@ from coderag.plugins.rust.resolver import RustResolver
 class TestRustExtractor:
     def test_basic_extraction_and_calls(self):
         ext = RustExtractor()
-        source = b'''
+        source = b"""
 use std::collections::HashMap;
 use crate::foo::Bar;
 
@@ -25,7 +25,7 @@ impl User {
 fn helper(x: i32) -> i32 { x }
 const MAX: i32 = 3;
 type UserId = i64;
-'''
+"""
         result = ext.extract("src/lib.rs", source)
         assert result.errors == []
         kinds = {n.kind for n in result.nodes}
@@ -42,25 +42,27 @@ type UserId = i64;
 
     def test_trait_and_impl(self):
         ext = RustExtractor()
-        source = b'''
+        source = b"""
 trait Repo { fn get(&self) -> i32; }
 struct User { id: i32 }
 impl Repo for User {
     fn get(&self) -> i32 { 1 }
 }
-'''
+"""
         result = ext.extract("src/repo.rs", source)
         assert result.errors == []
         assert any(n.kind == NodeKind.INTERFACE and n.name == "Repo" for n in result.nodes)
         assert any(n.kind == NodeKind.METHOD and n.name == "get" for n in result.nodes)
-        assert any(u.reference_kind == EdgeKind.IMPLEMENTS and u.reference_name == "Repo" for u in result.unresolved_references)
+        assert any(
+            u.reference_kind == EdgeKind.IMPLEMENTS and u.reference_name == "Repo" for u in result.unresolved_references
+        )
 
     def test_mod_and_enum(self):
         ext = RustExtractor()
-        source = b'''
+        source = b"""
 mod inner {}
 enum Status { A, B(i32) }
-'''
+"""
         result = ext.extract("src/status.rs", source)
         assert any(n.kind == NodeKind.PACKAGE and n.name == "inner" for n in result.nodes)
         assert any(n.kind == NodeKind.CLASS and n.name == "Status" for n in result.nodes)

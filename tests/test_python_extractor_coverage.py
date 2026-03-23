@@ -4,12 +4,13 @@ Covers missing lines: 70, 76, 85-86, 89, 127, 153-158, 160-168, 333-342,
 440, 442, 466-475, 519-527, 529, 535, 607, 745, 782, 908, 910, 919-920,
 935-939, 971, 1027-1049, 1100-1109
 """
+
 from __future__ import annotations
 
 import pytest
 
+from coderag.core.models import EdgeKind, NodeKind
 from coderag.plugins.python.extractor import PythonExtractor
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
 
 
 @pytest.fixture
@@ -20,6 +21,7 @@ def extractor():
 # ---------------------------------------------------------------------------
 # Error collection coverage
 # ---------------------------------------------------------------------------
+
 
 class TestErrorCollection:
     """Cover _collect_errors and parse error paths."""
@@ -47,6 +49,7 @@ class TestErrorCollection:
 # Parameter extraction edge cases
 # ---------------------------------------------------------------------------
 
+
 class TestParameterExtraction:
     """Cover _extract_parameters edge cases (lines 127, 153-168)."""
 
@@ -71,15 +74,12 @@ class TestParameterExtraction:
 
     def test_typed_default_parameter(self, extractor):
         """Line 164-168: typed_default_parameter branch."""
-        code = b"def foo(x: int = 10, y: str = \"hello\"):\n    pass"
+        code = b'def foo(x: int = 10, y: str = "hello"):\n    pass'
         result = extractor.extract("test.py", code)
         funcs = [n for n in result.nodes if n.kind == NodeKind.FUNCTION]
         assert len(funcs) == 1
         params = funcs[0].metadata.get("parameters", [])
-        assert any(
-            p.get("name") == "x" and p.get("type") == "int" and p.get("default") == "10"
-            for p in params
-        )
+        assert any(p.get("name") == "x" and p.get("type") == "int" and p.get("default") == "10" for p in params)
 
     def test_list_splat_parameter(self, extractor):
         """Cover list_splat_pattern / dictionary_splat_pattern."""
@@ -121,6 +121,7 @@ class TestParameterExtraction:
 # Class extraction
 # ---------------------------------------------------------------------------
 
+
 class TestClassExtraction:
     """Cover class-related extraction paths."""
 
@@ -131,10 +132,7 @@ class TestClassExtraction:
         classes = [n for n in result.nodes if n.kind == NodeKind.CLASS]
         assert len(classes) == 1
         # Base classes produce unresolved references with EXTENDS kind
-        extends_refs = [
-            u for u in result.unresolved_references
-            if u.reference_kind == EdgeKind.EXTENDS
-        ]
+        extends_refs = [u for u in result.unresolved_references if u.reference_kind == EdgeKind.EXTENDS]
         assert len(extends_refs) >= 2
 
     def test_class_with_metaclass(self, extractor):
@@ -178,6 +176,7 @@ class Base(ABC):
 # Function extraction
 # ---------------------------------------------------------------------------
 
+
 class TestFunctionExtraction:
     """Cover function-related extraction paths."""
 
@@ -198,7 +197,7 @@ class TestFunctionExtraction:
 
     def test_method_with_return_type(self, extractor):
         """Lines 519-527: return type annotation."""
-        code = b"class Foo:\n    def bar(self) -> str:\n        return \"hello\""
+        code = b'class Foo:\n    def bar(self) -> str:\n        return "hello"'
         result = extractor.extract("test.py", code)
         methods = [n for n in result.nodes if n.kind == NodeKind.METHOD]
         assert len(methods) == 1
@@ -214,7 +213,7 @@ class TestFunctionExtraction:
 
     def test_classmethod(self, extractor):
         """Cover classmethod decorator."""
-        code = b"class Foo:\n    @classmethod\n    def create(cls) -> \"Foo\":\n        return cls()"
+        code = b'class Foo:\n    @classmethod\n    def create(cls) -> "Foo":\n        return cls()'
         result = extractor.extract("test.py", code)
         methods = [n for n in result.nodes if n.kind == NodeKind.METHOD]
         assert len(methods) == 1
@@ -232,6 +231,7 @@ class TestFunctionExtraction:
 # ---------------------------------------------------------------------------
 # Import extraction
 # ---------------------------------------------------------------------------
+
 
 class TestImportExtraction:
     """Cover import-related extraction paths."""
@@ -276,19 +276,20 @@ class TestImportExtraction:
 # Assignment / variable / constant extraction
 # ---------------------------------------------------------------------------
 
+
 class TestAssignmentExtraction:
     """Cover assignment / variable extraction paths."""
 
     def test_module_level_constant(self, extractor):
         """Lines 745, 782: UPPER_CASE creates CONSTANT nodes."""
-        code = b"MAX_SIZE = 1024\nDEFAULT_NAME = \"test\""
+        code = b'MAX_SIZE = 1024\nDEFAULT_NAME = "test"'
         result = extractor.extract("test.py", code)
         constants = [n for n in result.nodes if n.kind == NodeKind.CONSTANT]
         assert len(constants) >= 1
 
     def test_module_level_variable(self, extractor):
         """Lower-case assignments create VARIABLE nodes."""
-        code = b"my_var = 42\nother = \"hello\""
+        code = b'my_var = 42\nother = "hello"'
         result = extractor.extract("test.py", code)
         variables = [n for n in result.nodes if n.kind == NodeKind.VARIABLE]
         assert len(variables) >= 1
@@ -317,6 +318,7 @@ class TestAssignmentExtraction:
 # Type alias extraction
 # ---------------------------------------------------------------------------
 
+
 class TestTypeAliasExtraction:
     """Cover _handle_type_alias (lines 1027-1049)."""
 
@@ -338,6 +340,7 @@ class TestTypeAliasExtraction:
 # ---------------------------------------------------------------------------
 # if TYPE_CHECKING
 # ---------------------------------------------------------------------------
+
 
 class TestIfTypeChecking:
     """Cover _handle_if_statement for TYPE_CHECKING (lines 1100-1109)."""
@@ -382,12 +385,13 @@ if x:
 # Decorator nodes
 # ---------------------------------------------------------------------------
 
+
 class TestDecoratorNodes:
     """Cover _create_decorator_node (lines 908, 910, 919-920, 935-939)."""
 
     def test_decorator_with_arguments(self, extractor):
         """Cover decorator with call arguments."""
-        code = b"@app.route(\"/api\")\ndef handler():\n    pass"
+        code = b'@app.route("/api")\ndef handler():\n    pass'
         result = extractor.extract("test.py", code)
         decorators = [n for n in result.nodes if n.kind == NodeKind.DECORATOR]
         assert len(decorators) >= 1
@@ -416,7 +420,7 @@ class TestDecoratorNodes:
 
     def test_dotted_decorator(self, extractor):
         """Cover dotted decorator name (e.g., @app.route)."""
-        code = b"@app.route(\"/\")\ndef index():\n    pass"
+        code = b'@app.route("/")\ndef index():\n    pass'
         result = extractor.extract("test.py", code)
         decorators = [n for n in result.nodes if n.kind == NodeKind.DECORATOR]
         assert len(decorators) >= 1
@@ -425,6 +429,7 @@ class TestDecoratorNodes:
 # ---------------------------------------------------------------------------
 # Call scanning
 # ---------------------------------------------------------------------------
+
 
 class TestCallScanning:
     """Cover _scan_calls (line 971)."""
@@ -462,6 +467,7 @@ class TestCallScanning:
 # ---------------------------------------------------------------------------
 # Complex scenarios
 # ---------------------------------------------------------------------------
+
 
 class TestComplexScenarios:
     """Cover complex code patterns that exercise multiple paths."""

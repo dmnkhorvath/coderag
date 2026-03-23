@@ -2,12 +2,12 @@
 
 Targets missing lines: 113-114, 125-126, 373, 387, 397, 429, 434-435, 438, 491
 """
-import os
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+from coderag.core.models import Node, NodeKind
 from coderag.plugins.python.frameworks.flask import FlaskDetector
 
 
@@ -17,6 +17,7 @@ def detector():
 
 
 # ── detect_framework Tests ───────────────────────────────────
+
 
 class TestDetectFramework:
     """Test detect_framework method."""
@@ -43,7 +44,7 @@ class TestDetectFramework:
 
     def test_detect_via_setup_cfg(self, tmp_path, detector):
         """Detect Flask via setup.cfg."""
-        (tmp_path / "setup.cfg").write_text('[options]\ninstall_requires = flask')
+        (tmp_path / "setup.cfg").write_text("[options]\ninstall_requires = flask")
         assert detector.detect_framework(str(tmp_path)) is True
 
     def test_detect_via_app_py_import(self, tmp_path, detector):
@@ -107,6 +108,7 @@ class TestDetectFramework:
 
 # ── detect_global_patterns Tests ─────────────────────────────
 
+
 class TestDetectGlobalPatterns:
     """Test detect_global_patterns method (lines 373, 387, 397)."""
 
@@ -122,9 +124,14 @@ class TestDetectGlobalPatterns:
         mock_store = MagicMock()
         # Return FILE nodes but with paths that don't lead to a project root
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="module.py",
-            qualified_name="module.py", file_path="/nonexistent/deep/path/module.py",
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="module.py",
+            qualified_name="module.py",
+            file_path="/nonexistent/deep/path/module.py",
+            start_line=0,
+            end_line=0,
+            language="python",
         )
         mock_store.find_nodes.return_value = [file_node]
         result = detector.detect_global_patterns(mock_store)
@@ -138,9 +145,14 @@ class TestDetectGlobalPatterns:
 
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.py",
-            qualified_name="app.py", file_path=str(tmp_path / "app.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.py",
+            qualified_name="app.py",
+            file_path=str(tmp_path / "app.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
         mock_store.find_nodes.return_value = [file_node]
         result = detector.detect_global_patterns(mock_store)
@@ -159,9 +171,14 @@ class TestDetectGlobalPatterns:
 
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.py",
-            qualified_name="app.py", file_path=str(tmp_path / "app.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.py",
+            qualified_name="app.py",
+            file_path=str(tmp_path / "app.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
         mock_store.find_nodes.side_effect = lambda **kwargs: {
             "kind": {
@@ -172,6 +189,7 @@ class TestDetectGlobalPatterns:
 
         # Simpler approach: use side_effect based on call count
         call_count = [0]
+
         def find_nodes_side_effect(**kwargs):
             call_count[0] += 1
             if kwargs.get("kind") == NodeKind.FILE:
@@ -192,15 +210,19 @@ class TestDetectGlobalPatterns:
 
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.py",
-            qualified_name="app.py", file_path=str(tmp_path / "app.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.py",
+            qualified_name="app.py",
+            file_path=str(tmp_path / "app.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
-        mock_store.find_nodes.side_effect = lambda **kwargs: (
-            [file_node] if kwargs.get("kind") == NodeKind.FILE else []
-        )
+        mock_store.find_nodes.side_effect = lambda **kwargs: [file_node] if kwargs.get("kind") == NodeKind.FILE else []
 
         real_open = open
+
         def mock_open_fn(path, *args, **kwargs):
             if str(path).endswith("app.py") and "encoding" in kwargs:
                 raise OSError("Permission denied")
@@ -217,18 +239,22 @@ class TestDetectGlobalPatterns:
 
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="utils.py",
-            qualified_name="utils.py", file_path=str(tmp_path / "utils.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="utils.py",
+            qualified_name="utils.py",
+            file_path=str(tmp_path / "utils.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
-        mock_store.find_nodes.side_effect = lambda **kwargs: (
-            [file_node] if kwargs.get("kind") == NodeKind.FILE else []
-        )
+        mock_store.find_nodes.side_effect = lambda **kwargs: [file_node] if kwargs.get("kind") == NodeKind.FILE else []
         result = detector.detect_global_patterns(mock_store)
         assert result == []
 
 
 # ── _infer_project_root Tests ────────────────────────────────
+
 
 class TestInferProjectRoot:
     """Test _infer_project_root method (lines 387, 397)."""
@@ -244,9 +270,14 @@ class TestInferProjectRoot:
         """No app.py/wsgi.py/requirements.txt returns None (line 397)."""
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="random.py",
-            qualified_name="random.py", file_path=str(tmp_path / "random.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="random.py",
+            qualified_name="random.py",
+            file_path=str(tmp_path / "random.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
         mock_store.find_nodes.return_value = [file_node]
         result = detector._infer_project_root(mock_store)
@@ -257,9 +288,14 @@ class TestInferProjectRoot:
         (tmp_path / "app.py").write_text("from flask import Flask")
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="app.py",
-            qualified_name="app.py", file_path=str(tmp_path / "app.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="app.py",
+            qualified_name="app.py",
+            file_path=str(tmp_path / "app.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
         mock_store.find_nodes.return_value = [file_node]
         result = detector._infer_project_root(mock_store)
@@ -270,9 +306,14 @@ class TestInferProjectRoot:
         (tmp_path / "requirements.txt").write_text("flask")
         mock_store = MagicMock()
         file_node = Node(
-            id="f1", kind=NodeKind.FILE, name="models.py",
-            qualified_name="models.py", file_path=str(tmp_path / "models.py"),
-            start_line=0, end_line=0, language="python",
+            id="f1",
+            kind=NodeKind.FILE,
+            name="models.py",
+            qualified_name="models.py",
+            file_path=str(tmp_path / "models.py"),
+            start_line=0,
+            end_line=0,
+            language="python",
         )
         mock_store.find_nodes.return_value = [file_node]
         result = detector._infer_project_root(mock_store)

@@ -7,18 +7,15 @@ no-match content skips, @apply scanning.
 
 from __future__ import annotations
 
-import os
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, mock_open, patch
 
-import pytest
-
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+from coderag.core.models import EdgeKind, Node, NodeKind
 from coderag.pipeline.style_edges import StyleEdgeMatcher
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_node(
     id: str = "node-1",
@@ -52,6 +49,7 @@ def _make_matcher(store=None, project_root="/tmp/project"):
 # _match_css_class_usage — empty class_lookup returns 0 (line 266)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchCssClassUsageEmpty:
     """Cover line 266: no CSS class nodes -> return 0."""
 
@@ -75,6 +73,7 @@ class TestMatchCssClassUsageEmpty:
 # ---------------------------------------------------------------------------
 # _match_css_class_usage — file_path="" skip (line 283)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchCssClassUsageFilePathNone:
     """Cover line 283: file_path is None -> continue."""
@@ -100,6 +99,7 @@ class TestMatchCssClassUsageFilePathNone:
 # ---------------------------------------------------------------------------
 # _match_css_class_usage — OSError reading file (lines 291-292)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchCssClassUsageOSError:
     """Cover lines 291-292: OSError on file read -> continue."""
@@ -127,6 +127,7 @@ class TestMatchCssClassUsageOSError:
 # ---------------------------------------------------------------------------
 # _scan_classname_usage — template expression skip (line 337)
 # ---------------------------------------------------------------------------
+
 
 class TestScanClassnameUsageTemplateSkip:
     """Cover line 337: skip template expressions with $ or {."""
@@ -173,6 +174,7 @@ class TestScanClassnameUsageTemplateSkip:
 # _match_css_variable_bridges — empty var_lookup returns 0 (line 387)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchCssVariableBridgesEmpty:
     """Cover line 387: no CSS variable/TW token nodes -> return 0."""
 
@@ -187,6 +189,7 @@ class TestMatchCssVariableBridgesEmpty:
 # ---------------------------------------------------------------------------
 # _match_css_variable_bridges — file_path="" (line 399)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchCssVariableBridgesFilePathNone:
     """Cover line 399: file_path is None -> continue."""
@@ -212,6 +215,7 @@ class TestMatchCssVariableBridgesFilePathNone:
 # ---------------------------------------------------------------------------
 # _match_css_variable_bridges — OSError (lines 406-407)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchCssVariableBridgesOSError:
     """Cover lines 406-407: OSError on file read -> continue."""
@@ -240,6 +244,7 @@ class TestMatchCssVariableBridgesOSError:
 # _match_css_variable_bridges — no setProperty content (line 411)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchCssVariableBridgesNoSetProperty:
     """Cover line 411: file without setProperty/getPropertyValue -> continue."""
 
@@ -267,6 +272,7 @@ class TestMatchCssVariableBridgesNoSetProperty:
 # _match_tailwind_class_tokens — empty token_lookup (line 476)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchTailwindClassTokensEmpty:
     """Cover line 476: no TW token nodes -> return 0."""
 
@@ -281,6 +287,7 @@ class TestMatchTailwindClassTokensEmpty:
 # ---------------------------------------------------------------------------
 # _match_tailwind_class_tokens — file_path="" (line 493)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchTailwindClassTokensFilePathNone:
     """Cover line 493: JS file_path is None -> continue."""
@@ -308,6 +315,7 @@ class TestMatchTailwindClassTokensFilePathNone:
 # ---------------------------------------------------------------------------
 # _match_tailwind_class_tokens — OSError (lines 500-501)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchTailwindClassTokensOSError:
     """Cover lines 500-501: OSError on file read -> continue."""
@@ -338,6 +346,7 @@ class TestMatchTailwindClassTokensOSError:
 # _match_tailwind_class_tokens — no className content (line 504)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchTailwindClassTokensNoClassName:
     """Cover line 504: file without className/class= -> continue."""
 
@@ -367,6 +376,7 @@ class TestMatchTailwindClassTokensNoClassName:
 # _match_tailwind_class_tokens — CSS file_path="" (line 522)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchTailwindCssFilePathNone:
     """Cover line 522: CSS file_path is None -> continue."""
 
@@ -393,6 +403,7 @@ class TestMatchTailwindCssFilePathNone:
 # ---------------------------------------------------------------------------
 # _match_tailwind_class_tokens — CSS OSError (lines 529-530)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchTailwindCssOSError:
     """Cover lines 529-530: OSError reading CSS file -> continue."""
@@ -423,6 +434,7 @@ class TestMatchTailwindCssOSError:
 # _match_tailwind_class_tokens — no @apply (line 533)
 # ---------------------------------------------------------------------------
 
+
 class TestMatchTailwindCssNoApply:
     """Cover line 533: CSS file without @apply -> continue."""
 
@@ -451,6 +463,7 @@ class TestMatchTailwindCssNoApply:
 # ---------------------------------------------------------------------------
 # _match_tailwind_class_tokens — @apply scanning (lines 550-551)
 # ---------------------------------------------------------------------------
+
 
 class TestMatchTailwindApplyScanning:
     """Cover lines 550-551: @apply directive with TW class matching."""
@@ -486,6 +499,7 @@ class TestMatchTailwindApplyScanning:
 # ---------------------------------------------------------------------------
 # _match_single_tw_class — various cases
 # ---------------------------------------------------------------------------
+
 
 class TestMatchSingleTwClass:
     """Cover _match_single_tw_class edge cases."""

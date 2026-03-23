@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch, PropertyMock
 from dataclasses import dataclass, field
+from unittest.mock import patch
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers to capture tools registered via @mcp.tool()
 # ---------------------------------------------------------------------------
+
 
 class FakeMCP:
     """Captures functions registered via @mcp.tool()."""
@@ -23,6 +23,7 @@ class FakeMCP:
             tool_name = name or fn.__name__
             self.tools[tool_name] = fn
             return fn
+
         return decorator
 
 
@@ -60,6 +61,7 @@ class FakeTokenTracker:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def fake_mcp():
     return FakeMCP()
@@ -85,12 +87,14 @@ def _register_tools(fake_mcp, fake_tracker):
 # Tests for token_count_text
 # ---------------------------------------------------------------------------
 
+
 class TestTokenCountText:
     """Cover lines 58-109: token_count_text tool."""
 
     def test_count_text_no_model(self, fake_mcp, fake_tracker):
         """When no model specified, shows cost table for all models."""
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -109,6 +113,7 @@ class TestTokenCountText:
     def test_count_text_with_valid_model(self, fake_mcp, fake_tracker):
         """When a valid model is specified, shows cost for that model."""
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -126,6 +131,7 @@ class TestTokenCountText:
     def test_count_text_with_invalid_model(self, fake_mcp, fake_tracker):
         """When an invalid model is specified, shows available models."""
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -142,12 +148,14 @@ class TestTokenCountText:
 # Tests for token_session_stats
 # ---------------------------------------------------------------------------
 
+
 class TestTokenSessionStats:
     """Cover lines 124-184: token_session_stats tool."""
 
     def test_session_stats_basic(self, fake_mcp, fake_tracker):
         """Basic session stats with zero events."""
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -170,6 +178,7 @@ class TestTokenSessionStats:
             avg_output_per_event=100.0,
         )
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -189,6 +198,7 @@ class TestTokenSessionStats:
             estimated_savings_pct=25.0,
         )
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -207,6 +217,7 @@ class TestTokenSessionStats:
             cost_by_type={"tool_call": 0.001, "context": 0.002},
         )
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -222,6 +233,7 @@ class TestTokenSessionStats:
     def test_session_stats_with_model_switch(self, fake_mcp, fake_tracker):
         """Passing a valid model switches the tracker model."""
         import coderag.mcp.token_tools as mod
+
         with patch.object(mod, "_get_tracker", return_value=fake_tracker):
             mod.register_token_tools(fake_mcp)
             tools = fake_mcp.tools
@@ -237,12 +249,14 @@ class TestTokenSessionStats:
 # Tests for _get_tracker / _reset_tracker
 # ---------------------------------------------------------------------------
 
+
 class TestTrackerHelpers:
     """Cover line 32: _get_tracker auto-creates tracker."""
 
     def test_get_tracker_creates_default(self):
         """_get_tracker creates a tracker if none exists."""
         import coderag.mcp.token_tools as mod
+
         # Reset the global
         original = mod._session_tracker
         try:
@@ -256,6 +270,7 @@ class TestTrackerHelpers:
     def test_get_tracker_returns_existing(self):
         """_get_tracker returns existing tracker."""
         import coderag.mcp.token_tools as mod
+
         original = mod._session_tracker
         try:
             mod._session_tracker = FakeTokenTracker(model="test-model")
@@ -267,6 +282,7 @@ class TestTrackerHelpers:
     def test_reset_tracker(self):
         """_reset_tracker creates a new tracker with specified model."""
         import coderag.mcp.token_tools as mod
+
         original = mod._session_tracker
         try:
             tracker = mod.reset_tracker(model="gpt-4o")

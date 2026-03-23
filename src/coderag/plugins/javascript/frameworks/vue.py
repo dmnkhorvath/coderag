@@ -112,8 +112,7 @@ _EVENT_LISTENER_RE = re.compile(r"(?:@|v-on:)(?P<event>[\w.-]+)=")
 _DYNAMIC_COMPONENT_RE = re.compile(r"<component\s+:is=")
 
 # ── NEW: Component import detection ───────────────────────────
-_COMPONENT_IMPORT_RE = re.compile(
-    r"""import\s+(?P<name>[A-Z]\w+)\s+from\s+['"](?P<path>[^'"]*\.vue)['"]""")
+_COMPONENT_IMPORT_RE = re.compile(r"""import\s+(?P<name>[A-Z]\w+)\s+from\s+['"](?P<path>[^'"]*\.vue)['"]""")
 
 # ── NEW: defineProps array style ──────────────────────────────
 _DEFINE_PROPS_ARRAY_RE = re.compile(r"defineProps\s*\(\s*\[(?P<props>[^\]]+)\]")
@@ -130,14 +129,28 @@ _MIXINS_OPTION_RE = re.compile(r"mixins\s*:\s*\[(?P<mixins>[^\]]+)\]")
 
 # ── NEW: Store internals ──────────────────────────────────────
 _STORE_DEPENDS_RE = re.compile(r"\buse(?P<name>[A-Z][a-zA-Z0-9]*)Store\s*\(")
-_STORE_API_CALL_RE = re.compile(
-    r"""(?:fetch|axios\.\w+|\$fetch|useFetch)\s*\(\s*['"](?P<url>[^'"]+)['"]""")
+_STORE_API_CALL_RE = re.compile(r"""(?:fetch|axios\.\w+|\$fetch|useFetch)\s*\(\s*['"](?P<url>[^'"]+)['"]""")
 
 # ── NEW: Template directive detection ─────────────────────────
-_VUE_BUILTIN_DIRECTIVES = frozenset({
-    "if", "else", "else-if", "for", "show", "model", "bind", "on",
-    "slot", "text", "html", "pre", "cloak", "once", "memo",
-})
+_VUE_BUILTIN_DIRECTIVES = frozenset(
+    {
+        "if",
+        "else",
+        "else-if",
+        "for",
+        "show",
+        "model",
+        "bind",
+        "on",
+        "slot",
+        "text",
+        "html",
+        "pre",
+        "cloak",
+        "once",
+        "memo",
+    }
+)
 _CUSTOM_DIRECTIVE_RE = re.compile(r"\bv-(?P<directive>[a-z][a-z0-9-]+)")
 
 # ── NEW: Teleport detection ───────────────────────────────────
@@ -630,7 +643,7 @@ class VueDetector(FrameworkDetector):
         for match in _DEFINE_PROPS_ARRAY_RE.finditer(source_text):
             props_str = match.group("props")
             line_no = source_text[: match.start()].count("\n") + 1
-            prop_names = [p.strip().strip("\'\"") for p in props_str.split(",") if p.strip()]
+            prop_names = [p.strip().strip("'\"") for p in props_str.split(",") if p.strip()]
             for prop_name in prop_names:
                 prop_node_id = generate_node_id(file_path, line_no, NodeKind.VARIABLE, f"prop:{prop_name}")
                 new_nodes.append(
@@ -709,7 +722,7 @@ class VueDetector(FrameworkDetector):
         for match in _DEFINE_EMITS_ARRAY_RE.finditer(source_text):
             events_str = match.group("events")
             line_no = source_text[: match.start()].count("\n") + 1
-            event_names = [e.strip().strip("\'\"") for e in events_str.split(",") if e.strip()]
+            event_names = [e.strip().strip("'\"") for e in events_str.split(",") if e.strip()]
             for event_name in event_names:
                 event_node_id = generate_node_id(file_path, line_no, NodeKind.EVENT, f"emit:{event_name}")
                 new_nodes.append(
@@ -928,11 +941,13 @@ class VueDetector(FrameworkDetector):
                 },
             )
             new_nodes.append(store_node)
-            store_ranges.append({
-                "name": store_name,
-                "node_id": store_node.id,
-                "start_line": line_no,
-            })
+            store_ranges.append(
+                {
+                    "name": store_name,
+                    "node_id": store_node.id,
+                    "start_line": line_no,
+                }
+            )
 
         # Detect useXxxStore() calls (Pinia convention)
         for match in _USE_STORE_RE.finditer(source_text):
@@ -1161,7 +1176,7 @@ class VueDetector(FrameworkDetector):
             new_edges.append(
                 Edge(
                     source_id=guard_node.id,
-                    target_id=f"__unresolved__:router",
+                    target_id="__unresolved__:router",
                     kind=EdgeKind.DEPENDS_ON,
                     confidence=0.90,
                     line_number=line_no,
@@ -1709,9 +1724,15 @@ class VueDetector(FrameworkDetector):
 
         # Only return pattern if we found something interesting
         has_content = (
-            components_used or kebab_components or v_models or slot_defs
-            or slot_uses or events or dynamic_count > 0
-            or directives_used or new_edges
+            components_used
+            or kebab_components
+            or v_models
+            or slot_defs
+            or slot_uses
+            or events
+            or dynamic_count > 0
+            or directives_used
+            or new_edges
         )
 
         if not has_content:
@@ -1754,9 +1775,9 @@ class VueDetector(FrameworkDetector):
             # Derive route path from file path
             if "/pages/" in norm_path:
                 pages_idx = norm_path.index("/pages/")
-                route_segment = norm_path[pages_idx + len("/pages/"):]
+                route_segment = norm_path[pages_idx + len("/pages/") :]
             else:
-                route_segment = norm_path[len("pages/"):]
+                route_segment = norm_path[len("pages/") :]
             # Remove .vue extension
             route_segment = route_segment.rsplit(".", 1)[0]
             # Convert index to /
@@ -1862,7 +1883,7 @@ class VueDetector(FrameworkDetector):
                 nuxt_usages.append({"type": "middleware", "middleware": mw_name})
 
         # ── nuxt_plugin_provides: provide() in plugins/ directory ──
-        if ("/plugins/" in norm_path or norm_path.startswith("plugins/")):
+        if "/plugins/" in norm_path or norm_path.startswith("plugins/"):
             for match in _NUXT_PROVIDE_RE.finditer(source_text):
                 key = match.group("key")
                 line_no = source_text[: match.start()].count("\n") + 1
@@ -1901,13 +1922,13 @@ class VueDetector(FrameworkDetector):
                 nuxt_usages.append({"type": "plugin_provides", "key": key})
 
         # ── nuxt_server_api: files in server/api/ directory ──
-        if ("/server/api/" in norm_path or norm_path.startswith("server/api/")):
+        if "/server/api/" in norm_path or norm_path.startswith("server/api/"):
             # Derive API route from file path
             if "/server/api/" in norm_path:
                 api_idx = norm_path.index("/server/api/")
-                api_segment = norm_path[api_idx + len("/server/api/"):]
+                api_segment = norm_path[api_idx + len("/server/api/") :]
             else:
-                api_segment = norm_path[len("server/api/"):]
+                api_segment = norm_path[len("server/api/") :]
             # Remove extension
             api_segment = api_segment.rsplit(".", 1)[0]
             api_route = "/api/" + api_segment

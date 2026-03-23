@@ -4,10 +4,10 @@ Targets missing lines: 71, 90-91, 98-109, 116-126, 133-143,
 156-157, 174-175, 182-184, 187-189, 194-202, 205-207, 210-212,
 215-217, 220-222, 225-227, 230-232, 236
 """
+
 from __future__ import annotations
 
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock
 
 
 class TestDetailsScreenTabNavigation:
@@ -15,6 +15,7 @@ class TestDetailsScreenTabNavigation:
 
     def _make_screen(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen.active_tab = "files"
         screen._store = MagicMock()
@@ -57,6 +58,7 @@ class TestDetailsScreenScrolling:
 
     def _make_screen_with_table(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen.active_tab = "files"
         mock_table = MagicMock()
@@ -69,6 +71,7 @@ class TestDetailsScreenScrolling:
 
     def _make_screen_no_table(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen.active_tab = "files"
         screen.query_one = MagicMock(side_effect=Exception("no widget"))
@@ -136,6 +139,7 @@ class TestDetailsScreenShowActiveTable:
 
     def test_show_active_table_files(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen.active_tab = "files"
 
@@ -160,6 +164,7 @@ class TestDetailsScreenShowActiveTable:
 
     def test_show_active_table_exception(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen.active_tab = "files"
         screen.query_one = MagicMock(side_effect=Exception("no widget"))
@@ -171,6 +176,7 @@ class TestDetailsScreenWatchActiveTab:
 
     def test_watch_active_tab(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen.active_tab = "files"
         screen._update_tab_bar = MagicMock()
@@ -185,6 +191,7 @@ class TestDetailsScreenRefresh:
 
     def test_refresh_details(self):
         from coderag.tui.screens.details import DetailsScreen
+
         screen = DetailsScreen.__new__(DetailsScreen)
         screen._refresh_data = MagicMock()
         screen.refresh_details()

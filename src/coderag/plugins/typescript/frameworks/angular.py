@@ -271,21 +271,62 @@ _DECORATOR_BLOCK_RE = re.compile(
 # =============================================================================
 
 # Native DOM events to skip for angular_emits_output
-_NATIVE_DOM_EVENTS = frozenset({
-    "click", "dblclick", "submit", "change", "input", "focus", "blur",
-    "keyup", "keydown", "keypress", "mouseover", "mouseout", "mouseenter",
-    "mouseleave", "mousedown", "mouseup", "scroll", "load", "error",
-    "resize", "contextmenu", "drag", "dragstart", "dragend", "dragover",
-    "dragenter", "dragleave", "drop", "touchstart", "touchend",
-    "touchmove", "wheel",
-})
+_NATIVE_DOM_EVENTS = frozenset(
+    {
+        "click",
+        "dblclick",
+        "submit",
+        "change",
+        "input",
+        "focus",
+        "blur",
+        "keyup",
+        "keydown",
+        "keypress",
+        "mouseover",
+        "mouseout",
+        "mouseenter",
+        "mouseleave",
+        "mousedown",
+        "mouseup",
+        "scroll",
+        "load",
+        "error",
+        "resize",
+        "contextmenu",
+        "drag",
+        "dragstart",
+        "dragend",
+        "dragover",
+        "dragenter",
+        "dragleave",
+        "drop",
+        "touchstart",
+        "touchend",
+        "touchmove",
+        "wheel",
+    }
+)
 
 # Built-in Angular pipes to skip for pipe usage detection
-_BUILTIN_PIPES = frozenset({
-    "date", "uppercase", "lowercase", "currency", "decimal", "percent",
-    "json", "slice", "async", "titlecase", "keyvalue", "i18nPlural",
-    "i18nSelect", "number",
-})
+_BUILTIN_PIPES = frozenset(
+    {
+        "date",
+        "uppercase",
+        "lowercase",
+        "currency",
+        "decimal",
+        "percent",
+        "json",
+        "slice",
+        "async",
+        "titlecase",
+        "keyvalue",
+        "i18nPlural",
+        "i18nSelect",
+        "number",
+    }
+)
 
 
 def _extract_decorator_block(source_text: str, match_start: int) -> str:
@@ -1654,7 +1695,9 @@ class AngularDetector(FrameworkDetector):
                 "subject_count": subject_count,
                 "subscribe_count": subscribe_count,
                 "pipe_count": pipe_count,
-                "http_call_count": len([e for e in new_edges if e.metadata.get("angular_edge_type") == "angular_http_calls"]),
+                "http_call_count": len(
+                    [e for e in new_edges if e.metadata.get("angular_edge_type") == "angular_http_calls"]
+                ),
             },
         )
 

@@ -5,8 +5,9 @@ Focuses on uncovered lines: 44, 49-57, 69, 142, 157, 345, 385, 436, 464,
 """
 
 import pytest
+
+from coderag.core.models import EdgeKind, NodeKind
 from coderag.plugins.css.extractor import CSSExtractor
-from coderag.core.models import NodeKind, EdgeKind
 
 
 @pytest.fixture
@@ -353,10 +354,7 @@ class TestResolveKeyframesRefs:
         kf_edges = _edges_by_kind(result, EdgeKind.CSS_KEYFRAMES_USED_BY)
         assert len(kf_edges) == 0
         # Check unresolved_references
-        assert any(
-            r.reference_name == "nonExistentAnim"
-            for r in result.unresolved_references
-        )
+        assert any(r.reference_name == "nonExistentAnim" for r in result.unresolved_references)
 
 
 # ---------------------------------------------------------------------------
@@ -538,10 +536,11 @@ class TestEdgeCases:
 # Direct unit tests for helper functions (lines 44, 49-57, 69)
 # ---------------------------------------------------------------------------
 from unittest.mock import MagicMock
+
 from coderag.plugins.css.extractor import (
     _child_by_type,
-    _get_declaration_value_text,
     _get_declaration_value_node,
+    _get_declaration_value_text,
 )
 
 

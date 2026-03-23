@@ -3,19 +3,19 @@
 Covers: query (semantic/hybrid), serve (--watch), enrich, embed, watch,
         routes (text output), validate, monitor, frameworks, cross-language.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import sys
-from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from coderag.cli.main import cli
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 
 
 @pytest.fixture()
@@ -27,28 +27,50 @@ def _obj(db_override=None, config_path=None):
     return {"db_override": db_override, "config_path": config_path}
 
 
-def _make_node(id="n1", name="Foo", qname="app/Foo", kind=NodeKind.CLASS,
-               file_path="src/foo.py", start_line=1, language="python",
-               metadata=None):
+def _make_node(
+    id="n1",
+    name="Foo",
+    qname="app/Foo",
+    kind=NodeKind.CLASS,
+    file_path="src/foo.py",
+    start_line=1,
+    language="python",
+    metadata=None,
+):
     return Node(
-        id=id, name=name, qualified_name=qname, kind=kind,
-        file_path=file_path, start_line=start_line, end_line=10,
-        language=language, metadata=metadata or {},
+        id=id,
+        name=name,
+        qualified_name=qname,
+        kind=kind,
+        file_path=file_path,
+        start_line=start_line,
+        end_line=10,
+        language=language,
+        metadata=metadata or {},
     )
 
 
-def _make_edge(source_id="n1", target_id="n2", kind=EdgeKind.CALLS,
-               confidence=0.9, metadata=None):
+def _make_edge(source_id="n1", target_id="n2", kind=EdgeKind.CALLS, confidence=0.9, metadata=None):
     return Edge(
-        source_id=source_id, target_id=target_id, kind=kind,
-        confidence=confidence, metadata=metadata or {},
+        source_id=source_id,
+        target_id=target_id,
+        kind=kind,
+        confidence=confidence,
+        metadata=metadata or {},
     )
 
 
-def _mock_search_result(node_id="n1", kind="class", name="Foo",
-                        qname="app/Foo", file_path="src/foo.py",
-                        language="python", score=0.95, match_type="hybrid",
-                        vector_similarity=0.9):
+def _mock_search_result(
+    node_id="n1",
+    kind="class",
+    name="Foo",
+    qname="app/Foo",
+    file_path="src/foo.py",
+    language="python",
+    score=0.95,
+    match_type="hybrid",
+    vector_similarity=0.9,
+):
     sr = MagicMock()
     sr.node_id = node_id
     sr.kind = kind
@@ -66,6 +88,7 @@ def _mock_search_result(node_id="n1", kind="class", name="Foo",
 # query command - semantic/hybrid mode (covers lines 324-441)
 # ---------------------------------------------------------------------------
 
+
 class TestQuerySemanticHybrid:
     """The CLI command is 'query' with --semantic/--hybrid/--fts flags."""
 
@@ -81,10 +104,13 @@ class TestQuerySemanticHybrid:
         mock_open_store.return_value = mock_store
 
         # The import happens inside the function body, so we patch the modules
-        with patch.dict("sys.modules", {
-            "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
-            "coderag.search.vector_store": MagicMock(**{"VectorStore.exists.return_value": False}),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
+                "coderag.search.vector_store": MagicMock(**{"VectorStore.exists.return_value": False}),
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--semantic"], obj=_obj())
             assert result.exit_code == 0
 
@@ -113,12 +139,15 @@ class TestQuerySemanticHybrid:
         mock_hybrid_mod = MagicMock()
         mock_hybrid_mod.HybridSearcher.return_value = mock_searcher
 
-        with patch.dict("sys.modules", {
-            "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
-            "coderag.search.vector_store": mock_vs_mod,
-            "coderag.search.embedder": mock_embedder_mod,
-            "coderag.search.hybrid": mock_hybrid_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
+                "coderag.search.vector_store": mock_vs_mod,
+                "coderag.search.embedder": mock_embedder_mod,
+                "coderag.search.hybrid": mock_hybrid_mod,
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--hybrid", "-f", "json"], obj=_obj())
             assert result.exit_code == 0
             data = json.loads(result.output)
@@ -146,12 +175,15 @@ class TestQuerySemanticHybrid:
         mock_vs_mod.VectorStore.exists.return_value = True
         mock_vs_mod.VectorStore.load.return_value = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
-            "coderag.search.vector_store": mock_vs_mod,
-            "coderag.search.embedder": MagicMock(),
-            "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
+                "coderag.search.vector_store": mock_vs_mod,
+                "coderag.search.embedder": MagicMock(),
+                "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--hybrid"], obj=_obj())
             assert result.exit_code == 0
 
@@ -173,12 +205,15 @@ class TestQuerySemanticHybrid:
         mock_vs_mod.VectorStore.exists.return_value = True
         mock_vs_mod.VectorStore.load.return_value = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
-            "coderag.search.vector_store": mock_vs_mod,
-            "coderag.search.embedder": MagicMock(),
-            "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
+                "coderag.search.vector_store": mock_vs_mod,
+                "coderag.search.embedder": MagicMock(),
+                "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--semantic"], obj=_obj())
             assert result.exit_code == 0
             assert "No results" in result.output
@@ -197,9 +232,12 @@ class TestQuerySemanticHybrid:
         mock_search_mod = MagicMock()
         mock_search_mod.require_semantic.side_effect = ImportError("no module")
 
-        with patch.dict("sys.modules", {
-            "coderag.search": mock_search_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": mock_search_mod,
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--semantic"], obj=_obj())
             assert result.exit_code == 0
 
@@ -227,12 +265,15 @@ class TestQuerySemanticHybrid:
         mock_vs_mod.VectorStore.exists.return_value = True
         mock_vs_mod.VectorStore.load.return_value = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
-            "coderag.search.vector_store": mock_vs_mod,
-            "coderag.search.embedder": MagicMock(),
-            "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
+                "coderag.search.vector_store": mock_vs_mod,
+                "coderag.search.embedder": MagicMock(),
+                "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--hybrid", "-f", "json", "-d", "1"], obj=_obj())
             assert result.exit_code == 0
             data = json.loads(result.output)
@@ -262,12 +303,15 @@ class TestQuerySemanticHybrid:
         mock_vs_mod.VectorStore.exists.return_value = True
         mock_vs_mod.VectorStore.load.return_value = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
-            "coderag.search.vector_store": mock_vs_mod,
-            "coderag.search.embedder": MagicMock(),
-            "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": MagicMock(SEMANTIC_AVAILABLE=True, require_semantic=MagicMock()),
+                "coderag.search.vector_store": mock_vs_mod,
+                "coderag.search.embedder": MagicMock(),
+                "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
+            },
+        ):
             result = runner.invoke(cli, ["query", "test", "--hybrid", "-d", "1"], obj=_obj())
             assert result.exit_code == 0
 
@@ -296,12 +340,15 @@ class TestQuerySemanticHybrid:
         mock_search_mod.SEMANTIC_AVAILABLE = True
         mock_search_mod.require_semantic = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.search": mock_search_mod,
-            "coderag.search.vector_store": mock_vs_mod,
-            "coderag.search.embedder": MagicMock(),
-            "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": mock_search_mod,
+                "coderag.search.vector_store": mock_vs_mod,
+                "coderag.search.embedder": MagicMock(),
+                "coderag.search.hybrid": MagicMock(**{"HybridSearcher.return_value": mock_searcher}),
+            },
+        ):
             # No --semantic or --hybrid flag = auto-detect
             result = runner.invoke(cli, ["query", "test", "-f", "json"], obj=_obj())
             assert result.exit_code == 0
@@ -310,6 +357,7 @@ class TestQuerySemanticHybrid:
 # ---------------------------------------------------------------------------
 # frameworks command (covers lines 866-960)
 # ---------------------------------------------------------------------------
+
 
 class TestFrameworksCommand:
     @patch("coderag.cli.main._open_store")
@@ -344,9 +392,12 @@ class TestFrameworksCommand:
         mock_reg_mod = MagicMock()
         mock_reg_mod.PluginRegistry.return_value = mock_reg
 
-        with patch.dict("sys.modules", {
-            "coderag.core.registry": mock_reg_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.core.registry": mock_reg_mod,
+            },
+        ):
             result = runner.invoke(cli, ["frameworks"], obj=_obj())
             assert result.exit_code == 0
             assert "No frameworks" in result.output
@@ -371,9 +422,12 @@ class TestFrameworksCommand:
         mock_reg_mod = MagicMock()
         mock_reg_mod.PluginRegistry.return_value = mock_reg
 
-        with patch.dict("sys.modules", {
-            "coderag.core.registry": mock_reg_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.core.registry": mock_reg_mod,
+            },
+        ):
             result = runner.invoke(cli, ["frameworks", "--format", "json"], obj=_obj())
             assert result.exit_code == 0
             data = json.loads(result.output)
@@ -398,6 +452,7 @@ class TestFrameworksCommand:
 # serve command with --watch (covers lines 1323-1367)
 # ---------------------------------------------------------------------------
 
+
 class TestServeCommand:
     @patch("coderag.cli.main._load_config")
     def test_serve_with_watch(self, mock_load_cfg, runner, tmp_path):
@@ -419,14 +474,17 @@ class TestServeCommand:
         mock_store_mod.SQLiteStore.return_value = mock_store_inst
         mock_mcp_server_mod = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.pipeline.events": mock_events_mod,
-            "coderag.pipeline.watcher": mock_watcher_mod,
-            "coderag.plugins": mock_plugins_mod,
-            "coderag.plugins.registry": mock_registry_mod,
-            "coderag.storage.sqlite_store": mock_store_mod,
-            "coderag.mcp.server": mock_mcp_server_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.pipeline.events": mock_events_mod,
+                "coderag.pipeline.watcher": mock_watcher_mod,
+                "coderag.plugins": mock_plugins_mod,
+                "coderag.plugins.registry": mock_registry_mod,
+                "coderag.storage.sqlite_store": mock_store_mod,
+                "coderag.mcp.server": mock_mcp_server_mod,
+            },
+        ):
             result = runner.invoke(cli, ["serve", str(tmp_path), "--watch"], obj=_obj())
             assert result.exit_code == 0
             mock_watcher.start.assert_called_once()
@@ -436,6 +494,7 @@ class TestServeCommand:
 # ---------------------------------------------------------------------------
 # enrich command (covers lines 1444-1465)
 # ---------------------------------------------------------------------------
+
 
 class TestEnrichCommand:
     @patch("coderag.cli.main._open_store")
@@ -452,9 +511,12 @@ class TestEnrichCommand:
         mock_phpstan_mod = MagicMock()
         mock_phpstan_mod.PHPStanEnricher.return_value = mock_enricher
 
-        with patch.dict("sys.modules", {
-            "coderag.enrichment.phpstan": mock_phpstan_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.enrichment.phpstan": mock_phpstan_mod,
+            },
+        ):
             result = runner.invoke(cli, ["enrich", "--phpstan"], obj=_obj())
             assert result.exit_code == 0
             assert "not available" in result.output.lower()
@@ -484,9 +546,12 @@ class TestEnrichCommand:
         mock_phpstan_mod = MagicMock()
         mock_phpstan_mod.PHPStanEnricher.return_value = mock_enricher
 
-        with patch.dict("sys.modules", {
-            "coderag.enrichment.phpstan": mock_phpstan_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.enrichment.phpstan": mock_phpstan_mod,
+            },
+        ):
             result = runner.invoke(cli, ["enrich", "--phpstan"], obj=_obj())
             assert result.exit_code == 0
 
@@ -509,9 +574,12 @@ class TestEnrichCommand:
         mock_phpstan_mod = MagicMock()
         mock_phpstan_mod.PHPStanEnricher.return_value = mock_enricher
 
-        with patch.dict("sys.modules", {
-            "coderag.enrichment.phpstan": mock_phpstan_mod,
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.enrichment.phpstan": mock_phpstan_mod,
+            },
+        ):
             result = runner.invoke(cli, ["enrich", "--phpstan"], obj=_obj())
             assert result.exit_code == 0
             assert "Skipped" in result.output
@@ -520,6 +588,7 @@ class TestEnrichCommand:
 # ---------------------------------------------------------------------------
 # embed command (covers lines 1501-1507, 1539-1540)
 # ---------------------------------------------------------------------------
+
 
 class TestEmbedCommand:
     def test_embed_no_semantic_deps(self, runner):
@@ -543,11 +612,14 @@ class TestEmbedCommand:
         mock_search_mod = MagicMock()
         mock_search_mod.require_semantic = MagicMock()
 
-        with patch.dict("sys.modules", {
-            "coderag.search": mock_search_mod,
-            "coderag.search.embedder": MagicMock(),
-            "coderag.search.vector_store": MagicMock(),
-        }):
+        with patch.dict(
+            "sys.modules",
+            {
+                "coderag.search": mock_search_mod,
+                "coderag.search.embedder": MagicMock(),
+                "coderag.search.vector_store": MagicMock(),
+            },
+        ):
             result = runner.invoke(cli, ["embed", str(tmp_path)], obj=_obj())
             assert result.exit_code == 0
             assert "No nodes" in result.output
@@ -556,6 +628,7 @@ class TestEmbedCommand:
 # ---------------------------------------------------------------------------
 # watch command (covers lines 1649-1722)
 # ---------------------------------------------------------------------------
+
 
 class TestWatchCommand:
     @patch("coderag.cli.main._load_config")
@@ -578,13 +651,18 @@ class TestWatchCommand:
         mock_store_mod = MagicMock()
         mock_store_mod.SQLiteStore.return_value = mock_store_inst
 
-        with patch.dict("sys.modules", {
-            "coderag.pipeline.watcher": mock_watcher_mod,
-            "coderag.pipeline.events": mock_events_mod,
-            "coderag.plugins": mock_plugins_mod,
-        }), \
-        patch("coderag.cli.main.PluginRegistry") as mock_reg_cls, \
-        patch("coderag.cli.main.SQLiteStore", return_value=mock_store_inst):
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "coderag.pipeline.watcher": mock_watcher_mod,
+                    "coderag.pipeline.events": mock_events_mod,
+                    "coderag.plugins": mock_plugins_mod,
+                },
+            ),
+            patch("coderag.cli.main.PluginRegistry") as mock_reg_cls,
+            patch("coderag.cli.main.SQLiteStore", return_value=mock_store_inst),
+        ):
             mock_reg = MagicMock()
             mock_reg_cls.return_value = mock_reg
             result = runner.invoke(cli, ["watch", str(tmp_path)], obj=_obj())
@@ -596,6 +674,7 @@ class TestWatchCommand:
 # routes command - text output (covers lines 2157-2215)
 # ---------------------------------------------------------------------------
 
+
 class TestRoutesCommand:
     @patch("coderag.cli.main._open_store")
     @patch("coderag.cli.main._load_config")
@@ -605,20 +684,23 @@ class TestRoutesCommand:
         mock_store = MagicMock()
 
         route_node = _make_node(
-            id="r1", name="/api/users", qname="/api/users",
-            kind=NodeKind.ROUTE, file_path="routes/api.php", start_line=10,
-            metadata={"http_method": "GET", "url": "/api/users",
-                      "controller": "UserController", "action": "index"}
+            id="r1",
+            name="/api/users",
+            qname="/api/users",
+            kind=NodeKind.ROUTE,
+            file_path="routes/api.php",
+            start_line=10,
+            metadata={"http_method": "GET", "url": "/api/users", "controller": "UserController", "action": "index"},
         )
         mock_store.find_nodes.return_value = [route_node]
 
         target_node = _make_node(id="t1", name="index", qname="UserController/index")
-        caller_node = _make_node(id="c1", name="fetchUsers", qname="app/fetchUsers",
-                                  file_path="src/api.js")
+        caller_node = _make_node(id="c1", name="fetchUsers", qname="app/fetchUsers", file_path="src/api.js")
 
         outgoing_edge = _make_edge(source_id="r1", target_id="t1", kind=EdgeKind.CALLS)
-        caller_edge = _make_edge(source_id="c1", target_id="r1", kind=EdgeKind.API_CALLS,
-                                  metadata={"call_url": "/api/users"})
+        caller_edge = _make_edge(
+            source_id="c1", target_id="r1", kind=EdgeKind.API_CALLS, metadata={"call_url": "/api/users"}
+        )
 
         def get_edges_side_effect(source_id=None, target_id=None):
             if source_id == "r1":
@@ -628,9 +710,7 @@ class TestRoutesCommand:
             return []
 
         mock_store.get_edges.side_effect = get_edges_side_effect
-        mock_store.get_node.side_effect = lambda nid: {
-            "t1": target_node, "c1": caller_node
-        }.get(nid)
+        mock_store.get_node.side_effect = lambda nid: {"t1": target_node, "c1": caller_node}.get(nid)
         mock_open_store.return_value = mock_store
 
         result = runner.invoke(cli, ["routes", "*"], obj=_obj())
@@ -644,9 +724,13 @@ class TestRoutesCommand:
         mock_store = MagicMock()
 
         route_node = _make_node(
-            id="r1", name="/api/users", qname="/api/users",
-            kind=NodeKind.ROUTE, file_path="routes/api.php", start_line=10,
-            metadata={"http_method": "GET", "url": "/api/users"}
+            id="r1",
+            name="/api/users",
+            qname="/api/users",
+            kind=NodeKind.ROUTE,
+            file_path="routes/api.php",
+            start_line=10,
+            metadata={"http_method": "GET", "url": "/api/users"},
         )
         mock_store.find_nodes.return_value = [route_node]
         mock_store.get_edges.return_value = []
@@ -678,15 +762,18 @@ class TestRoutesCommand:
         mock_store = MagicMock()
 
         route_node = _make_node(
-            id="r1", name="/api/users", qname="/api/users",
-            kind=NodeKind.ROUTE, file_path="routes/api.php", start_line=10,
-            metadata={"http_method": "GET", "url": "/api/users"}
+            id="r1",
+            name="/api/users",
+            qname="/api/users",
+            kind=NodeKind.ROUTE,
+            file_path="routes/api.php",
+            start_line=10,
+            metadata={"http_method": "GET", "url": "/api/users"},
         )
         mock_store.find_nodes.return_value = [route_node]
 
         caller_edge = _make_edge(source_id="c1", target_id="r1", kind=EdgeKind.API_CALLS)
-        caller_node = _make_node(id="c1", name="fetchUsers", qname="app/fetchUsers",
-                                  file_path="src/api.js")
+        caller_node = _make_node(id="c1", name="fetchUsers", qname="app/fetchUsers", file_path="src/api.js")
 
         def get_edges_side_effect(source_id=None, target_id=None):
             if source_id:
@@ -706,6 +793,7 @@ class TestRoutesCommand:
 # ---------------------------------------------------------------------------
 # validate command (covers lines 2433-2500, 2526-2544)
 # ---------------------------------------------------------------------------
+
 
 class TestValidateCommand:
     def test_validate_no_config(self, runner, tmp_path):
@@ -734,6 +822,7 @@ class TestValidateCommand:
 # monitor command (covers lines 2603-2621)
 # ---------------------------------------------------------------------------
 
+
 class TestMonitorCommand:
     def test_monitor_no_tui_deps(self, runner, tmp_path):
         """monitor command when TUI deps not installed."""
@@ -758,6 +847,7 @@ class TestMonitorCommand:
 # cross-language command (covers lines 1082-1146)
 # ---------------------------------------------------------------------------
 
+
 class TestCrossLanguageCommand:
     @patch("coderag.cli.main._open_store")
     @patch("coderag.cli.main._load_config")
@@ -767,24 +857,24 @@ class TestCrossLanguageCommand:
         mock_load_cfg.return_value = mock_config
         mock_store = MagicMock()
 
-        source_node = _make_node(id="s1", name="fetchUsers",
-                                  qname="src/api.js/fetchUsers",
-                                  file_path="src/api.js", language="javascript")
-        target_node = _make_node(id="t1", name="index",
-                                  qname="routes/api.php/index",
-                                  file_path="routes/api.php", language="php")
-        mock_store.get_node.side_effect = lambda nid: {
-            "s1": source_node, "t1": target_node
-        }.get(nid)
+        source_node = _make_node(
+            id="s1", name="fetchUsers", qname="src/api.js/fetchUsers", file_path="src/api.js", language="javascript"
+        )
+        target_node = _make_node(
+            id="t1", name="index", qname="routes/api.php/index", file_path="routes/api.php", language="php"
+        )
+        mock_store.get_node.side_effect = lambda nid: {"s1": source_node, "t1": target_node}.get(nid)
 
         xl_edge = _make_edge(
-            source_id="s1", target_id="t1", kind=EdgeKind.API_CALLS,
+            source_id="s1",
+            target_id="t1",
+            kind=EdgeKind.API_CALLS,
             metadata={
                 "http_method": "GET",
                 "call_url": "/api/users",
                 "endpoint_url": "/api/users",
                 "match_strategy": "exact",
-            }
+            },
         )
 
         mock_store.get_metadata.return_value = "5"
@@ -814,6 +904,7 @@ class TestCrossLanguageCommand:
 # info command - json output (covers line 211)
 # ---------------------------------------------------------------------------
 
+
 class TestInfoCommand:
     @patch("coderag.cli.main._open_store")
     @patch("coderag.cli.main._load_config")
@@ -840,6 +931,7 @@ class TestInfoCommand:
 # ---------------------------------------------------------------------------
 # init command - overwrite (covers lines 528-530)
 # ---------------------------------------------------------------------------
+
 
 class TestInitCommand:
     def test_init_overwrite_abort(self, runner, tmp_path):

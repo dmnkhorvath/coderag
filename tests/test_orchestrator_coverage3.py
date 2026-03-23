@@ -8,35 +8,19 @@ cross-language matching, and various run() method paths.
 from __future__ import annotations
 
 import os
-import time
-from collections import defaultdict
-from concurrent.futures import Future
-from unittest.mock import MagicMock, patch, PropertyMock, call
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from coderag.core.config import CodeGraphConfig
 from coderag.core.models import (
     Edge,
     EdgeKind,
-    ExtractionResult,
-    FileInfo,
     Node,
     NodeKind,
     PipelineSummary,
 )
 from coderag.core.registry import PluginRegistry
-from coderag.pipeline.events import (
-    EventEmitter,
-    FileError,
-    PhaseCompleted,
-    PhaseProgress,
-    PhaseStarted,
-    PipelinePhase,
-)
 from coderag.pipeline.orchestrator import PipelineOrchestrator
 from coderag.storage.sqlite_store import SQLiteStore
-
 
 # ── Helpers ──────────────────────────────────────────────────
 
@@ -80,8 +64,11 @@ class TestStyleEdgeMatchingException:
         orch = _make_orchestrator(tmp_path)
         # Insert CSS file nodes so the has_css check passes
         css_node = _make_node(
-            file_path="style.css", kind=NodeKind.FILE, name="style.css",
-            language="css", id="css-1",
+            file_path="style.css",
+            kind=NodeKind.FILE,
+            name="style.css",
+            language="css",
+            id="css-1",
         )
         orch._store.upsert_nodes([css_node])
 
@@ -128,9 +115,7 @@ class TestGitEnrichmentParallel:
         file_metrics = {f"src/file_{i}.py": {"commit_count": i + 1} for i in range(15)}
         mock_result = {
             "file_metrics": file_metrics,
-            "co_changes": [
-                {"file_a": "src/file_0.py", "file_b": "src/file_1.py", "count": 5}
-            ],
+            "co_changes": [{"file_a": "src/file_0.py", "file_b": "src/file_1.py", "count": 5}],
             "stats": {
                 "total_commits_analyzed": 100,
                 "total_authors": 5,

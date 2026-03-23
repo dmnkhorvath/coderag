@@ -1,5 +1,5 @@
 """Tests for search embedder build_node_text to cover missing lines."""
-import pytest
+
 from coderag.core.models import Node, NodeKind
 from coderag.search.embedder import CodeEmbedder
 
@@ -9,9 +9,14 @@ class TestBuildNodeText:
 
     def _make_node(self, **kwargs):
         defaults = dict(
-            id="n1", kind=NodeKind.FUNCTION, name="my_func",
-            qualified_name="my_func", file_path="app.py",
-            start_line=1, end_line=10, language="python",
+            id="n1",
+            kind=NodeKind.FUNCTION,
+            name="my_func",
+            qualified_name="my_func",
+            file_path="app.py",
+            start_line=1,
+            end_line=10,
+            language="python",
         )
         defaults.update(kwargs)
         return Node(**defaults)
@@ -60,7 +65,9 @@ class TestBuildNodeText:
 
     def test_with_parameters_list_of_dicts(self):
         """Cover line 138: params as list of dicts with 'name' key."""
-        node = self._make_node(metadata={"parameters": [{"name": "arg1", "type": "int"}, {"name": "arg2", "type": "str"}]})
+        node = self._make_node(
+            metadata={"parameters": [{"name": "arg1", "type": "int"}, {"name": "arg2", "type": "str"}]}
+        )
         text = CodeEmbedder.build_node_text(node)
         assert "Parameters" in text
         assert "arg1" in text
@@ -111,36 +118,39 @@ class TestBuildNodeText:
 
     def test_with_extends(self):
         """Cover extends/superclass metadata."""
-        node = self._make_node(kind=NodeKind.CLASS, name="MyClass",
-                               qualified_name="MyClass",
-                               metadata={"extends": "BaseClass"})
+        node = self._make_node(
+            kind=NodeKind.CLASS, name="MyClass", qualified_name="MyClass", metadata={"extends": "BaseClass"}
+        )
         text = CodeEmbedder.build_node_text(node)
         assert "Extends" in text
         assert "BaseClass" in text
 
     def test_with_superclass_key(self):
         """Cover the meta.get('superclass') fallback."""
-        node = self._make_node(kind=NodeKind.CLASS, name="MyClass",
-                               qualified_name="MyClass",
-                               metadata={"superclass": "ParentClass"})
+        node = self._make_node(
+            kind=NodeKind.CLASS, name="MyClass", qualified_name="MyClass", metadata={"superclass": "ParentClass"}
+        )
         text = CodeEmbedder.build_node_text(node)
         assert "Extends" in text
         assert "ParentClass" in text
 
     def test_with_implements_list(self):
         """Cover implements as list."""
-        node = self._make_node(kind=NodeKind.CLASS, name="MyClass",
-                               qualified_name="MyClass",
-                               metadata={"implements": ["Serializable", "Comparable"]})
+        node = self._make_node(
+            kind=NodeKind.CLASS,
+            name="MyClass",
+            qualified_name="MyClass",
+            metadata={"implements": ["Serializable", "Comparable"]},
+        )
         text = CodeEmbedder.build_node_text(node)
         assert "Implements" in text
         assert "Serializable" in text
 
     def test_with_implements_string(self):
         """Cover implements as string."""
-        node = self._make_node(kind=NodeKind.CLASS, name="MyClass",
-                               qualified_name="MyClass",
-                               metadata={"implements": "Iterable"})
+        node = self._make_node(
+            kind=NodeKind.CLASS, name="MyClass", qualified_name="MyClass", metadata={"implements": "Iterable"}
+        )
         text = CodeEmbedder.build_node_text(node)
         assert "Implements" in text
         assert "Iterable" in text
@@ -154,7 +164,8 @@ class TestBuildNodeText:
     def test_with_all_metadata(self):
         """Cover all metadata paths at once."""
         node = self._make_node(
-            kind=NodeKind.METHOD, name="process",
+            kind=NodeKind.METHOD,
+            name="process",
             qualified_name="Handler.process",
             docblock="Process the request.",
             metadata={
@@ -163,7 +174,7 @@ class TestBuildNodeText:
                 "decorators": ["@override"],
                 "extends": "BaseHandler",
                 "implements": ["Processable"],
-            }
+            },
         )
         text = CodeEmbedder.build_node_text(node, parent_name="Handler")
         assert "process" in text

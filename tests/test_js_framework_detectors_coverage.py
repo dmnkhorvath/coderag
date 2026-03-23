@@ -6,22 +6,20 @@ React missing: 114-116, 121, 195, 242-251, 309, 474, 490-523
 NextJS missing: 75, 142-144, 149, 215, 273, 310, 422, 459, 570, 578, 608-627
 """
 
-import os
 import json
-import pytest
+import os
 from unittest.mock import MagicMock, patch
 
-from coderag.plugins.javascript.frameworks.express import ExpressDetector
-from coderag.plugins.javascript.frameworks.react import ReactDetector
-from coderag.plugins.javascript.frameworks.nextjs import NextJSDetector
 from coderag.core.models import (
-    Node,
     Edge,
-    NodeKind,
     EdgeKind,
+    Node,
+    NodeKind,
     generate_node_id,
-    FrameworkPattern,
 )
+from coderag.plugins.javascript.frameworks.express import ExpressDetector
+from coderag.plugins.javascript.frameworks.nextjs import NextJSDetector
+from coderag.plugins.javascript.frameworks.react import ReactDetector
 
 
 def _make_file_node(file_path, name, lang="javascript"):

@@ -2,12 +2,12 @@
 
 Targets missing lines: 114-116, 121, 195, 242-251, 309, 474, 490-523
 """
-import os
-from unittest.mock import patch, MagicMock
+
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 from coderag.plugins.javascript.frameworks.react import ReactDetector
 
 
@@ -17,6 +17,7 @@ def detector():
 
 
 # ── detect_framework Tests ───────────────────────────────────
+
 
 class TestDetectFramework:
     """Test detect_framework method."""
@@ -72,6 +73,7 @@ class TestDetectFramework:
 
 # ── detect_global_patterns Tests ─────────────────────────────
 
+
 class TestDetectGlobalPatterns:
     """Test detect_global_patterns method (line 195)."""
 
@@ -87,14 +89,24 @@ class TestDetectGlobalPatterns:
         mock_store = MagicMock()
         # Create hook definition and usage nodes
         hook_def = Node(
-            id="hook1", kind=NodeKind.FUNCTION, name="useAuth",
-            qualified_name="useAuth", file_path="hooks/useAuth.ts",
-            start_line=1, end_line=10, language="typescript",
+            id="hook1",
+            kind=NodeKind.FUNCTION,
+            name="useAuth",
+            qualified_name="useAuth",
+            file_path="hooks/useAuth.ts",
+            start_line=1,
+            end_line=10,
+            language="typescript",
         )
         hook_usage = Node(
-            id="hook2", kind=NodeKind.FUNCTION, name="useAuth",
-            qualified_name="useAuth", file_path="components/Login.tsx",
-            start_line=5, end_line=5, language="typescript",
+            id="hook2",
+            kind=NodeKind.FUNCTION,
+            name="useAuth",
+            qualified_name="useAuth",
+            file_path="components/Login.tsx",
+            start_line=5,
+            end_line=5,
+            language="typescript",
             metadata={"framework": "react", "hook_name": "useAuth"},
         )
         mock_store.find_nodes.return_value = [hook_def, hook_usage]
@@ -103,6 +115,7 @@ class TestDetectGlobalPatterns:
 
 
 # ── _detect_components Tests ─────────────────────────────────
+
 
 class TestDetectComponents:
     """Test _detect_components method (lines 242-251, 309)."""
@@ -121,9 +134,14 @@ class TestDetectComponents:
     def test_function_component_detected(self, detector):
         """Function component with JSX is detected."""
         func_node = Node(
-            id="fn1", kind=NodeKind.FUNCTION, name="UserList",
-            qualified_name="UserList", file_path="UserList.jsx",
-            start_line=1, end_line=10, language="javascript",
+            id="fn1",
+            kind=NodeKind.FUNCTION,
+            name="UserList",
+            qualified_name="UserList",
+            file_path="UserList.jsx",
+            start_line=1,
+            end_line=10,
+            language="javascript",
             source_text="function UserList() { return <div><span>Users</span></div>; }",
         )
         result = detector._detect_components(
@@ -141,9 +159,14 @@ class TestDetectComponents:
     def test_lowercase_function_skipped(self, detector):
         """Lowercase function names are not components."""
         func_node = Node(
-            id="fn2", kind=NodeKind.FUNCTION, name="helper",
-            qualified_name="helper", file_path="utils.js",
-            start_line=1, end_line=5, language="javascript",
+            id="fn2",
+            kind=NodeKind.FUNCTION,
+            name="helper",
+            qualified_name="helper",
+            file_path="utils.js",
+            start_line=1,
+            end_line=5,
+            language="javascript",
             source_text="function helper() { return <div/>; }",
         )
         result = detector._detect_components(
@@ -159,9 +182,14 @@ class TestDetectComponents:
     def test_class_without_render_skipped(self, detector):
         """Class without render method and no JSX in source is skipped (lines 242-251)."""
         class_node = Node(
-            id="cls1", kind=NodeKind.CLASS, name="MyComponent",
-            qualified_name="MyComponent", file_path="comp.jsx",
-            start_line=1, end_line=20, language="javascript",
+            id="cls1",
+            kind=NodeKind.CLASS,
+            name="MyComponent",
+            qualified_name="MyComponent",
+            file_path="comp.jsx",
+            start_line=1,
+            end_line=20,
+            language="javascript",
             source_text="class MyComponent { constructor() {} }",
         )
         result = detector._detect_components(
@@ -177,19 +205,31 @@ class TestDetectComponents:
     def test_class_with_render_detected(self, detector):
         """Class with render method is detected as component."""
         class_node = Node(
-            id="cls2", kind=NodeKind.CLASS, name="MyComponent",
-            qualified_name="MyComponent", file_path="comp.jsx",
-            start_line=1, end_line=20, language="javascript",
+            id="cls2",
+            kind=NodeKind.CLASS,
+            name="MyComponent",
+            qualified_name="MyComponent",
+            file_path="comp.jsx",
+            start_line=1,
+            end_line=20,
+            language="javascript",
             source_text="class MyComponent { constructor() {} }",
         )
         render_node = Node(
-            id="render1", kind=NodeKind.METHOD, name="render",
-            qualified_name="MyComponent.render", file_path="comp.jsx",
-            start_line=5, end_line=15, language="javascript",
+            id="render1",
+            kind=NodeKind.METHOD,
+            name="render",
+            qualified_name="MyComponent.render",
+            file_path="comp.jsx",
+            start_line=5,
+            end_line=15,
+            language="javascript",
         )
         contains_edge = Edge(
-            source_id="cls2", target_id="render1",
-            kind=EdgeKind.CONTAINS, confidence=1.0,
+            source_id="cls2",
+            target_id="render1",
+            kind=EdgeKind.CONTAINS,
+            confidence=1.0,
         )
         result = detector._detect_components(
             file_path="comp.jsx",
@@ -205,9 +245,14 @@ class TestDetectComponents:
     def test_component_from_source_lines(self, detector):
         """Component detected from source lines when source_text is None."""
         func_node = Node(
-            id="fn3", kind=NodeKind.FUNCTION, name="Header",
-            qualified_name="Header", file_path="Header.jsx",
-            start_line=1, end_line=3, language="javascript",
+            id="fn3",
+            kind=NodeKind.FUNCTION,
+            name="Header",
+            qualified_name="Header",
+            file_path="Header.jsx",
+            start_line=1,
+            end_line=3,
+            language="javascript",
             source_text=None,
         )
         source = "function Header() {\n  return <header>Title</header>;\n}"
@@ -235,6 +280,7 @@ class TestDetectComponents:
 
 # ── _connect_cross_file_hooks Tests ──────────────────────────
 
+
 class TestConnectCrossFileHooks:
     """Test _connect_cross_file_hooks method (lines 490-523)."""
 
@@ -249,9 +295,14 @@ class TestConnectCrossFileHooks:
         """Single hook with no cross-file usage returns None."""
         mock_store = MagicMock()
         hook = Node(
-            id="h1", kind=NodeKind.FUNCTION, name="useAuth",
-            qualified_name="useAuth", file_path="hooks/useAuth.ts",
-            start_line=1, end_line=10, language="typescript",
+            id="h1",
+            kind=NodeKind.FUNCTION,
+            name="useAuth",
+            qualified_name="useAuth",
+            file_path="hooks/useAuth.ts",
+            start_line=1,
+            end_line=10,
+            language="typescript",
         )
         mock_store.find_nodes.return_value = [hook]
         result = detector._connect_cross_file_hooks(mock_store)

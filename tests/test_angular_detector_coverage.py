@@ -4,12 +4,13 @@ Covers missing lines: 244, 262, 265, 323-324, 409, 463, 489-492, 548, 605,
 763, 823, 962-964, 980, 1017-1023, 1063-1068, 1204-1215, 1247-1264,
 1308-1309, 1314-1359
 """
+
 from __future__ import annotations
 
 import pytest
 
+from coderag.core.models import EdgeKind, Node, NodeKind
 from coderag.plugins.typescript.frameworks.angular import AngularDetector
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind, FrameworkPattern
 
 
 @pytest.fixture
@@ -19,9 +20,15 @@ def detector():
 
 def _make_node(id, kind, name, fpath, start, end, lang="typescript", **kw):
     return Node(
-        id=id, kind=kind, name=name, qualified_name=kw.pop("qname", name),
-        file_path=fpath, start_line=start, end_line=end,
-        language=lang, **kw,
+        id=id,
+        kind=kind,
+        name=name,
+        qualified_name=kw.pop("qname", name),
+        file_path=fpath,
+        start_line=start,
+        end_line=end,
+        language=lang,
+        **kw,
     )
 
 
@@ -29,11 +36,12 @@ def _make_node(id, kind, name, fpath, start, end, lang="typescript", **kw):
 # Non-TypeScript files
 # ---------------------------------------------------------------------------
 
+
 class TestNonTsFiles:
     """Line 244: non-TS files return empty patterns."""
 
     def test_js_file_returns_empty(self, detector):
-        source = b"@Component({selector: \"app-root\"}) class AppComponent {}"
+        source = b'@Component({selector: "app-root"}) class AppComponent {}'
         patterns = detector.detect("app.js", None, source, [], [])
         assert patterns == []
 
@@ -46,6 +54,7 @@ class TestNonTsFiles:
 # ---------------------------------------------------------------------------
 # Component detection
 # ---------------------------------------------------------------------------
+
 
 class TestComponentDetection:
     """Lines 323-324, 409, 1308-1309, 1314-1359."""
@@ -112,7 +121,7 @@ export class ParentComponent {}
 
     def test_component_no_class_name_skipped(self, detector):
         """Component decorator without a class should be skipped."""
-        source = b"@Component({selector: \'app-x\'})\n// no class here\n"
+        source = b"@Component({selector: 'app-x'})\n// no class here\n"
         patterns = detector.detect("broken.ts", None, source, [], [])
         comp_pattern = next((p for p in patterns if p.pattern_type == "components"), None)
         assert comp_pattern is None
@@ -128,8 +137,12 @@ export class TestComponent {
 }
 """
         class_node = _make_node(
-            "test.ts:5:class:TestComponent", NodeKind.CLASS,
-            "TestComponent", "test.component.ts", 5, 7,
+            "test.ts:5:class:TestComponent",
+            NodeKind.CLASS,
+            "TestComponent",
+            "test.component.ts",
+            5,
+            7,
         )
         patterns = detector.detect("test.component.ts", None, source, [class_node], [])
         comp_pattern = next((p for p in patterns if p.pattern_type == "components"), None)
@@ -140,6 +153,7 @@ export class TestComponent {
 # ---------------------------------------------------------------------------
 # Service detection
 # ---------------------------------------------------------------------------
+
 
 class TestServiceDetection:
     """Lines 463, 489-492."""
@@ -182,6 +196,7 @@ export class DataService {
 # NgModule detection
 # ---------------------------------------------------------------------------
 
+
 class TestModuleDetection:
     """Lines 548, 605, 1204-1215, 1247-1264."""
 
@@ -219,6 +234,7 @@ export class AppModule {}
 # Directive detection
 # ---------------------------------------------------------------------------
 
+
 class TestDirectiveDetection:
     """Lines 1063-1068."""
 
@@ -238,7 +254,7 @@ export class HighlightDirective {
         assert dir_pattern.nodes[0].metadata["selector"] == "[appHighlight]"
 
     def test_directive_no_class_skipped(self, detector):
-        source = b"@Directive({selector: \'[x]\'})\n// no class\n"
+        source = b"@Directive({selector: '[x]'})\n// no class\n"
         patterns = detector.detect("broken.ts", None, source, [], [])
         dir_pattern = next((p for p in patterns if p.pattern_type == "directives"), None)
         assert dir_pattern is None
@@ -247,6 +263,7 @@ export class HighlightDirective {
 # ---------------------------------------------------------------------------
 # Pipe detection
 # ---------------------------------------------------------------------------
+
 
 class TestPipeDetection:
     """Lines 962-964, 980."""
@@ -269,7 +286,7 @@ export class TruncatePipe implements PipeTransform {
         assert pipe_pattern.nodes[0].metadata["pipe_name"] == "truncate"
 
     def test_pipe_no_class_skipped(self, detector):
-        source = b"@Pipe({name: \'x\'})\n// no class\n"
+        source = b"@Pipe({name: 'x'})\n// no class\n"
         patterns = detector.detect("broken.ts", None, source, [], [])
         pipe_pattern = next((p for p in patterns if p.pattern_type == "pipes"), None)
         assert pipe_pattern is None
@@ -278,6 +295,7 @@ export class TruncatePipe implements PipeTransform {
 # ---------------------------------------------------------------------------
 # Route detection
 # ---------------------------------------------------------------------------
+
 
 class TestRouteDetection:
     """Lines 1017-1023."""
@@ -358,6 +376,7 @@ const routes: Routes = [
 # Dependency injection
 # ---------------------------------------------------------------------------
 
+
 class TestDependencyInjection:
     """Lines 262, 265."""
 
@@ -392,6 +411,7 @@ export class ModernComponent {
 # Signals
 # ---------------------------------------------------------------------------
 
+
 class TestSignalDetection:
     """Lines 763, 823."""
 
@@ -410,10 +430,8 @@ export class CounterComponent {
         patterns = detector.detect("counter.component.ts", None, source, [], [])
         sig_pattern = next((p for p in patterns if p.pattern_type == "signals"), None)
         assert sig_pattern is not None
-        signal_nodes = [n for n in sig_pattern.nodes
-                        if n.metadata.get("signal_kind") == "writable"]
-        computed_nodes = [n for n in sig_pattern.nodes
-                         if n.metadata.get("signal_kind") == "computed"]
+        signal_nodes = [n for n in sig_pattern.nodes if n.metadata.get("signal_kind") == "writable"]
+        computed_nodes = [n for n in sig_pattern.nodes if n.metadata.get("signal_kind") == "computed"]
         assert len(signal_nodes) >= 1
         assert len(computed_nodes) >= 1
         assert sig_pattern.metadata["effect_count"] >= 1
@@ -442,8 +460,8 @@ export class EffectComponent {
 # RxJS / HTTP patterns
 # ---------------------------------------------------------------------------
 
-class TestRxJSPatterns:
 
+class TestRxJSPatterns:
     def test_observable_subject_subscribe(self, detector):
         source = b"""
 export class DataService {
@@ -504,8 +522,8 @@ export class ApiService {
 # Multiple patterns in one file
 # ---------------------------------------------------------------------------
 
-class TestMultiplePatterns:
 
+class TestMultiplePatterns:
     def test_component_with_di_and_signals(self, detector):
         source = b"""
 @Component({
@@ -532,8 +550,8 @@ export class DashboardComponent {
 # detect_global_patterns
 # ---------------------------------------------------------------------------
 
-class TestGlobalPatterns:
 
+class TestGlobalPatterns:
     def test_global_patterns_no_store(self, detector):
         """Global patterns with None store."""
         patterns = detector.detect_global_patterns(None)

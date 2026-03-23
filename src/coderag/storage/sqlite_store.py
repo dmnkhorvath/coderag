@@ -777,12 +777,9 @@ class SQLiteStore:
 
     # ── Graph Metadata ────────────────────────────────────────
 
-
     # ── Pre-computed Graph Data Queries ────────────────────────
 
-    def get_communities(
-        self, max_communities: int = 15, max_per_community: int = 50
-    ) -> list[tuple[int, list["Node"]]]:
+    def get_communities(self, max_communities: int = 15, max_per_community: int = 50) -> list[tuple[int, list[Node]]]:
         """Read pre-computed communities from the nodes table.
 
         Returns list of (community_id, [Node, ...]) tuples sorted by
@@ -820,7 +817,7 @@ class SQLiteStore:
         limit: int = 20,
         kind_filter: str | None = None,
         language_filter: str | None = None,
-    ) -> list[tuple["Node", float]]:
+    ) -> list[tuple[Node, float]]:
         """Read top nodes by pre-computed PageRank score.
 
         Returns list of (Node, pagerank_score) tuples sorted descending.
@@ -853,7 +850,7 @@ class SQLiteStore:
         self,
         limit: int = 15,
         language_filter: str | None = None,
-    ) -> list["Node"]:
+    ) -> list[Node]:
         """Find likely entry points using pre-computed edge counts.
 
         Entry points are nodes with high in-degree weighted by node

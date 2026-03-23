@@ -7,33 +7,19 @@ cross-language matching, style edge matching, git enrichment, graph analysis.
 from __future__ import annotations
 
 import os
-import time
-from unittest.mock import MagicMock, patch, PropertyMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from coderag.core.config import CodeGraphConfig
 from coderag.core.models import (
     Edge,
     EdgeKind,
-    ExtractionResult,
-    FileInfo,
     Node,
     NodeKind,
     PipelineSummary,
 )
 from coderag.core.registry import PluginRegistry
-from coderag.pipeline.events import (
-    EventEmitter,
-    FileError,
-    PhaseCompleted,
-    PhaseProgress,
-    PhaseStarted,
-    PipelinePhase,
-)
 from coderag.pipeline.orchestrator import PipelineOrchestrator
 from coderag.storage.sqlite_store import SQLiteStore
-
 
 # ── Helpers ──────────────────────────────────────────────────
 
@@ -173,12 +159,15 @@ class TestRunCrossLanguageMatching:
         orch._store.get_all_edges = MagicMock(return_value=[])
 
         mock_endpoint = MagicMock()
-        with patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_endpoints",
-            return_value=[mock_endpoint],
-        ), patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_api_calls",
-            return_value=[],
+        with (
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_endpoints",
+                return_value=[mock_endpoint],
+            ),
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_api_calls",
+                return_value=[],
+            ),
         ):
             result = orch._run_cross_language_matching("/tmp/project")
         assert result == 0
@@ -192,15 +181,19 @@ class TestRunCrossLanguageMatching:
         orch._store.get_all_nodes = MagicMock(return_value=[])
         orch._store.get_all_edges = MagicMock(return_value=[])
 
-        with patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_endpoints",
-            return_value=[MagicMock()],
-        ), patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_api_calls",
-            return_value=[MagicMock()],
-        ), patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.match",
-            return_value=[],
+        with (
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_endpoints",
+                return_value=[MagicMock()],
+            ),
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_api_calls",
+                return_value=[MagicMock()],
+            ),
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.match",
+                return_value=[],
+            ),
         ):
             result = orch._run_cross_language_matching("/tmp/project")
         assert result == 0
@@ -217,18 +210,23 @@ class TestRunCrossLanguageMatching:
         orch._store.set_metadata = MagicMock()
 
         mock_edge = Edge(source_id="a", target_id="b", kind=EdgeKind.CALLS)
-        with patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_endpoints",
-            return_value=[MagicMock()],
-        ), patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_api_calls",
-            return_value=[MagicMock()],
-        ), patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.match",
-            return_value=[MagicMock()],
-        ), patch(
-            "coderag.pipeline.cross_language.CrossLanguageMatcher.create_edges",
-            return_value=[mock_edge],
+        with (
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_endpoints",
+                return_value=[MagicMock()],
+            ),
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.collect_api_calls",
+                return_value=[MagicMock()],
+            ),
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.match",
+                return_value=[MagicMock()],
+            ),
+            patch(
+                "coderag.pipeline.cross_language.CrossLanguageMatcher.create_edges",
+                return_value=[mock_edge],
+            ),
         ):
             result = orch._run_cross_language_matching("/tmp/project")
         assert result == 1
@@ -245,9 +243,7 @@ class TestRunStyleEdgeMatching:
     def test_style_matching_exception_returns_zero(self, tmp_path):
         """Exception in style matching -> returns 0."""
         orch = _make_orchestrator(tmp_path)
-        with patch.object(
-            orch._store, "get_all_nodes", side_effect=Exception("DB error")
-        ):
+        with patch.object(orch._store, "get_all_nodes", side_effect=Exception("DB error")):
             result = orch._run_style_edge_matching("/tmp/project")
         assert result == 0
 

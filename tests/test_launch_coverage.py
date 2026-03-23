@@ -3,23 +3,23 @@
 Covers: _load_config_for_launch, _open_store_for_launch, _run_parse,
         _detect_best_tool, _check_for_updates_on_launch, launch command.
 """
+
 from __future__ import annotations
 
-import os
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from coderag.cli.launch import (
-    launch,
+    _check_for_updates_on_launch,
+    _detect_best_tool,
     _load_config_for_launch,
     _open_store_for_launch,
     _run_parse,
-    _detect_best_tool,
-    _check_for_updates_on_launch,
+    launch,
 )
 
 
@@ -31,6 +31,7 @@ def runner() -> CliRunner:
 # ---------------------------------------------------------------------------
 # _load_config_for_launch
 # ---------------------------------------------------------------------------
+
 
 class TestLoadConfigForLaunch:
     def test_explicit_config_path(self, tmp_path):
@@ -84,6 +85,7 @@ class TestLoadConfigForLaunch:
 # _open_store_for_launch
 # ---------------------------------------------------------------------------
 
+
 class TestOpenStoreForLaunch:
     def test_returns_none_when_no_db(self, tmp_path):
         mock_config = MagicMock()
@@ -106,6 +108,7 @@ class TestOpenStoreForLaunch:
 # ---------------------------------------------------------------------------
 # _run_parse
 # ---------------------------------------------------------------------------
+
 
 class TestRunParse:
     @patch("shutil.which", return_value="/usr/bin/coderag")
@@ -160,6 +163,7 @@ class TestRunParse:
 # _detect_best_tool
 # ---------------------------------------------------------------------------
 
+
 class TestDetectBestTool:
     def test_detect_claude(self):
         with patch("coderag.launcher.tool_config.detect_ai_tools", return_value={"claude": "/usr/bin/claude"}):
@@ -182,8 +186,10 @@ class TestDetectBestTool:
             assert result is None
 
     def test_detect_prefers_claude(self):
-        with patch("coderag.launcher.tool_config.detect_ai_tools",
-                   return_value={"cursor": "/usr/bin/cursor", "claude": "/usr/bin/claude"}):
+        with patch(
+            "coderag.launcher.tool_config.detect_ai_tools",
+            return_value={"cursor": "/usr/bin/cursor", "claude": "/usr/bin/claude"},
+        ):
             result = _detect_best_tool()
             assert result == "claude"
 
@@ -192,6 +198,7 @@ class TestDetectBestTool:
 # _check_for_updates_on_launch
 # ---------------------------------------------------------------------------
 
+
 class TestCheckForUpdates:
     def test_no_update_available(self):
         mock_config = MagicMock()
@@ -199,8 +206,10 @@ class TestCheckForUpdates:
         mock_config.auto_install = False
         mock_checker = MagicMock()
         mock_checker.check.return_value = None
-        with patch("coderag.updater.config.UpdateConfig.load", return_value=mock_config), \
-             patch("coderag.updater.checker.UpdateChecker", return_value=mock_checker):
+        with (
+            patch("coderag.updater.config.UpdateConfig.load", return_value=mock_config),
+            patch("coderag.updater.checker.UpdateChecker", return_value=mock_checker),
+        ):
             _check_for_updates_on_launch()  # should not raise
 
     def test_update_available(self):
@@ -213,8 +222,10 @@ class TestCheckForUpdates:
         mock_info.current = "1.0.0"
         mock_checker = MagicMock()
         mock_checker.check.return_value = mock_info
-        with patch("coderag.updater.config.UpdateConfig.load", return_value=mock_config), \
-             patch("coderag.updater.checker.UpdateChecker", return_value=mock_checker):
+        with (
+            patch("coderag.updater.config.UpdateConfig.load", return_value=mock_config),
+            patch("coderag.updater.checker.UpdateChecker", return_value=mock_checker),
+        ):
             _check_for_updates_on_launch()  # should not raise
 
     def test_auto_install(self):
@@ -232,9 +243,11 @@ class TestCheckForUpdates:
         mock_result.new_version = "2.0.0"
         mock_installer = MagicMock()
         mock_installer.install.return_value = mock_result
-        with patch("coderag.updater.config.UpdateConfig.load", return_value=mock_config), \
-             patch("coderag.updater.checker.UpdateChecker", return_value=mock_checker), \
-             patch("coderag.updater.installer.UpdateInstaller", return_value=mock_installer):
+        with (
+            patch("coderag.updater.config.UpdateConfig.load", return_value=mock_config),
+            patch("coderag.updater.checker.UpdateChecker", return_value=mock_checker),
+            patch("coderag.updater.installer.UpdateInstaller", return_value=mock_installer),
+        ):
             _check_for_updates_on_launch()  # should not raise
 
     def test_auto_check_disabled(self):
@@ -252,9 +265,9 @@ class TestCheckForUpdates:
 # launch command
 # ---------------------------------------------------------------------------
 
+
 class TestLaunchCommand:
     def _mock_state(self, state_val="ready", source_files=10, stale_files=None):
-        from enum import Enum
         mock_state_info = MagicMock()
         mock_state_enum = MagicMock()
         mock_state_enum.value = state_val
@@ -274,8 +287,10 @@ class TestLaunchCommand:
 
         state_info = self._mock_state()
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="# Context here"):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="# Context here"),
+        ):
             result = runner.invoke(launch, [str(tmp_path), "--context-only"], obj={})
             assert result.exit_code == 0
             assert "Context here" in result.output
@@ -330,12 +345,16 @@ class TestLaunchCommand:
 
         state_info = self._mock_state()
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.cli.launch._detect_best_tool", return_value="claude"), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / ".claude/settings.json")):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.cli.launch._detect_best_tool", return_value="claude"),
+            patch(
+                "coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / ".claude/settings.json")
+            ),
+        ):
             result = runner.invoke(launch, [str(tmp_path), "--dry-run"], obj={})
             assert result.exit_code == 0
             assert "Dry Run" in result.output
@@ -344,7 +363,9 @@ class TestLaunchCommand:
     @patch("coderag.cli.launch._run_parse", return_value=True)
     @patch("coderag.cli.launch._open_store_for_launch")
     @patch("coderag.cli.launch._load_config_for_launch")
-    def test_launch_fresh_project_parses(self, mock_load_cfg, mock_open_store, mock_parse, mock_updates, runner, tmp_path):
+    def test_launch_fresh_project_parses(
+        self, mock_load_cfg, mock_open_store, mock_parse, mock_updates, runner, tmp_path
+    ):
         mock_config = MagicMock()
         mock_load_cfg.return_value = mock_config
         mock_store = MagicMock()
@@ -352,17 +373,20 @@ class TestLaunchCommand:
 
         # Create a "fresh" state
         from coderag.launcher.detector import ProjectState
+
         state_info = MagicMock()
         state_info.state = ProjectState.FRESH
         state_info.source_file_count = 10
         state_info.stale_files = []
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.cli.launch._detect_best_tool", return_value=None), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=None):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.cli.launch._detect_best_tool", return_value=None),
+            patch("coderag.launcher.tool_config.write_tool_config", return_value=None),
+        ):
             result = runner.invoke(launch, [str(tmp_path)], obj={})
             assert result.exit_code == 0
             mock_parse.assert_called_once()
@@ -371,24 +395,29 @@ class TestLaunchCommand:
     @patch("coderag.cli.launch._run_parse", return_value=True)
     @patch("coderag.cli.launch._open_store_for_launch")
     @patch("coderag.cli.launch._load_config_for_launch")
-    def test_launch_stale_project_parses(self, mock_load_cfg, mock_open_store, mock_parse, mock_updates, runner, tmp_path):
+    def test_launch_stale_project_parses(
+        self, mock_load_cfg, mock_open_store, mock_parse, mock_updates, runner, tmp_path
+    ):
         mock_config = MagicMock()
         mock_load_cfg.return_value = mock_config
         mock_store = MagicMock()
         mock_open_store.return_value = mock_store
 
         from coderag.launcher.detector import ProjectState
+
         state_info = MagicMock()
         state_info.state = ProjectState.STALE
         state_info.source_file_count = 10
         state_info.stale_files = ["file1.py", "file2.py"]
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.cli.launch._detect_best_tool", return_value=None), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=None):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.cli.launch._detect_best_tool", return_value=None),
+            patch("coderag.launcher.tool_config.write_tool_config", return_value=None),
+        ):
             result = runner.invoke(launch, [str(tmp_path)], obj={})
             assert result.exit_code == 0
 
@@ -396,13 +425,16 @@ class TestLaunchCommand:
     @patch("coderag.cli.launch._run_parse", return_value=False)
     @patch("coderag.cli.launch._open_store_for_launch")
     @patch("coderag.cli.launch._load_config_for_launch")
-    def test_launch_parse_failure_exits(self, mock_load_cfg, mock_open_store, mock_parse, mock_updates, runner, tmp_path):
+    def test_launch_parse_failure_exits(
+        self, mock_load_cfg, mock_open_store, mock_parse, mock_updates, runner, tmp_path
+    ):
         mock_config = MagicMock()
         mock_load_cfg.return_value = mock_config
         mock_store = MagicMock()
         mock_open_store.return_value = mock_store
 
         from coderag.launcher.detector import ProjectState
+
         state_info = MagicMock()
         state_info.state = ProjectState.FRESH
         state_info.source_file_count = 10
@@ -427,14 +459,16 @@ class TestLaunchCommand:
         mock_tool_proc = MagicMock()
         mock_tool_proc.pid = 456
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / "config.json")), \
-             patch("coderag.launcher.runner.launch_mcp_server", return_value=mock_mcp_proc), \
-             patch("coderag.launcher.runner.launch_tool", return_value=mock_tool_proc), \
-             patch("coderag.launcher.runner.stop_process"):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / "config.json")),
+            patch("coderag.launcher.runner.launch_mcp_server", return_value=mock_mcp_proc),
+            patch("coderag.launcher.runner.launch_tool", return_value=mock_tool_proc),
+            patch("coderag.launcher.runner.stop_process"),
+        ):
             result = runner.invoke(launch, [str(tmp_path), "test prompt", "--tool", "claude-code"], obj={})
             assert result.exit_code == 0
 
@@ -451,14 +485,16 @@ class TestLaunchCommand:
         mock_tool_proc = MagicMock()
         mock_tool_proc.pid = 456
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / "config.json")), \
-             patch("coderag.launcher.runner.launch_mcp_server", side_effect=FileNotFoundError("not found")), \
-             patch("coderag.launcher.runner.launch_tool", return_value=mock_tool_proc), \
-             patch("coderag.launcher.runner.stop_process"):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / "config.json")),
+            patch("coderag.launcher.runner.launch_mcp_server", side_effect=FileNotFoundError("not found")),
+            patch("coderag.launcher.runner.launch_tool", return_value=mock_tool_proc),
+            patch("coderag.launcher.runner.stop_process"),
+        ):
             result = runner.invoke(launch, [str(tmp_path), "--tool", "claude-code"], obj={})
             assert result.exit_code == 0
 
@@ -475,14 +511,16 @@ class TestLaunchCommand:
         mock_mcp_proc = MagicMock()
         mock_mcp_proc.pid = 123
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / "config.json")), \
-             patch("coderag.launcher.runner.launch_mcp_server", return_value=mock_mcp_proc), \
-             patch("coderag.launcher.runner.launch_tool", side_effect=FileNotFoundError("not found")), \
-             patch("coderag.launcher.runner.stop_process"):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.launcher.tool_config.write_tool_config", return_value=str(tmp_path / "config.json")),
+            patch("coderag.launcher.runner.launch_mcp_server", return_value=mock_mcp_proc),
+            patch("coderag.launcher.runner.launch_tool", side_effect=FileNotFoundError("not found")),
+            patch("coderag.launcher.runner.stop_process"),
+        ):
             result = runner.invoke(launch, [str(tmp_path), "--tool", "claude-code"], obj={})
             assert result.exit_code == 0
 
@@ -497,17 +535,20 @@ class TestLaunchCommand:
         mock_open_store.return_value = mock_store
 
         from coderag.launcher.detector import ProjectState
+
         state_info = MagicMock()
         state_info.state = ProjectState.FRESH
         state_info.source_file_count = 10
         state_info.stale_files = []
 
-        with patch("coderag.launcher.detector.detect_project_state", return_value=state_info), \
-             patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"), \
-             patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"), \
-             patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")), \
-             patch("coderag.cli.launch._detect_best_tool", return_value=None), \
-             patch("coderag.launcher.tool_config.write_tool_config", return_value=None):
+        with (
+            patch("coderag.launcher.detector.detect_project_state", return_value=state_info),
+            patch("coderag.launcher.preloader.build_preload_context", return_value="ctx"),
+            patch("coderag.launcher.prompt_gen.generate_project_prompt", return_value="prompt"),
+            patch("coderag.launcher.prompt_gen.write_project_prompt", return_value=str(tmp_path / "CLAUDE.md")),
+            patch("coderag.cli.launch._detect_best_tool", return_value=None),
+            patch("coderag.launcher.tool_config.write_tool_config", return_value=None),
+        ):
             result = runner.invoke(launch, [str(tmp_path), "test prompt", "--dry-run"], obj={})
             assert result.exit_code == 0
             assert "dry-run" in result.output.lower() or "Dry Run" in result.output

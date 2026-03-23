@@ -6,18 +6,15 @@ match() URL cleaning, _extract_api_calls_from_source empty URL skips.
 
 from __future__ import annotations
 
-import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
-
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
-from coderag.pipeline.cross_language import CrossLanguageMatcher, APIEndpoint, APICall
-
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
+from coderag.pipeline.cross_language import APICall, APIEndpoint, CrossLanguageMatcher
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_node(
     id: str = "node-1",
@@ -50,6 +47,7 @@ def _make_matcher(**kwargs):
 # ---------------------------------------------------------------------------
 # collect_endpoints — line 269: qualified_name doesn't match HTTP method
 # ---------------------------------------------------------------------------
+
 
 class TestCollectEndpointsEdgeCases:
     """Cover lines 269, 272."""
@@ -116,6 +114,7 @@ class TestCollectEndpointsEdgeCases:
 # collect_api_calls — lines 318-324: os.walk fallback
 # ---------------------------------------------------------------------------
 
+
 class TestCollectApiCallsOsWalk:
     """Cover lines 318-324: os.walk fallback when no JS file nodes."""
 
@@ -144,6 +143,7 @@ class TestCollectApiCallsOsWalk:
 # collect_api_calls — line 338: file not found
 # ---------------------------------------------------------------------------
 
+
 class TestCollectApiCallsFileNotFound:
     """Cover line 338: file doesn't exist -> continue."""
 
@@ -162,6 +162,7 @@ class TestCollectApiCallsFileNotFound:
 # ---------------------------------------------------------------------------
 # collect_api_calls — lines 343-344: OSError reading file
 # ---------------------------------------------------------------------------
+
 
 class TestCollectApiCallsOSError:
     """Cover lines 343-344: OSError on file read -> continue."""
@@ -185,6 +186,7 @@ class TestCollectApiCallsOSError:
 # ---------------------------------------------------------------------------
 # _extract_api_calls_from_source — empty URL skips
 # ---------------------------------------------------------------------------
+
 
 class TestExtractApiCallsEmptyUrls:
     """Cover lines 581, 601, 642, 695, 699."""
@@ -243,6 +245,7 @@ class TestExtractApiCallsEmptyUrls:
 # match() — URL cleaning: full URL, empty URL, relative URL
 # Lines 425-431, 435, 439
 # ---------------------------------------------------------------------------
+
 
 class TestMatchUrlCleaning:
     """Cover lines 425-431, 435, 439."""

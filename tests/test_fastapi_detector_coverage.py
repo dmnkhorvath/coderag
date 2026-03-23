@@ -4,26 +4,19 @@ Focuses on uncovered lines: 136-137, 148-149, 397-418, 431, 434,
 457, 467, 472, 482, 491, 514, 524, 533, 620, 678-679, 695,
 725-738, 761, 766-767, 788-826.
 """
-import os
-import re
-from dataclasses import dataclass, field
-from typing import Any
+
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from coderag.core.models import (
-    Edge,
     EdgeKind,
-    FrameworkPattern,
     Node,
     NodeKind,
     generate_node_id,
 )
 from coderag.plugins.python.frameworks.fastapi import FastAPIDetector
 
-
 # ── Helpers ──────────────────────────────────────────────────
+
 
 def _make_node(
     kind: NodeKind,
@@ -64,8 +57,8 @@ def _nodes_by_kind(patterns, kind):
 
 # ── detect_framework tests (lines 136-137, 148-149) ─────────
 
-class TestDetectFramework:
 
+class TestDetectFramework:
     def test_detect_via_requirements_txt(self, tmp_path):
         (tmp_path / "requirements.txt").write_text("fastapi==0.100.0\nuvicorn")
         det = FastAPIDetector()
@@ -152,8 +145,8 @@ class TestDetectFramework:
 
 # ── detect() per-file tests ──────────────────────────────────
 
-class TestDetectRoutes:
 
+class TestDetectRoutes:
     def test_basic_route_detection(self):
         det = FastAPIDetector()
         source = b"@app.get('/items')\ndef list_items():\n    return []\n\n@app.post('/items', response_model=ItemResponse)\ndef create_item(item):\n    return item\n"
@@ -200,7 +193,6 @@ class TestDetectRoutes:
 
 
 class TestDetectWebSocket:
-
     def test_websocket_detection(self):
         det = FastAPIDetector()
         source = b"@app.websocket('/ws')\nasync def websocket_endpoint(ws):\n    pass\n"
@@ -211,10 +203,9 @@ class TestDetectWebSocket:
 
 
 class TestDetectAPIRouter:
-
     def test_apirouter_with_prefix_and_tags(self):
         det = FastAPIDetector()
-        source = b"router = APIRouter(prefix='/api/v1', tags=[\"users\", \"admin\"])\n"
+        source = b'router = APIRouter(prefix=\'/api/v1\', tags=["users", "admin"])\n'
         patterns = det.detect("routes.py", None, source, [], [])
         router_patterns = _patterns_by_type(patterns, "api_router")
         assert len(router_patterns) >= 1
@@ -228,7 +219,6 @@ class TestDetectAPIRouter:
 
 
 class TestDetectMiddleware:
-
     def test_middleware_decorator(self):
         det = FastAPIDetector()
         source = b"@app.middleware('http')\nasync def add_header(request, call_next):\n    response = await call_next(request)\n    return response\n"
@@ -325,9 +315,11 @@ class TestDetectPydanticModel:
         det = FastAPIDetector()
         source = b"class UserCreate(BaseModel):\n    username: str\n    email: str\n    age: int = 0\n"
         cls_node = _make_node(
-            NodeKind.CLASS, "UserCreate",
+            NodeKind.CLASS,
+            "UserCreate",
             qualified_name="app.UserCreate",
-            start_line=1, end_line=4,
+            start_line=1,
+            end_line=4,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
         model_patterns = _patterns_by_type(patterns, "model")
@@ -339,9 +331,11 @@ class TestDetectPydanticModel:
         det = FastAPIDetector()
         source = b"class MyModel(BaseModel):\n    name: str\n    _private: str\n    model_config: dict = {}\n"
         cls_node = _make_node(
-            NodeKind.CLASS, "MyModel",
+            NodeKind.CLASS,
+            "MyModel",
             qualified_name="app.MyModel",
-            start_line=1, end_line=4,
+            start_line=1,
+            end_line=4,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
         model_patterns = _patterns_by_type(patterns, "model")
@@ -358,9 +352,11 @@ class TestDetectPydanticModel:
         cls_source = "class Item(BaseModel):\n    title: str\n    price: float"
         source = cls_source.encode()
         cls_node = _make_node(
-            NodeKind.CLASS, "Item",
+            NodeKind.CLASS,
+            "Item",
             qualified_name="app.Item",
-            start_line=1, end_line=3,
+            start_line=1,
+            end_line=3,
             source_text=cls_source,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
@@ -371,9 +367,11 @@ class TestDetectPydanticModel:
         det = FastAPIDetector()
         source = b"class Settings(BaseSettings):\n    app_name: str = 'MyApp'\n    debug: bool = False\n"
         cls_node = _make_node(
-            NodeKind.CLASS, "Settings",
+            NodeKind.CLASS,
+            "Settings",
             qualified_name="app.Settings",
-            start_line=1, end_line=3,
+            start_line=1,
+            end_line=3,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
         model_patterns = _patterns_by_type(patterns, "model")
@@ -383,9 +381,11 @@ class TestDetectPydanticModel:
         det = FastAPIDetector()
         source = b"class AppConfig(BaseConfig):\n    host: str\n    port: int\n"
         cls_node = _make_node(
-            NodeKind.CLASS, "AppConfig",
+            NodeKind.CLASS,
+            "AppConfig",
             qualified_name="app.AppConfig",
-            start_line=1, end_line=3,
+            start_line=1,
+            end_line=3,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
         model_patterns = _patterns_by_type(patterns, "model")
@@ -396,9 +396,11 @@ class TestDetectPydanticModel:
         det = FastAPIDetector()
         source = b"class MyModel(BaseModel):\n    name: str\n    class Config:\n        orm_mode = True\n"
         cls_node = _make_node(
-            NodeKind.CLASS, "MyModel",
+            NodeKind.CLASS,
+            "MyModel",
             qualified_name="app.MyModel",
-            start_line=1, end_line=4,
+            start_line=1,
+            end_line=4,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
         model_patterns = _patterns_by_type(patterns, "model")
@@ -414,9 +416,11 @@ class TestDetectPydanticModel:
         # These won't normally appear as field matches but test the skip logic
         source = b"class MyModel(BaseModel):\n    name: str\n"
         cls_node = _make_node(
-            NodeKind.CLASS, "MyModel",
+            NodeKind.CLASS,
+            "MyModel",
             qualified_name="app.MyModel",
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         patterns = det.detect("app.py", None, source, [cls_node], [])
         model_patterns = _patterns_by_type(patterns, "model")
@@ -446,7 +450,6 @@ class TestDetectDependsInFunc:
 
 
 class TestDetectFastAPIApp:
-
     def test_fastapi_app_not_separate_pattern(self):
         """FastAPI() creation is not a separate pattern type."""
         det = FastAPIDetector()
@@ -464,7 +467,6 @@ class TestDetectFastAPIApp:
 
 
 class TestIncludeRouter:
-
     def test_include_router_not_per_file_pattern(self):
         """include_router is only detected in detect_global_patterns, not per-file detect()."""
         det = FastAPIDetector()
@@ -476,8 +478,8 @@ class TestIncludeRouter:
 
 # ── Private helper tests ─────────────────────────────────────
 
-class TestFindFuncNearLine:
 
+class TestFindFuncNearLine:
     def test_finds_closest_function(self):
         det = FastAPIDetector()
         fn1 = _make_node(NodeKind.FUNCTION, "handler1", start_line=5, end_line=10)
@@ -506,7 +508,6 @@ class TestFindFuncNearLine:
 
 
 class TestExtractBases:
-
     def test_extract_single_base(self):
         det = FastAPIDetector()
         source = "class MyModel(BaseModel):\n    pass"
@@ -556,13 +557,14 @@ class TestExtractBases:
 
 
 class TestGetClassSource:
-
     def test_with_source_text_attribute(self):
         """Lines 678-679: cls.source_text is set."""
         det = FastAPIDetector()
         cls = _make_node(
-            NodeKind.CLASS, "MyClass",
-            start_line=1, end_line=3,
+            NodeKind.CLASS,
+            "MyClass",
+            start_line=1,
+            end_line=3,
             source_text="class MyClass:\n    x: int\n    y: str",
         )
         result = det._get_class_source(cls, "some other source")
@@ -578,8 +580,8 @@ class TestGetClassSource:
 
 # ── Global pattern tests ─────────────────────────────────────
 
-class TestDetectGlobalPatterns:
 
+class TestDetectGlobalPatterns:
     def test_no_project_root(self):
         """Line 457: _infer_project_root returns None."""
         det = FastAPIDetector()
@@ -601,7 +603,8 @@ class TestDetectGlobalPatterns:
         det = FastAPIDetector()
         (tmp_path / "main.py").write_text("from fastapi import FastAPI")
         file_node = _make_node(
-            NodeKind.FILE, "main.py",
+            NodeKind.FILE,
+            "main.py",
             file_path=str(tmp_path / "main.py"),
         )
         store = MagicMock()
@@ -616,7 +619,8 @@ class TestDetectGlobalPatterns:
         sub.mkdir(parents=True)
         (sub / "code.py").write_text("pass")
         file_node = _make_node(
-            NodeKind.FILE, "code.py",
+            NodeKind.FILE,
+            "code.py",
             file_path=str(sub / "code.py"),
         )
         store = MagicMock()
@@ -634,7 +638,8 @@ class TestDetectGlobalPatterns:
             "app.include_router(users_router, prefix='/api/users', tags=[\"users\"])\n"
         )
         file_node = _make_node(
-            NodeKind.FILE, "main.py",
+            NodeKind.FILE,
+            "main.py",
             file_path=str(tmp_path / "main.py"),
         )
         store = MagicMock()
@@ -657,7 +662,8 @@ class TestDetectGlobalPatterns:
         bad_file = tmp_path / "bad.py"
         bad_file.write_text("include_router")
         file_node = _make_node(
-            NodeKind.FILE, "main.py",
+            NodeKind.FILE,
+            "main.py",
             file_path=str(tmp_path / "main.py"),
         )
         store = MagicMock()
@@ -683,16 +689,16 @@ class TestDetectGlobalPatterns:
     def test_global_patterns_with_router_store_lookup(self, tmp_path):
         """Router inclusion with store.find_nodes for router nodes."""
         det = FastAPIDetector()
-        (tmp_path / "main.py").write_text(
-            "app.include_router(users_router, prefix='/api/users')\n"
-        )
+        (tmp_path / "main.py").write_text("app.include_router(users_router, prefix='/api/users')\n")
         (tmp_path / "requirements.txt").write_text("fastapi")
         file_node = _make_node(
-            NodeKind.FILE, "main.py",
+            NodeKind.FILE,
+            "main.py",
             file_path=str(tmp_path / "main.py"),
         )
         router_node = _make_node(
-            NodeKind.MODULE, "users_router",
+            NodeKind.MODULE,
+            "users_router",
             metadata={"component_type": "api_router"},
         )
         store = MagicMock()
@@ -711,7 +717,6 @@ class TestDetectGlobalPatterns:
 
 
 class TestBuildDependencyTree:
-
     def test_build_dependency_tree_returns_none(self):
         det = FastAPIDetector()
         store = MagicMock()
@@ -723,14 +728,18 @@ class TestBuildDependencyTree:
         det = FastAPIDetector()
         func_node = _make_node(NodeKind.FUNCTION, "get_db", start_line=1, end_line=5)
         route_node = _make_node(
-            NodeKind.ROUTE, "GET /items",
+            NodeKind.ROUTE,
+            "GET /items",
             metadata={"framework": "fastapi"},
-            start_line=10, end_line=15,
+            start_line=10,
+            end_line=15,
         )
         non_fastapi_route = _make_node(
-            NodeKind.ROUTE, "GET /other",
+            NodeKind.ROUTE,
+            "GET /other",
             metadata={"framework": "flask"},
-            start_line=20, end_line=25,
+            start_line=20,
+            end_line=25,
         )
         store = MagicMock()
 
@@ -748,7 +757,6 @@ class TestBuildDependencyTree:
 
 
 class TestDetectPydanticInheritance:
-
     def test_no_pydantic_models(self):
         det = FastAPIDetector()
         store = MagicMock()
@@ -759,7 +767,8 @@ class TestDetectPydanticInheritance:
     def test_single_pydantic_model(self):
         det = FastAPIDetector()
         model_node = _make_node(
-            NodeKind.MODEL, "UserBase",
+            NodeKind.MODEL,
+            "UserBase",
             metadata={"model_type": "pydantic"},
         )
         store = MagicMock()
@@ -779,33 +788,37 @@ class TestDetectPydanticInheritance:
         det = FastAPIDetector()
         source_file = tmp_path / "models.py"
         source_file.write_text(
-            "class UserBase(BaseModel):\n"
-            "    name: str\n"
-            "\n"
-            "class UserCreate(UserBase):\n"
-            "    password: str\n"
+            "class UserBase(BaseModel):\n    name: str\n\nclass UserCreate(UserBase):\n    password: str\n"
         )
         model1 = _make_node(
-            NodeKind.MODEL, "UserBase",
+            NodeKind.MODEL,
+            "UserBase",
             file_path=str(source_file),
             metadata={"model_type": "pydantic"},
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         model2 = _make_node(
-            NodeKind.MODEL, "UserCreate",
+            NodeKind.MODEL,
+            "UserCreate",
             file_path=str(source_file),
             metadata={"model_type": "pydantic"},
-            start_line=4, end_line=5,
+            start_line=4,
+            end_line=5,
         )
         cls1 = _make_node(
-            NodeKind.CLASS, "UserBase",
+            NodeKind.CLASS,
+            "UserBase",
             file_path=str(source_file),
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         cls2 = _make_node(
-            NodeKind.CLASS, "UserCreate",
+            NodeKind.CLASS,
+            "UserCreate",
             file_path=str(source_file),
-            start_line=4, end_line=5,
+            start_line=4,
+            end_line=5,
         )
         store = MagicMock()
 
@@ -827,21 +840,25 @@ class TestDetectPydanticInheritance:
         """Lines 788-826: OSError reading class file."""
         det = FastAPIDetector()
         model1 = _make_node(
-            NodeKind.MODEL, "UserBase",
+            NodeKind.MODEL,
+            "UserBase",
             file_path="/nonexistent/models.py",
             metadata={"model_type": "pydantic"},
         )
         model2 = _make_node(
-            NodeKind.MODEL, "UserCreate",
+            NodeKind.MODEL,
+            "UserCreate",
             file_path="/nonexistent/models.py",
             metadata={"model_type": "pydantic"},
         )
         cls1 = _make_node(
-            NodeKind.CLASS, "UserBase",
+            NodeKind.CLASS,
+            "UserBase",
             file_path="/nonexistent/models.py",
         )
         cls2 = _make_node(
-            NodeKind.CLASS, "UserCreate",
+            NodeKind.CLASS,
+            "UserCreate",
             file_path="/nonexistent/models.py",
         )
         store = MagicMock()
@@ -861,26 +878,29 @@ class TestDetectPydanticInheritance:
     def test_pydantic_inheritance_no_matching_base(self, tmp_path):
         det = FastAPIDetector()
         source_file = tmp_path / "models.py"
-        source_file.write_text(
-            "class UserCreate(SomeOtherBase):\n"
-            "    password: str\n"
-        )
+        source_file.write_text("class UserCreate(SomeOtherBase):\n    password: str\n")
         model1 = _make_node(
-            NodeKind.MODEL, "UserBase",
+            NodeKind.MODEL,
+            "UserBase",
             file_path=str(source_file),
             metadata={"model_type": "pydantic"},
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         model2 = _make_node(
-            NodeKind.MODEL, "UserCreate",
+            NodeKind.MODEL,
+            "UserCreate",
             file_path=str(source_file),
             metadata={"model_type": "pydantic"},
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         cls2 = _make_node(
-            NodeKind.CLASS, "UserCreate",
+            NodeKind.CLASS,
+            "UserCreate",
             file_path=str(source_file),
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         store = MagicMock()
 
@@ -900,26 +920,29 @@ class TestDetectPydanticInheritance:
         """Ensure self-inheritance is skipped."""
         det = FastAPIDetector()
         source_file = tmp_path / "models.py"
-        source_file.write_text(
-            "class UserBase(BaseModel):\n"
-            "    name: str\n"
-        )
+        source_file.write_text("class UserBase(BaseModel):\n    name: str\n")
         model1 = _make_node(
-            NodeKind.MODEL, "UserBase",
+            NodeKind.MODEL,
+            "UserBase",
             file_path=str(source_file),
             metadata={"model_type": "pydantic"},
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         model2 = _make_node(
-            NodeKind.MODEL, "UserBase2",
+            NodeKind.MODEL,
+            "UserBase2",
             file_path=str(source_file),
             metadata={"model_type": "pydantic"},
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         cls1 = _make_node(
-            NodeKind.CLASS, "UserBase",
+            NodeKind.CLASS,
+            "UserBase",
             file_path=str(source_file),
-            start_line=1, end_line=2,
+            start_line=1,
+            end_line=2,
         )
         store = MagicMock()
 
@@ -938,14 +961,12 @@ class TestDetectPydanticInheritance:
 
 
 class TestFrameworkName:
-
     def test_framework_name(self):
         det = FastAPIDetector()
         assert det.framework_name == "fastapi"
 
 
 class TestEmptySource:
-
     def test_empty_source(self):
         det = FastAPIDetector()
         patterns = det.detect("app.py", None, b"", [], [])

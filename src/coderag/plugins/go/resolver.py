@@ -13,15 +13,59 @@ from coderag.core.registry import ModuleResolver
 
 logger = logging.getLogger(__name__)
 
-_GO_STDLIB = frozenset({
-    "archive", "bufio", "builtin", "bytes", "cmp", "compress", "container",
-    "context", "crypto", "database", "debug", "embed", "encoding", "errors",
-    "expvar", "flag", "fmt", "go", "hash", "html", "image", "index", "io",
-    "iter", "log", "maps", "math", "mime", "net", "os", "path", "plugin",
-    "reflect", "regexp", "runtime", "slices", "sort", "strconv", "strings",
-    "structs", "sync", "syscall", "testing", "text", "time", "unicode",
-    "unique", "unsafe",
-})
+_GO_STDLIB = frozenset(
+    {
+        "archive",
+        "bufio",
+        "builtin",
+        "bytes",
+        "cmp",
+        "compress",
+        "container",
+        "context",
+        "crypto",
+        "database",
+        "debug",
+        "embed",
+        "encoding",
+        "errors",
+        "expvar",
+        "flag",
+        "fmt",
+        "go",
+        "hash",
+        "html",
+        "image",
+        "index",
+        "io",
+        "iter",
+        "log",
+        "maps",
+        "math",
+        "mime",
+        "net",
+        "os",
+        "path",
+        "plugin",
+        "reflect",
+        "regexp",
+        "runtime",
+        "slices",
+        "sort",
+        "strconv",
+        "strings",
+        "structs",
+        "sync",
+        "syscall",
+        "testing",
+        "text",
+        "time",
+        "unicode",
+        "unique",
+        "unsafe",
+    }
+)
+
 
 class GoResolver(ModuleResolver):
     """Resolve Go import paths to concrete files."""
@@ -64,7 +108,7 @@ class GoResolver(ModuleResolver):
             )
 
         if self._module_path and import_path.startswith(self._module_path):
-            rel_path = import_path[len(self._module_path):].lstrip("/")
+            rel_path = import_path[len(self._module_path) :].lstrip("/")
             target_dir = Path(self._project_root) / rel_path
             if target_dir.is_dir():
                 return ResolutionResult(

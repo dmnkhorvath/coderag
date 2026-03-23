@@ -4,24 +4,29 @@ Covers missing lines: 206-207, 212-216, 256-257, 473, 531-533, 556,
 792-816, 828-850, 863-901, 984, 988, 992, 1004-1010, 1132, 1149,
 1158, 1161-1162, 1165
 """
+
 from __future__ import annotations
 
 import sqlite3
-import time
-from unittest.mock import patch, MagicMock
 
 import pytest
 
+from coderag.core.models import Edge, EdgeKind, Node, NodeKind
 from coderag.storage.sqlite_store import SQLiteStore
-from coderag.core.models import Node, Edge, NodeKind, EdgeKind
 
 
 def _make_node(id, kind, name, qname, fpath, start, end, lang, **kw):
     """Helper to create Node with all required fields."""
     return Node(
-        id=id, kind=kind, name=name, qualified_name=qname,
-        file_path=fpath, start_line=start, end_line=end,
-        language=lang, **kw,
+        id=id,
+        kind=kind,
+        name=name,
+        qualified_name=qname,
+        file_path=fpath,
+        start_line=start,
+        end_line=end,
+        language=lang,
+        **kw,
     )
 
 
@@ -37,28 +42,36 @@ def store(tmp_path):
 def populated_store(store):
     """Store with some nodes and edges for testing."""
     nodes = [
-        _make_node("file1.py:1:file:file1.py", NodeKind.FILE, "file1.py",
-                   "file1.py", "file1.py", 1, 100, "python"),
-        _make_node("file1.py:3:class:Foo", NodeKind.CLASS, "Foo",
-                   "Foo", "file1.py", 3, 20, "python",
-                   docblock="A Foo class."),
-        _make_node("file1.py:5:method:bar", NodeKind.METHOD, "bar",
-                   "Foo.bar", "file1.py", 5, 10, "python"),
-        _make_node("file2.py:1:file:file2.py", NodeKind.FILE, "file2.py",
-                   "file2.py", "file2.py", 1, 50, "python"),
-        _make_node("file2.py:3:function:helper", NodeKind.FUNCTION, "helper",
-                   "helper", "file2.py", 3, 8, "python"),
+        _make_node("file1.py:1:file:file1.py", NodeKind.FILE, "file1.py", "file1.py", "file1.py", 1, 100, "python"),
+        _make_node(
+            "file1.py:3:class:Foo", NodeKind.CLASS, "Foo", "Foo", "file1.py", 3, 20, "python", docblock="A Foo class."
+        ),
+        _make_node("file1.py:5:method:bar", NodeKind.METHOD, "bar", "Foo.bar", "file1.py", 5, 10, "python"),
+        _make_node("file2.py:1:file:file2.py", NodeKind.FILE, "file2.py", "file2.py", "file2.py", 1, 50, "python"),
+        _make_node("file2.py:3:function:helper", NodeKind.FUNCTION, "helper", "helper", "file2.py", 3, 8, "python"),
     ]
     edges = [
-        Edge(source_id="file1.py:1:file:file1.py",
-             target_id="file1.py:3:class:Foo",
-             kind=EdgeKind.CONTAINS, confidence=1.0, line_number=3),
-        Edge(source_id="file1.py:3:class:Foo",
-             target_id="file1.py:5:method:bar",
-             kind=EdgeKind.CONTAINS, confidence=1.0, line_number=5),
-        Edge(source_id="file1.py:5:method:bar",
-             target_id="file2.py:3:function:helper",
-             kind=EdgeKind.CALLS, confidence=0.9, line_number=7),
+        Edge(
+            source_id="file1.py:1:file:file1.py",
+            target_id="file1.py:3:class:Foo",
+            kind=EdgeKind.CONTAINS,
+            confidence=1.0,
+            line_number=3,
+        ),
+        Edge(
+            source_id="file1.py:3:class:Foo",
+            target_id="file1.py:5:method:bar",
+            kind=EdgeKind.CONTAINS,
+            confidence=1.0,
+            line_number=5,
+        ),
+        Edge(
+            source_id="file1.py:5:method:bar",
+            target_id="file2.py:3:function:helper",
+            kind=EdgeKind.CALLS,
+            confidence=0.9,
+            line_number=7,
+        ),
     ]
     store.upsert_nodes(nodes)
     store.upsert_edges(edges)
@@ -69,8 +82,8 @@ def populated_store(store):
 # execute_write / _execute_with_retry  (lines 206-216, 256-257)
 # ---------------------------------------------------------------------------
 
-class TestExecuteWrite:
 
+class TestExecuteWrite:
     def test_execute_write_basic(self, store):
         """Line 206-207: basic execute_write path."""
         cursor = store.execute_write(
@@ -78,9 +91,7 @@ class TestExecuteWrite:
             ("test_key", "test_value"),
         )
         assert cursor is not None
-        row = store.connection.execute(
-            "SELECT value FROM metadata WHERE key = ?", ("test_key",)
-        ).fetchone()
+        row = store.connection.execute("SELECT value FROM metadata WHERE key = ?", ("test_key",)).fetchone()
         assert row[0] == "test_value"
 
     def test_execute_with_retry_database_locked(self, store):
@@ -90,6 +101,7 @@ class TestExecuteWrite:
 
         class WrappedConn:
             """Wrapper that fails first 2 execute calls with locked."""
+
             def __init__(self, real):
                 self._real = real
                 self._call_count = 0
@@ -105,9 +117,7 @@ class TestExecuteWrite:
 
         store._conn = WrappedConn(real_conn)
         try:
-            result = store._execute_with_retry(
-                "SELECT 1", (), max_retries=5, base_delay=0.001
-            )
+            result = store._execute_with_retry("SELECT 1", (), max_retries=5, base_delay=0.001)
             assert result is not None
         finally:
             store._conn = real_conn
@@ -119,15 +129,14 @@ class TestExecuteWrite:
         class AlwaysLockedConn:
             def execute(self, sql, params=()):
                 raise sqlite3.OperationalError("database is locked")
+
             def __getattr__(self, name):
                 return getattr(real_conn, name)
 
         store._conn = AlwaysLockedConn()
         try:
             with pytest.raises(sqlite3.OperationalError):
-                store._execute_with_retry(
-                    "SELECT 1", (), max_retries=2, base_delay=0.001
-                )
+                store._execute_with_retry("SELECT 1", (), max_retries=2, base_delay=0.001)
         finally:
             store._conn = real_conn
 
@@ -138,15 +147,14 @@ class TestExecuteWrite:
         class OtherErrorConn:
             def execute(self, sql, params=()):
                 raise sqlite3.OperationalError("no such table: foobar")
+
             def __getattr__(self, name):
                 return getattr(real_conn, name)
 
         store._conn = OtherErrorConn()
         try:
             with pytest.raises(sqlite3.OperationalError, match="no such table"):
-                store._execute_with_retry(
-                    "SELECT 1", (), max_retries=5, base_delay=0.001
-                )
+                store._execute_with_retry("SELECT 1", (), max_retries=5, base_delay=0.001)
         finally:
             store._conn = real_conn
 
@@ -155,8 +163,8 @@ class TestExecuteWrite:
 # delete_nodes_for_file  (lines 473, 531-533, 556)
 # ---------------------------------------------------------------------------
 
-class TestDeleteNodesForFile:
 
+class TestDeleteNodesForFile:
     def test_delete_nodes_for_existing_file(self, populated_store):
         """Lines 531-533: delete nodes and edges for a file."""
         count = populated_store.delete_nodes_for_file("file1.py")
@@ -184,8 +192,8 @@ class TestDeleteNodesForFile:
 # get_summary / get_communities  (lines 792-816, 828-850, 863-901)
 # ---------------------------------------------------------------------------
 
-class TestGetSummary:
 
+class TestGetSummary:
     def test_get_summary_empty_store(self, store):
         """Lines 792-816: summary of empty store."""
         summary = store.get_summary()
@@ -216,12 +224,8 @@ class TestGetSummary:
 
     def test_get_summary_with_communities(self, populated_store):
         """Lines 863-901: communities count in summary."""
-        populated_store.connection.execute(
-            "UPDATE nodes SET community_id = 1 WHERE file_path = ?", ("file1.py",)
-        )
-        populated_store.connection.execute(
-            "UPDATE nodes SET community_id = 2 WHERE file_path = ?", ("file2.py",)
-        )
+        populated_store.connection.execute("UPDATE nodes SET community_id = 1 WHERE file_path = ?", ("file1.py",))
+        populated_store.connection.execute("UPDATE nodes SET community_id = 2 WHERE file_path = ?", ("file2.py",))
         populated_store.connection.commit()
         summary = populated_store.get_summary()
         assert summary.communities >= 2
@@ -231,8 +235,8 @@ class TestGetSummary:
 # Metadata operations  (lines 984, 988, 992)
 # ---------------------------------------------------------------------------
 
-class TestMetadata:
 
+class TestMetadata:
     def test_set_and_get_metadata(self, store):
         """Lines 984, 988: basic set/get."""
         store.set_metadata("test_key", "test_value")
@@ -253,8 +257,8 @@ class TestMetadata:
 # Transaction context manager  (lines 1004-1010)
 # ---------------------------------------------------------------------------
 
-class TestTransaction:
 
+class TestTransaction:
     def test_transaction_commit(self, store):
         """Lines 1004-1010: successful transaction commits."""
         with store.transaction():
@@ -262,9 +266,7 @@ class TestTransaction:
                 "INSERT INTO metadata (key, value) VALUES (?, ?)",
                 ("tx_key", "tx_value"),
             )
-        row = store.connection.execute(
-            "SELECT value FROM metadata WHERE key = ?", ("tx_key",)
-        ).fetchone()
+        row = store.connection.execute("SELECT value FROM metadata WHERE key = ?", ("tx_key",)).fetchone()
         assert row[0] == "tx_value"
 
     def test_transaction_rollback(self, store):
@@ -276,9 +278,7 @@ class TestTransaction:
                     ("tx_fail", "should_not_exist"),
                 )
                 raise ValueError("simulated error")
-        row = store.connection.execute(
-            "SELECT value FROM metadata WHERE key = ?", ("tx_fail",)
-        ).fetchone()
+        row = store.connection.execute("SELECT value FROM metadata WHERE key = ?", ("tx_fail",)).fetchone()
         assert row is None
 
     def test_begin_commit_transaction(self, store):
@@ -289,9 +289,7 @@ class TestTransaction:
             ("manual_tx", "manual_value"),
         )
         store.commit_transaction()
-        row = store.connection.execute(
-            "SELECT value FROM metadata WHERE key = ?", ("manual_tx",)
-        ).fetchone()
+        row = store.connection.execute("SELECT value FROM metadata WHERE key = ?", ("manual_tx",)).fetchone()
         assert row[0] == "manual_value"
 
     def test_begin_rollback_transaction(self, store):
@@ -302,9 +300,7 @@ class TestTransaction:
             ("rollback_tx", "should_not_exist"),
         )
         store.rollback_transaction()
-        row = store.connection.execute(
-            "SELECT value FROM metadata WHERE key = ?", ("rollback_tx",)
-        ).fetchone()
+        row = store.connection.execute("SELECT value FROM metadata WHERE key = ?", ("rollback_tx",)).fetchone()
         assert row is None
 
 
@@ -312,8 +308,8 @@ class TestTransaction:
 # Search / FTS  (lines 1132, 1149, 1158, 1161-1165)
 # ---------------------------------------------------------------------------
 
-class TestSearchNodes:
 
+class TestSearchNodes:
     def test_search_by_name(self, populated_store):
         results = populated_store.search_nodes("Foo")
         assert len(results) >= 1
@@ -334,8 +330,9 @@ class TestSearchNodes:
 
     def test_search_camel_case_splitting(self, populated_store):
         """Lines 1149, 1158: camelCase/PascalCase splitting in FTS query."""
-        node = _make_node("test:1:class:HttpKernel", NodeKind.CLASS,
-                          "HttpKernel", "App.HttpKernel", "test.py", 1, 10, "python")
+        node = _make_node(
+            "test:1:class:HttpKernel", NodeKind.CLASS, "HttpKernel", "App.HttpKernel", "test.py", 1, 10, "python"
+        )
         populated_store.upsert_nodes([node])
         results = populated_store.search_nodes("HttpKernel")
         assert len(results) >= 1
@@ -356,8 +353,7 @@ class TestSearchNodes:
 
     def test_search_underscore_splitting(self, populated_store):
         """Lines 1149: underscore splitting in FTS query."""
-        node = _make_node("test:1:class:WP_Query", NodeKind.CLASS,
-                          "WP_Query", "WP_Query", "test.php", 1, 10, "php")
+        node = _make_node("test:1:class:WP_Query", NodeKind.CLASS, "WP_Query", "WP_Query", "test.php", 1, 10, "php")
         populated_store.upsert_nodes([node])
         results = populated_store.search_nodes("WP_Query")
         assert len(results) >= 1
@@ -371,8 +367,8 @@ class TestSearchNodes:
 # Edge operations
 # ---------------------------------------------------------------------------
 
-class TestEdgeOperations:
 
+class TestEdgeOperations:
     def test_get_edges_for_node(self, populated_store):
         edges = populated_store.get_edges(source_id="file1.py:3:class:Foo")
         assert len(edges) >= 1
@@ -385,7 +381,9 @@ class TestEdgeOperations:
         edge = Edge(
             source_id="file2.py:1:file:file2.py",
             target_id="file2.py:3:function:helper",
-            kind=EdgeKind.CONTAINS, confidence=1.0, line_number=3,
+            kind=EdgeKind.CONTAINS,
+            confidence=1.0,
+            line_number=3,
         )
         populated_store.upsert_edge(edge)
         edges = populated_store.get_edges(source_id="file2.py:1:file:file2.py")
@@ -396,8 +394,8 @@ class TestEdgeOperations:
 # Context manager / dunder  (lines __enter__, __exit__)
 # ---------------------------------------------------------------------------
 
-class TestContextManager:
 
+class TestContextManager:
     def test_context_manager(self, tmp_path):
         db_path = str(tmp_path / "ctx.db")
         with SQLiteStore(db_path) as s:
@@ -427,8 +425,8 @@ class TestContextManager:
 # Stats
 # ---------------------------------------------------------------------------
 
-class TestStats:
 
+class TestStats:
     def test_get_stats_empty(self, store):
         stats = store.get_stats()
         assert isinstance(stats, dict)
@@ -445,11 +443,10 @@ class TestStats:
 # Node operations
 # ---------------------------------------------------------------------------
 
-class TestNodeOperations:
 
+class TestNodeOperations:
     def test_upsert_single_node(self, store):
-        node = _make_node("test:1:class:X", NodeKind.CLASS, "X",
-                          "X", "test.py", 1, 10, "python")
+        node = _make_node("test:1:class:X", NodeKind.CLASS, "X", "X", "test.py", 1, 10, "python")
         store.upsert_node(node)
         results = store.search_nodes("X")
         assert len(results) >= 1
@@ -484,8 +481,8 @@ class TestNodeOperations:
 # create_thread_connection
 # ---------------------------------------------------------------------------
 
-class TestThreadConnection:
 
+class TestThreadConnection:
     def test_create_thread_connection(self, populated_store):
         """Test creating a read-only thread connection."""
         conn = populated_store.create_thread_connection()

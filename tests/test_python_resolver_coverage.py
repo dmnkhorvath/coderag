@@ -2,9 +2,8 @@
 
 Targets missing lines: 41, 351-358, 442-445, 458-465, 484, 506-507
 """
-import os
+
 from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 
@@ -17,6 +16,7 @@ def resolver():
 
 
 # ── Stdlib Detection Tests ───────────────────────────────────
+
 
 class TestStdlibDetection:
     """Test stdlib module detection (line 41 area)."""
@@ -40,6 +40,7 @@ class TestStdlibDetection:
 
 
 # ── _is_venv Tests ───────────────────────────────────────────
+
 
 class TestIsVenv:
     """Test _is_venv static method (lines 506-507)."""
@@ -88,6 +89,7 @@ class TestIsVenv:
 
 # ── resolve_symbol Tests ─────────────────────────────────────
 
+
 class TestResolveSymbol:
     """Test resolve_symbol method (lines 351-358)."""
 
@@ -96,10 +98,14 @@ class TestResolveSymbol:
         resolver.set_project_root(str(tmp_path))
         # Manually populate the file index
         resolver._file_index["mypackage.models"] = "mypackage/models.py"
-        result = resolver.resolve_symbol("MyClass", "app.py", context={
-            "project_root": str(tmp_path),
-            "import_path": "mypackage.models",
-        })
+        result = resolver.resolve_symbol(
+            "MyClass",
+            "app.py",
+            context={
+                "project_root": str(tmp_path),
+                "import_path": "mypackage.models",
+            },
+        )
         assert isinstance(result, ResolutionResult)
 
     def test_resolve_symbol_not_found(self, resolver, tmp_path):
@@ -116,14 +122,19 @@ class TestResolveSymbol:
         pkg.mkdir()
         (pkg / "__init__.py").touch()
         (pkg / "models.py").write_text("class MyClass: pass")
-        result = resolver.resolve_symbol("MyClass", "app.py", context={
-            "project_root": str(tmp_path),
-            "import_path": "mypackage.models",
-        })
+        result = resolver.resolve_symbol(
+            "MyClass",
+            "app.py",
+            context={
+                "project_root": str(tmp_path),
+                "import_path": "mypackage.models",
+            },
+        )
         assert isinstance(result, ResolutionResult)
 
 
 # ── build_index Tests ────────────────────────────────────────
+
 
 class TestBuildIndex:
     """Test build_index method (lines 442-445)."""
@@ -181,6 +192,7 @@ class TestBuildIndex:
 
 
 # ── _try_resolve_from_dir Tests ──────────────────────────────
+
 
 class TestTryResolveFromDir:
     """Test _try_resolve_from_dir method (lines 458-465, 484)."""
@@ -244,6 +256,7 @@ class TestTryResolveFromDir:
 
 # ── Relative Import Tests ────────────────────────────────────
 
+
 class TestRelativeImports:
     """Test relative import resolution."""
 
@@ -254,11 +267,15 @@ class TestRelativeImports:
         (pkg / "__init__.py").touch()
         (pkg / "models.py").write_text("class User: pass")
         (pkg / "views.py").write_text("from .models import User")
-        result = resolver.resolve(".models", "mypackage/views.py", context={
-            "project_root": str(tmp_path),
-            "is_relative": True,
-            "level": 1,
-        })
+        result = resolver.resolve(
+            ".models",
+            "mypackage/views.py",
+            context={
+                "project_root": str(tmp_path),
+                "is_relative": True,
+                "level": 1,
+            },
+        )
         assert isinstance(result, ResolutionResult)
 
     def test_relative_import_parent(self, resolver, tmp_path):
@@ -269,29 +286,42 @@ class TestRelativeImports:
         (pkg / "__init__.py").touch()
         (sub / "__init__.py").touch()
         (pkg / "models.py").write_text("class User: pass")
-        result = resolver.resolve("..models", "mypackage/sub/views.py", context={
-            "project_root": str(tmp_path),
-            "is_relative": True,
-            "level": 2,
-        })
+        result = resolver.resolve(
+            "..models",
+            "mypackage/sub/views.py",
+            context={
+                "project_root": str(tmp_path),
+                "is_relative": True,
+                "level": 2,
+            },
+        )
         assert isinstance(result, ResolutionResult)
 
 
 # ── Unresolved Import Tests ──────────────────────────────────
+
 
 class TestUnresolvedImports:
     """Test unresolved import handling."""
 
     def test_unresolved_third_party(self, resolver, tmp_path):
         resolver.set_project_root(str(tmp_path))
-        result = resolver.resolve("some_unknown_package", "app.py", context={
-            "project_root": str(tmp_path),
-        })
+        result = resolver.resolve(
+            "some_unknown_package",
+            "app.py",
+            context={
+                "project_root": str(tmp_path),
+            },
+        )
         assert result.resolution_strategy == ResolutionStrategy.UNRESOLVED
 
     def test_empty_import_path(self, resolver, tmp_path):
         resolver.set_project_root(str(tmp_path))
-        result = resolver.resolve("", "app.py", context={
-            "project_root": str(tmp_path),
-        })
+        result = resolver.resolve(
+            "",
+            "app.py",
+            context={
+                "project_root": str(tmp_path),
+            },
+        )
         assert isinstance(result, ResolutionResult)
