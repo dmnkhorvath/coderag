@@ -1,0 +1,131 @@
+site_name: CodeRAG CLI
+site_description: Build knowledge graphs from your codebase for smarter AI coding assistants
+site_url: https://dmnkhorvath.github.io/coderag/
+repo_url: https://github.com/dmnkhorvath/coderag
+repo_name: dmnkhorvath/coderag
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - toc.follow
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: quickstart.md
+    - Installation: wiki/Installation.md
+    - Configuration: wiki/Configuration.md
+  - User Guide:
+    - Smart Launcher: launcher.md
+    - Session Memory: session-memory.md
+    - Cost Savings: cost-savings.md
+    - AI Tool Setup: ai-tool-setup.md
+    - Docker: docker.md
+  - CLI Reference: wiki/CLI-Reference.md
+  - MCP Server: wiki/MCP-Server-Setup.md
+  - Architecture: architecture/architecture-design.md
+  - Benchmarks:
+    - 10-Repository Benchmark: benchmarks/benchmark-10repos.md
+    - JS/TS Benchmark: benchmarks/benchmark-15repos-jsts.md
+    - Mixed-Language Benchmark: benchmarks/benchmark-mixed-report.md
+    - CSS/SCSS Benchmark: benchmarks/benchmark-styling.md
+    - Performance Optimization: benchmarks/performance-optimization-report.md
+    - Python Benchmark: benchmarks/python-benchmark-report.md
+  - Research:
+    - AST Parsing: research/research-ast-parsing.md
+    - Cross-Language Patterns: research/research-cross-language.md
+    - Graph Schema Design: research/research-graph-schema.md
+    - JS/TS Parsing: research/research-js-ts-parsing.md
+    - PHP Parsing: research/research-php-parsing.md
+    - Tree-sitter Deep Dive: research/research-treesitter-deep-dive.md
+  - Development:
+    - Project Plan: plan/PLAN.md
+    - UX Roadmap: plan/ux-session-roadmap.md
+    - "Dogfood Session 5": dogfood/dogfood-log-session5.md
+    - "Dogfood Session 6": dogfood/dogfood-log-session6.md
+    - "Dogfood Session 7": dogfood/dogfood-log-session7.md
+    - "Dogfood Session 8": dogfood/dogfood-log-session8.md
+    - Market Research: market-research/codebase-mapping-research.md
+    - Discovered Repos: market-research/discovered-repos.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dmnkhorvath/coderag
+
+copyright: Copyright &copy; 2026 Dominik Horváth

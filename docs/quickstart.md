@@ -147,7 +147,7 @@ Typical result: **86.4% token savings** compared to manual file searching.
 - **[Session Memory](session-memory.md)** — Cross-session context persistence
 - **[Cost Savings](cost-savings.md)** — Token cost benchmarking methodology
 - **[AI Tool Setup](ai-tool-setup.md)** — Configure Claude Code, Cursor, or Codex
-- **[CLI Reference](../README.md#-cli-reference)** — Full command documentation
+- **[CLI Reference](wiki/CLI-Reference.md)** — Full command documentation
 
 ## Common Commands Cheat Sheet
 
