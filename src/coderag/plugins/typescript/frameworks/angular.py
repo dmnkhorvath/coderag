@@ -46,6 +46,10 @@ _TEMPLATE_URL_RE = re.compile(
 _STYLE_URLS_RE = re.compile(
     r"""styleUrls\s*:\s*\[(?P<urls>[^\]]*)\]""",
 )
+# Extract single styleUrl (Angular 17+)
+_STYLE_URL_SINGLE_RE = re.compile(
+    r"""styleUrl\s*:\s*['"](?P<url>[^'"]+)['"]""",
+)
 # Standalone component flag
 _STANDALONE_RE = re.compile(
     r"standalone\s*:\s*true",
@@ -150,8 +154,13 @@ _ROUTE_LAZY_RE = re.compile(
 _ROUTE_LAZY_CHILDREN_RE = re.compile(
     r"""loadChildren\s*:\s*\(\)\s*=>\s*import\s*\(['"](?P<module>[^'"]+)['"]\)""",
 )
+# Route guards (resolve removed — handled separately)
 _ROUTE_GUARD_RE = re.compile(
-    r"(?:canActivate|canDeactivate|canMatch|resolve)\s*:\s*\[(?P<guards>[^\]]*)\]",
+    r"(?:canActivate|canDeactivate|canMatch)\s*:\s*\[(?P<guards>[^\]]*)\]",
+)
+# Route resolve (separate from guards)
+_ROUTE_RESOLVE_RE = re.compile(
+    r"resolve\s*:\s*(?:(?:\{(?P<obj>[^}]*)\})|(?:\[(?P<arr>[^\]]*)\]))",
 )
 # Routes array declaration
 _ROUTES_ARRAY_RE = re.compile(
@@ -170,6 +179,10 @@ _COMPUTED_SIGNAL_RE = re.compile(
 )
 _EFFECT_RE = re.compile(
     r"\beffect\s*\(",
+)
+# Signal getter calls inside computed() bodies: this.someSignal() or someSignal()
+_SIGNAL_CALL_RE = re.compile(
+    r"(?:this\.)?(?P<signal>\w+)\(\)",
 )
 
 # =============================================================================
@@ -225,12 +238,54 @@ _PROPERTY_BINDING_RE = re.compile(
 )
 
 # =============================================================================
+# NEW: Regex patterns for advanced template analysis
+# =============================================================================
+
+# Pipe usage in templates: | pipeName
+_PIPE_USAGE_RE = re.compile(
+    r"\|\s*(?P<pipe>[a-zA-Z]\w*)",
+)
+# Custom attribute directives: [appHighlight], [appTooltip] etc.
+_CUSTOM_DIRECTIVE_RE = re.compile(
+    r"\[(?P<dir>app[A-Z]\w+)\]",
+)
+# <ng-content> projection
+_NG_CONTENT_RE = re.compile(
+    r"<ng-content",
+)
+# Async pipe in templates
+_ASYNC_PIPE_RE = re.compile(
+    r"\|\s*async\b",
+)
+
+# =============================================================================
 # Regex for extracting decorator block content
 # =============================================================================
 
 _DECORATOR_BLOCK_RE = re.compile(
     r"@(?P<name>Component|Injectable|NgModule|Directive|Pipe)\s*\(",
 )
+
+# =============================================================================
+# Constants
+# =============================================================================
+
+# Native DOM events to skip for angular_emits_output
+_NATIVE_DOM_EVENTS = frozenset({
+    "click", "dblclick", "submit", "change", "input", "focus", "blur",
+    "keyup", "keydown", "keypress", "mouseover", "mouseout", "mouseenter",
+    "mouseleave", "mousedown", "mouseup", "scroll", "load", "error",
+    "resize", "contextmenu", "drag", "dragstart", "dragend", "dragover",
+    "dragenter", "dragleave", "drop", "touchstart", "touchend",
+    "touchmove", "wheel",
+})
+
+# Built-in Angular pipes to skip for pipe usage detection
+_BUILTIN_PIPES = frozenset({
+    "date", "uppercase", "lowercase", "currency", "decimal", "percent",
+    "json", "slice", "async", "titlecase", "keyvalue", "i18nPlural",
+    "i18nSelect", "number",
+})
 
 
 def _extract_decorator_block(source_text: str, match_start: int) -> str:
@@ -288,6 +343,32 @@ def _line_of(source_text: str, pos: int) -> int:
     return source_text[:pos].count("\n") + 1
 
 
+def _extract_computed_body(source_text: str, match_start: int) -> str:
+    """Extract the body of a computed() call for signal dependency analysis."""
+    paren_start = source_text.find("(", match_start)
+    if paren_start == -1:
+        return ""
+    depth = 0
+    i = paren_start
+    while i < len(source_text):
+        ch = source_text[i]
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return source_text[paren_start + 1 : i]
+        elif ch in ("'", '"', "`"):
+            quote = ch
+            i += 1
+            while i < len(source_text) and source_text[i] != quote:
+                if source_text[i] == "\\":
+                    i += 1
+                i += 1
+        i += 1
+    return source_text[paren_start + 1 :]
+
+
 class AngularDetector(FrameworkDetector):
     """Detect Angular framework patterns in TypeScript projects."""
 
@@ -295,7 +376,7 @@ class AngularDetector(FrameworkDetector):
     def framework_name(self) -> str:
         return "angular"
 
-    # ── Project-level detection ────────────────────────────────
+    # -- Project-level detection ----------------------------------------
 
     def detect_framework(self, project_root: str) -> bool:
         """Check for angular.json or @angular/core in package.json."""
@@ -323,7 +404,7 @@ class AngularDetector(FrameworkDetector):
         except (json.JSONDecodeError, OSError):
             return False
 
-    # ── Per-file detection ────────────────────────────────────
+    # -- Per-file detection ---------------------------------------------
 
     def detect(
         self,
@@ -350,7 +431,7 @@ class AngularDetector(FrameworkDetector):
         if not file_path.endswith((".ts", ".tsx")):
             return patterns
 
-        # ── Decorator detection ───────────────────────────────
+        # -- Decorator detection ----------------------------------------
         comp = self._detect_component(file_path, nodes, source_text)
         if comp:
             patterns.append(comp)
@@ -371,29 +452,29 @@ class AngularDetector(FrameworkDetector):
         if pipe:
             patterns.append(pipe)
 
-        # ── Routing ───────────────────────────────────────────
+        # -- Routing ----------------------------------------------------
         routes = self._detect_routes(file_path, nodes, source_text)
         if routes:
             patterns.append(routes)
 
-        # ── Dependency injection ──────────────────────────────
+        # -- Dependency injection ---------------------------------------
         di = self._detect_dependency_injection(file_path, nodes, source_text)
         if di:
             patterns.append(di)
 
-        # ── Signals ───────────────────────────────────────────
+        # -- Signals ----------------------------------------------------
         signals = self._detect_signals(file_path, nodes, source_text)
         if signals:
             patterns.append(signals)
 
-        # ── RxJS / HTTP ───────────────────────────────────────
+        # -- RxJS / HTTP ------------------------------------------------
         rxjs = self._detect_rxjs_patterns(file_path, nodes, source_text)
         if rxjs:
             patterns.append(rxjs)
 
         return patterns
 
-    # ── Global patterns ───────────────────────────────────────
+    # -- Global patterns ------------------------------------------------
 
     def detect_global_patterns(self, store: Any) -> list[FrameworkPattern]:
         """Detect cross-file Angular patterns.
@@ -410,9 +491,9 @@ class AngularDetector(FrameworkDetector):
 
         return patterns
 
-    # ═════════════════════════════════════════════════════════════
-    # Private helpers — decorator detection
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
+    # Private helpers -- decorator detection
+    # =================================================================
 
     def _detect_component(
         self,
@@ -444,6 +525,13 @@ class AngularDetector(FrameworkDetector):
             if sty_m:
                 raw = sty_m.group("urls")
                 style_urls = re.findall(r"""['"]([^'"]+)['"]""", raw)
+
+            # Angular 17+ single styleUrl
+            sty_single_m = _STYLE_URL_SINGLE_RE.search(block)
+            if sty_single_m:
+                single_url = sty_single_m.group("url")
+                if single_url not in style_urls:
+                    style_urls.append(single_url)
 
             standalone = bool(_STANDALONE_RE.search(block))
 
@@ -483,10 +571,46 @@ class AngularDetector(FrameworkDetector):
             )
             new_nodes.append(comp_node)
 
+            # --- Edge #9: angular_template_ref ---
+            if template_url:
+                new_edges.append(
+                    Edge(
+                        source_id=comp_node.id,
+                        target_id=f"__unresolved__:template:{template_url}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.90,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "angular",
+                            "angular_edge_type": "angular_template_ref",
+                            "template_url": template_url,
+                        },
+                    )
+                )
+
+            # --- Edge #10: angular_style_ref ---
+            for style_url in style_urls:
+                new_edges.append(
+                    Edge(
+                        source_id=comp_node.id,
+                        target_id=f"__unresolved__:stylesheet:{style_url}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.95,
+                        line_number=line_no,
+                        metadata={
+                            "framework": "angular",
+                            "angular_edge_type": "angular_style_ref",
+                            "style_url": style_url,
+                        },
+                    )
+                )
+
             # Analyze inline template for child component references
             inline_tpl_m = _INLINE_TEMPLATE_RE.search(block)
             if inline_tpl_m:
                 template_text = inline_tpl_m.group("template")
+
+                # Existing: angular_renders_component
                 for sel_match in _TEMPLATE_SELECTOR_RE.finditer(template_text):
                     child_tag = sel_match.group("tag")
                     new_edges.append(
@@ -500,6 +624,132 @@ class AngularDetector(FrameworkDetector):
                                 "framework": "angular",
                                 "angular_edge_type": "angular_renders_component",
                                 "child_selector": child_tag,
+                            },
+                        )
+                    )
+
+                # --- Edge #2: angular_uses_pipe ---
+                seen_pipes: set[str] = set()
+                for pipe_match in _PIPE_USAGE_RE.finditer(template_text):
+                    pipe_name = pipe_match.group("pipe")
+                    # Skip built-in pipes and async (handled separately)
+                    if pipe_name in _BUILTIN_PIPES or pipe_name in seen_pipes:
+                        continue
+                    seen_pipes.add(pipe_name)
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id=f"__unresolved__:pipe:{pipe_name}",
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_uses_pipe",
+                                "pipe_name": pipe_name,
+                            },
+                        )
+                    )
+
+                # --- Edge #3: angular_uses_directive ---
+                seen_directives: set[str] = set()
+                for dir_match in _CUSTOM_DIRECTIVE_RE.finditer(template_text):
+                    directive_name = dir_match.group("dir")
+                    if directive_name in seen_directives:
+                        continue
+                    seen_directives.add(directive_name)
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id=f"__unresolved__:directive:{directive_name}",
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_uses_directive",
+                                "directive_name": directive_name,
+                            },
+                        )
+                    )
+
+                # --- Edge #4: angular_binds_input ---
+                seen_inputs: set[str] = set()
+                for prop_match in _PROPERTY_BINDING_RE.finditer(template_text):
+                    prop_name = prop_match.group("prop")
+                    if prop_name in seen_inputs:
+                        continue
+                    # Skip custom directive bindings (app-prefixed)
+                    if re.match(r"^app[A-Z]", prop_name):
+                        continue
+                    seen_inputs.add(prop_name)
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id=f"__unresolved__:input:{prop_name}",
+                            kind=EdgeKind.PASSES_PROP,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_binds_input",
+                                "input_name": prop_name,
+                            },
+                        )
+                    )
+
+                # --- Edge #5: angular_emits_output ---
+                seen_outputs: set[str] = set()
+                for evt_match in _EVENT_BINDING_RE.finditer(template_text):
+                    event_name = evt_match.group("event")
+                    if event_name in _NATIVE_DOM_EVENTS or event_name in seen_outputs:
+                        continue
+                    seen_outputs.add(event_name)
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id=f"__unresolved__:output:{event_name}",
+                            kind=EdgeKind.LISTENS_TO,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_emits_output",
+                                "event_name": event_name,
+                            },
+                        )
+                    )
+
+                # --- Edge #6: angular_projects_content ---
+                if _NG_CONTENT_RE.search(template_text):
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id=f"__unresolved__:projection:{comp_node.name}",
+                            kind=EdgeKind.RENDERS,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_projects_content",
+                                "component_name": comp_node.name,
+                            },
+                        )
+                    )
+
+                # --- Edge #7 (partial): angular_subscribes_to (async pipe) ---
+                if _ASYNC_PIPE_RE.search(template_text):
+                    new_edges.append(
+                        Edge(
+                            source_id=comp_node.id,
+                            target_id="__unresolved__:observable:async_pipe",
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.85,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "angular",
+                                "angular_edge_type": "angular_subscribes_to",
+                                "subscribe_type": "async_pipe",
                             },
                         )
                     )
@@ -622,7 +872,7 @@ class AngularDetector(FrameworkDetector):
             new_nodes.append(mod_node)
 
             # Parse NgModule metadata arrays
-            # declarations → CONTAINS edges
+            # declarations -> CONTAINS edges
             decl_m = _DECLARATIONS_RE.search(block)
             if decl_m:
                 for item in _extract_list_items(decl_m.group("items")):
@@ -641,7 +891,7 @@ class AngularDetector(FrameworkDetector):
                         )
                     )
 
-            # imports → IMPORTS edges
+            # imports -> IMPORTS edges
             imp_m = _MODULE_IMPORTS_RE.search(block)
             if imp_m:
                 for item in _extract_list_items(imp_m.group("items")):
@@ -660,7 +910,7 @@ class AngularDetector(FrameworkDetector):
                         )
                     )
 
-            # exports → EXPORTS edges
+            # exports -> EXPORTS edges
             exp_m = _MODULE_EXPORTS_RE.search(block)
             if exp_m:
                 for item in _extract_list_items(exp_m.group("items")):
@@ -679,7 +929,7 @@ class AngularDetector(FrameworkDetector):
                         )
                     )
 
-            # providers → PROVIDES_CONTEXT edges
+            # providers -> PROVIDES_CONTEXT edges
             prov_m = _PROVIDERS_RE.search(block)
             if prov_m:
                 for item in _extract_list_items(prov_m.group("items")):
@@ -698,7 +948,7 @@ class AngularDetector(FrameworkDetector):
                         )
                     )
 
-            # bootstrap → RENDERS edges
+            # bootstrap -> RENDERS edges
             boot_m = _BOOTSTRAP_RE.search(block)
             if boot_m:
                 for item in _extract_list_items(boot_m.group("items")):
@@ -851,9 +1101,9 @@ class AngularDetector(FrameworkDetector):
             metadata={"pipe_count": len(new_nodes)},
         )
 
-    # ═════════════════════════════════════════════════════════════
-    # Private helpers — routing
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
+    # Private helpers -- routing
+    # =================================================================
 
     def _detect_routes(
         self,
@@ -976,6 +1226,52 @@ class AngularDetector(FrameworkDetector):
                         )
                     )
 
+            # --- Edge #1: angular_resolves ---
+            resolve_m = _ROUTE_RESOLVE_RE.search(window)
+            if resolve_m:
+                obj_text = resolve_m.group("obj")
+                arr_text = resolve_m.group("arr")
+                if obj_text:
+                    # Object form: resolve: { data: DataResolver, user: UserResolver }
+                    # Extract values (the resolver names)
+                    for pair in obj_text.split(","):
+                        pair = pair.strip()
+                        if ":" in pair:
+                            resolver_name = pair.split(":", 1)[1].strip()
+                            resolver_name = re.sub(r"[()\[\]{}]", "", resolver_name).strip()
+                            if resolver_name and re.match(r"^[A-Za-z_]\w*$", resolver_name):
+                                new_edges.append(
+                                    Edge(
+                                        source_id=route_node.id,
+                                        target_id=f"__unresolved__:type:{resolver_name}",
+                                        kind=EdgeKind.DEPENDS_ON,
+                                        confidence=0.95,
+                                        line_number=line_no,
+                                        metadata={
+                                            "framework": "angular",
+                                            "angular_edge_type": "angular_resolves",
+                                            "resolver_name": resolver_name,
+                                        },
+                                    )
+                                )
+                elif arr_text:
+                    # Array form: resolve: [DataResolver]
+                    for resolver_name in _extract_list_items(arr_text):
+                        new_edges.append(
+                            Edge(
+                                source_id=route_node.id,
+                                target_id=f"__unresolved__:type:{resolver_name}",
+                                kind=EdgeKind.DEPENDS_ON,
+                                confidence=0.95,
+                                line_number=line_no,
+                                metadata={
+                                    "framework": "angular",
+                                    "angular_edge_type": "angular_resolves",
+                                    "resolver_name": resolver_name,
+                                },
+                            )
+                        )
+
         if not new_nodes:
             return None
 
@@ -990,9 +1286,9 @@ class AngularDetector(FrameworkDetector):
             },
         )
 
-    # ═════════════════════════════════════════════════════════════
-    # Private helpers — dependency injection
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
+    # Private helpers -- dependency injection
+    # =================================================================
 
     def _detect_dependency_injection(
         self,
@@ -1099,9 +1395,9 @@ class AngularDetector(FrameworkDetector):
             metadata={"injection_count": len(new_edges)},
         )
 
-    # ═════════════════════════════════════════════════════════════
-    # Private helpers — signals
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
+    # Private helpers -- signals
+    # =================================================================
 
     def _detect_signals(
         self,
@@ -1111,11 +1407,16 @@ class AngularDetector(FrameworkDetector):
     ) -> FrameworkPattern | None:
         """Detect Angular signals (signal, computed, effect)."""
         new_nodes: list[Node] = []
+        new_edges: list[Edge] = []
+
+        # Collect signal names for dependency resolution
+        signal_names: set[str] = set()
 
         # signal()
         for match in _SIGNAL_RE.finditer(source_text):
             name = match.group("name")
             line_no = _line_of(source_text, match.start())
+            signal_names.add(name)
             new_nodes.append(
                 Node(
                     id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
@@ -1138,25 +1439,52 @@ class AngularDetector(FrameworkDetector):
         for match in _COMPUTED_SIGNAL_RE.finditer(source_text):
             name = match.group("name")
             line_no = _line_of(source_text, match.start())
-            new_nodes.append(
-                Node(
-                    id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
-                    kind=NodeKind.VARIABLE,
-                    name=name,
-                    qualified_name=name,
-                    file_path=file_path,
-                    start_line=line_no,
-                    end_line=line_no,
-                    language="typescript",
-                    metadata={
-                        "framework": "angular",
-                        "angular_type": "signal",
-                        "signal_kind": "computed",
-                    },
-                )
+            computed_node = Node(
+                id=generate_node_id(file_path, line_no, NodeKind.VARIABLE, name),
+                kind=NodeKind.VARIABLE,
+                name=name,
+                qualified_name=name,
+                file_path=file_path,
+                start_line=line_no,
+                end_line=line_no,
+                language="typescript",
+                metadata={
+                    "framework": "angular",
+                    "angular_type": "signal",
+                    "signal_kind": "computed",
+                },
             )
+            new_nodes.append(computed_node)
 
-        # effect() — no named variable, just detect presence
+            # --- Edge #8: angular_signal_depends ---
+            # Extract the computed body and find signal getter calls
+            body = _extract_computed_body(source_text, match.start())
+            if body:
+                seen_signals: set[str] = set()
+                for call_match in _SIGNAL_CALL_RE.finditer(body):
+                    sig_name = call_match.group("signal")
+                    # Only create edges for known signal names or this.xxx() patterns
+                    # Filter out common non-signal function calls
+                    if sig_name in seen_signals:
+                        continue
+                    if sig_name in signal_names:
+                        seen_signals.add(sig_name)
+                        new_edges.append(
+                            Edge(
+                                source_id=computed_node.id,
+                                target_id=f"__unresolved__:signal:{sig_name}",
+                                kind=EdgeKind.DEPENDS_ON,
+                                confidence=0.90,
+                                line_number=line_no,
+                                metadata={
+                                    "framework": "angular",
+                                    "angular_edge_type": "angular_signal_depends",
+                                    "signal_name": sig_name,
+                                },
+                            )
+                        )
+
+        # effect() -- no named variable, just detect presence
         effect_count = len(list(_EFFECT_RE.finditer(source_text)))
 
         if not new_nodes and effect_count == 0:
@@ -1166,16 +1494,16 @@ class AngularDetector(FrameworkDetector):
             framework_name="angular",
             pattern_type="signals",
             nodes=new_nodes,
-            edges=[],
+            edges=new_edges,
             metadata={
                 "signal_count": len(new_nodes),
                 "effect_count": effect_count,
             },
         )
 
-    # ═════════════════════════════════════════════════════════════
-    # Private helpers — RxJS patterns
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
+    # Private helpers -- RxJS patterns
+    # =================================================================
 
     def _detect_rxjs_patterns(
         self,
@@ -1190,7 +1518,7 @@ class AngularDetector(FrameworkDetector):
         subscribe_count = len(list(_SUBSCRIBE_RE.finditer(source_text)))
         pipe_count = len(list(_PIPE_OPERATOR_RE.finditer(source_text)))
 
-        # HTTP client calls → API_CALLS edges
+        # HTTP client calls -> API_CALLS edges
         for match in _HTTP_CLIENT_URL_RE.finditer(source_text):
             method = match.group("method")
             url = match.group("url")
@@ -1275,6 +1603,42 @@ class AngularDetector(FrameworkDetector):
                 )
             )
 
+        # --- Edge #7: angular_subscribes_to (.subscribe() calls) ---
+        for match in _SUBSCRIBE_RE.finditer(source_text):
+            line_no = _line_of(source_text, match.start())
+
+            class_node = self._find_enclosing_class(line_no, nodes)
+            if class_node:
+                source_id = class_node.id
+            else:
+                before = source_text[: match.start()]
+                cls_matches = list(_CLASS_DECL_RE.finditer(before))
+                if cls_matches:
+                    last_cls = cls_matches[-1]
+                    source_id = generate_node_id(
+                        file_path,
+                        _line_of(source_text, last_cls.start()),
+                        NodeKind.CLASS,
+                        last_cls.group("name"),
+                    )
+                else:
+                    continue
+
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:observable:subscribe_{line_no}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.85,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "angular",
+                        "angular_edge_type": "angular_subscribes_to",
+                        "subscribe_type": "explicit",
+                    },
+                )
+            )
+
         has_rxjs = observable_count > 0 or subject_count > 0 or subscribe_count > 0 or pipe_count > 0
 
         if not new_edges and not has_rxjs:
@@ -1290,13 +1654,13 @@ class AngularDetector(FrameworkDetector):
                 "subject_count": subject_count,
                 "subscribe_count": subscribe_count,
                 "pipe_count": pipe_count,
-                "http_call_count": len(new_edges),
+                "http_call_count": len([e for e in new_edges if e.metadata.get("angular_edge_type") == "angular_http_calls"]),
             },
         )
 
-    # ═════════════════════════════════════════════════════════════
-    # Private helpers — cross-file patterns
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
+    # Private helpers -- cross-file patterns
+    # =================================================================
 
     def _connect_cross_file_di(self, store: Any) -> FrameworkPattern | None:
         """Connect DI edges to actual service definitions across files."""
@@ -1364,9 +1728,9 @@ class AngularDetector(FrameworkDetector):
             metadata={"resolved_injection_count": len(new_edges)},
         )
 
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
     # Utility helpers
-    # ═════════════════════════════════════════════════════════════
+    # =================================================================
 
     @staticmethod
     def _find_enclosing_class(line_no: int, nodes: list[Node]) -> Node | None:
