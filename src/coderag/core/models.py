@@ -176,6 +176,7 @@ class Language(enum.StrEnum):
     PYTHON = "python"
     CSS = "css"
     SCSS = "scss"
+    GO = "go"
 
 
 class DetailLevel(enum.StrEnum):
@@ -204,6 +205,7 @@ class ResolutionStrategy(enum.StrEnum):
     SCSS_FORWARD = "scss_forward"
     SCSS_PARTIAL = "scss_partial"
     SCSS_INDEX = "scss_index"
+    GO_MODULE = "go_module"
 
 
 # =============================================================================
@@ -677,6 +679,7 @@ def detect_language(file_path: str) -> str | None:
         ".mts": "typescript",
         ".cts": "typescript",
         ".vue": "typescript",
+        ".go": "go",
     }
     return mapping.get(ext)
 

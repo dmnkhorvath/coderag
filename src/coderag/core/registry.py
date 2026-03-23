@@ -460,6 +460,7 @@ class PluginRegistry:
             "coderag.plugins.python",
             "coderag.plugins.css",
             "coderag.plugins.scss",
+            "coderag.plugins.go",
         ]
 
         for module_path in builtin_modules:
