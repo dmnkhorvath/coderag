@@ -111,6 +111,46 @@ _PHP_METHOD_RE = re.compile(r"(?:public|protected|private)\s+function\s+(?P<name
 _NAMESPACE_RE = re.compile(r"namespace\s+(?P<ns>[\w\\]+)\s*;")
 
 
+
+# ---------------------------------------------------------------------------
+# Twig template patterns (for .twig file analysis)
+# ---------------------------------------------------------------------------
+_TWIG_EXTENDS_RE = re.compile(r"""{%\s*extends\s+['"](?P<template>[^'"]+)['"]\s*%}""")
+_TWIG_INCLUDE_RE = re.compile(r"""{%\s*include\s+['"](?P<template>[^'"]+)['"]""")
+_TWIG_EMBED_RE = re.compile(r"""{%\s*embed\s+['"](?P<template>[^'"]+)['"]""")
+_TWIG_IMPORT_MACRO_RE = re.compile(r"""{%\s*from\s+['"](?P<template>[^'"]+)['"]\s+import\s+(?P<macros>[^%]+)%}""")
+_TWIG_RENDER_CONTROLLER_RE = re.compile(r"""{{\s*render\s*\(\s*controller\s*\(\s*['"](?P<controller>[^'"]+)['"]""")
+_TWIG_PATH_RE = re.compile(r"""(?:path|url)\s*\(\s*['"](?P<route>[^'"]+)['"]""")
+
+# ---------------------------------------------------------------------------
+# Stimulus & Asset patterns (for .twig file analysis)
+# ---------------------------------------------------------------------------
+_STIMULUS_DATA_CONTROLLER_RE = re.compile(r"""data-controller\s*=\s*['"](?P<controllers>[^'"]+)['"]""")
+_STIMULUS_FUNCTION_RE = re.compile(r"""stimulus_controller\s*\(\s*['"](?P<controller>[^'"]+)['"]""")
+_ASSET_ENCORE_RE = re.compile(r"""(?:encore_entry_link_tags|encore_entry_script_tags)\s*\(\s*['"](?P<entry>[^'"]+)['"]""")
+_ASSET_VITE_RE = re.compile(r"""(?:vite_entry_link_tags|vite_entry_script_tags)\s*\(\s*['"](?P<entry>[^'"]+)['"]""")
+
+# ---------------------------------------------------------------------------
+# Validation constraint patterns (for PHP entity files)
+# ---------------------------------------------------------------------------
+_ASSERT_ATTR_RE = re.compile(r"""#\[Assert\\(?P<constraint>\w+)(?:\s*\([^)]*\))?\]""")
+
+# ---------------------------------------------------------------------------
+# Bundle detection
+# ---------------------------------------------------------------------------
+_BUNDLE_RE = re.compile(r"""class\s+(?P<name>\w+)\s+extends\s+(?:Abstract)?Bundle\b""")
+
+# ---------------------------------------------------------------------------
+# Form data_class and builder->add patterns
+# ---------------------------------------------------------------------------
+_DATA_CLASS_RE = re.compile(r"""data_class['"]?\s*(?:=>|:)\s*(?P<entity>\w+)::class""")
+_BUILDER_ADD_RE = re.compile(r"""(?:\$builder)?->add\s*\(\s*['"](?P<field>\w+)['"]""")
+
+# ---------------------------------------------------------------------------
+# Voter supports() entity detection
+# ---------------------------------------------------------------------------
+_VOTER_SUPPORTS_INSTANCEOF_RE = re.compile(r"""\$\w+\s+instanceof\s+(?P<entity>\w+)""")
+
 # =============================================================================
 # Symfony Detector
 # =============================================================================
@@ -178,11 +218,18 @@ class SymfonyDetector(FrameworkDetector):
         """Detect Symfony patterns in a single PHP file."""
         patterns: list[FrameworkPattern] = []
 
-        # Only process PHP files
-        if not file_path.endswith(".php"):
+        # Process PHP and Twig files
+        if not file_path.endswith((".php", ".twig")):
             return patterns
 
         source_text = source.decode("utf-8", errors="replace")
+
+        # Twig template file analysis
+        if file_path.endswith(".twig"):
+            twig = self._detect_twig_template_patterns(file_path, source_text)
+            if twig:
+                patterns.append(twig)
+            return patterns
 
         # Controller detection
         ctrl = self._detect_controller(file_path, nodes, source_text)
@@ -228,6 +275,16 @@ class SymfonyDetector(FrameworkDetector):
         sec = self._detect_security(file_path, nodes, source_text)
         if sec:
             patterns.append(sec)
+
+        # Validation constraints
+        val = self._detect_validation(file_path, nodes, source_text)
+        if val:
+            patterns.append(val)
+
+        # Bundle detection
+        bun = self._detect_bundles(file_path, nodes, source_text)
+        if bun:
+            patterns.append(bun)
 
         return patterns
 
@@ -599,6 +656,27 @@ class SymfonyDetector(FrameworkDetector):
                     },
                 )
             )
+
+        # doctrine_maps_to: Entity maps to database table
+        resolved_table = table_name
+        if not resolved_table:
+            # Convention: CamelCase class name -> snake_case table name
+            # re already imported at module level
+            resolved_table = re.sub(r"(?<!^)(?=[A-Z])", "_", class_name).lower()
+        new_edges.append(
+            Edge(
+                source_id=model_node.id,
+                target_id=f"__unresolved__:table:{resolved_table}",
+                kind=EdgeKind.DEPENDS_ON,
+                confidence=0.95,
+                line_number=entity_line,
+                metadata={
+                    "framework": "symfony",
+                    "symfony_edge_type": "doctrine_maps_to",
+                    "table_name": resolved_table,
+                },
+            )
+        )
 
         return FrameworkPattern(
             framework_name="symfony",
@@ -1044,11 +1122,53 @@ class SymfonyDetector(FrameworkDetector):
             },
         )
 
+        new_edges: list[Edge] = []
+
+        # form_maps_entity: FormType maps to entity via data_class
+        dc_match = _DATA_CLASS_RE.search(source_text)
+        if dc_match:
+            entity_name = dc_match.group("entity")
+            dc_line = source_text[: dc_match.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=form_node.id,
+                    target_id=f"__unresolved__:class:{entity_name}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.95,
+                    line_number=dc_line,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "form_maps_entity",
+                        "entity_class": entity_name,
+                    },
+                )
+            )
+
+            # form_field_maps: FormType field maps to entity property
+            for fm in _BUILDER_ADD_RE.finditer(source_text):
+                field_name = fm.group("field")
+                fm_line = source_text[: fm.start()].count("\n") + 1
+                new_edges.append(
+                    Edge(
+                        source_id=form_node.id,
+                        target_id=f"__unresolved__:property:{entity_name}.{field_name}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.85,
+                        line_number=fm_line,
+                        metadata={
+                            "framework": "symfony",
+                            "symfony_edge_type": "form_field_maps",
+                            "entity_class": entity_name,
+                            "field_name": field_name,
+                        },
+                    )
+                )
+
         return FrameworkPattern(
             framework_name="symfony",
             pattern_type="form_type",
             nodes=[form_node],
-            edges=[],
+            edges=new_edges,
             metadata={"form_type_name": qualified},
         )
 
@@ -1204,6 +1324,25 @@ class SymfonyDetector(FrameworkDetector):
             )
             new_nodes.append(voter_node)
 
+            # voter_protects: Voter protects entity via supports() type check
+            for vm in _VOTER_SUPPORTS_INSTANCEOF_RE.finditer(source_text):
+                entity_name = vm.group("entity")
+                vm_line = source_text[: vm.start()].count("\n") + 1
+                new_edges.append(
+                    Edge(
+                        source_id=voter_node.id,
+                        target_id=f"__unresolved__:class:{entity_name}",
+                        kind=EdgeKind.DEPENDS_ON,
+                        confidence=0.85,
+                        line_number=vm_line,
+                        metadata={
+                            "framework": "symfony",
+                            "symfony_edge_type": "voter_protects",
+                            "entity_class": entity_name,
+                        },
+                    )
+                )
+
         if not new_nodes and not new_edges:
             return None
 
@@ -1217,3 +1356,367 @@ class SymfonyDetector(FrameworkDetector):
                 "voter_count": len(new_nodes),
             },
         )
+
+    # ------------------------------------------------------------------
+    # 2k. Validation constraint detection
+    # ------------------------------------------------------------------
+
+    def _detect_validation(
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
+    ) -> FrameworkPattern | None:
+        """Detect #[Assert\\*] validation constraints on entity properties."""
+        matches = list(_ASSERT_ATTR_RE.finditer(source_text))
+        if not matches:
+            return None
+
+        new_edges: list[Edge] = []
+        namespace = self._extract_namespace(source_text)
+
+        for am in matches:
+            constraint = am.group("constraint")
+            line_no = source_text[: am.start()].count("\n") + 1
+
+            # Find the enclosing class
+            cls_node = self._find_enclosing_class(line_no, nodes)
+            if cls_node:
+                source_id = cls_node.id
+            else:
+                source_id = generate_node_id(
+                    file_path, line_no, NodeKind.CLASS, "unknown"
+                )
+
+            new_edges.append(
+                Edge(
+                    source_id=source_id,
+                    target_id=f"__unresolved__:constraint:Assert\\{constraint}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.95,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "validates_with",
+                        "constraint": constraint,
+                    },
+                )
+            )
+
+        if not new_edges:
+            return None
+
+        return FrameworkPattern(
+            framework_name="symfony",
+            pattern_type="validation",
+            nodes=[],
+            edges=new_edges,
+            metadata={"constraint_count": len(new_edges)},
+        )
+
+    # ------------------------------------------------------------------
+    # 2l. Bundle detection
+    # ------------------------------------------------------------------
+
+    def _detect_bundles(
+        self,
+        file_path: str,
+        nodes: list[Node],
+        source_text: str,
+    ) -> FrameworkPattern | None:
+        """Detect classes extending Bundle."""
+        m = _BUNDLE_RE.search(source_text)
+        if not m:
+            return None
+
+        class_name = m.group("name")
+        namespace = self._extract_namespace(source_text)
+        qualified = self._qualified_name(namespace, class_name)
+        line_no = source_text[: m.start()].count("\n") + 1
+
+        cls_node = self._find_enclosing_class(line_no, nodes)
+        start_line = cls_node.start_line if cls_node else line_no
+        end_line = cls_node.end_line if cls_node else line_no
+
+        bundle_node = Node(
+            id=generate_node_id(file_path, start_line, NodeKind.COMPONENT, class_name),
+            kind=NodeKind.COMPONENT,
+            name=class_name,
+            qualified_name=qualified,
+            file_path=file_path,
+            start_line=start_line,
+            end_line=end_line,
+            language="php",
+            metadata={
+                "framework": "symfony",
+                "symfony_type": "bundle",
+                "original_class_id": cls_node.id if cls_node else None,
+            },
+        )
+
+        # Edge: bundle provides services/config
+        bundle_edge = Edge(
+            source_id=bundle_node.id,
+            target_id=f"__unresolved__:config:{qualified}",
+            kind=EdgeKind.DEPENDS_ON,
+            confidence=0.90,
+            line_number=line_no,
+            metadata={
+                "framework": "symfony",
+                "symfony_edge_type": "bundle_provides",
+                "bundle_name": qualified,
+            },
+        )
+
+        return FrameworkPattern(
+            framework_name="symfony",
+            pattern_type="bundle",
+            nodes=[bundle_node],
+            edges=[bundle_edge],
+            metadata={"bundle_name": qualified},
+        )
+
+    # ------------------------------------------------------------------
+    # 2m. Twig template pattern detection
+    # ------------------------------------------------------------------
+
+    def _detect_twig_template_patterns(
+        self,
+        file_path: str,
+        source_text: str,
+    ) -> FrameworkPattern | None:
+        """Detect patterns in .twig template files.
+
+        Handles: twig_extends, twig_includes, twig_embeds, twig_imports_macro,
+        renders_controller, references_route, stimulus_controls, asset_references.
+        """
+        new_nodes: list[Node] = []
+        new_edges: list[Edge] = []
+
+        # Create a node for this template file
+        tpl_node = Node(
+            id=generate_node_id(file_path, 1, NodeKind.COMPONENT, os.path.basename(file_path)),
+            kind=NodeKind.COMPONENT,
+            name=os.path.basename(file_path),
+            qualified_name=file_path,
+            file_path=file_path,
+            start_line=1,
+            end_line=source_text.count("\n") + 1,
+            language="twig",
+            metadata={
+                "framework": "symfony",
+                "symfony_type": "twig_template",
+            },
+        )
+        new_nodes.append(tpl_node)
+
+        # --- twig_extends ---
+        for m in _TWIG_EXTENDS_RE.finditer(source_text):
+            template = m.group("template")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:template:{template}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.98,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "twig_extends",
+                        "target_template": template,
+                    },
+                )
+            )
+
+        # --- twig_includes ---
+        for m in _TWIG_INCLUDE_RE.finditer(source_text):
+            template = m.group("template")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:template:{template}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.98,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "twig_includes",
+                        "target_template": template,
+                    },
+                )
+            )
+
+        # --- twig_embeds ---
+        for m in _TWIG_EMBED_RE.finditer(source_text):
+            template = m.group("template")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:template:{template}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.98,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "twig_embeds",
+                        "target_template": template,
+                    },
+                )
+            )
+
+        # --- twig_imports_macro ---
+        for m in _TWIG_IMPORT_MACRO_RE.finditer(source_text):
+            template = m.group("template")
+            macros = m.group("macros").strip()
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:template:{template}",
+                    kind=EdgeKind.IMPORTS,
+                    confidence=0.95,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "twig_imports_macro",
+                        "target_template": template,
+                        "macros": macros,
+                    },
+                )
+            )
+
+        # --- renders_controller ---
+        for m in _TWIG_RENDER_CONTROLLER_RE.finditer(source_text):
+            controller = m.group("controller")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:controller:{controller}",
+                    kind=EdgeKind.RENDERS,
+                    confidence=0.90,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "renders_controller",
+                        "controller": controller,
+                    },
+                )
+            )
+
+        # --- references_route ---
+        for m in _TWIG_PATH_RE.finditer(source_text):
+            route = m.group("route")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:route:{route}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.95,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "references_route",
+                        "route_name": route,
+                    },
+                )
+            )
+
+        # --- stimulus_controls ---
+        for m in _STIMULUS_DATA_CONTROLLER_RE.finditer(source_text):
+            controllers_str = m.group("controllers")
+            line_no = source_text[: m.start()].count("\n") + 1
+            for ctrl in controllers_str.split():
+                ctrl = ctrl.strip()
+                if ctrl:
+                    new_edges.append(
+                        Edge(
+                            source_id=tpl_node.id,
+                            target_id=f"__unresolved__:stimulus:{ctrl}",
+                            kind=EdgeKind.DEPENDS_ON,
+                            confidence=0.90,
+                            line_number=line_no,
+                            metadata={
+                                "framework": "symfony",
+                                "symfony_edge_type": "stimulus_controls",
+                                "controller_name": ctrl,
+                            },
+                        )
+                    )
+
+        for m in _STIMULUS_FUNCTION_RE.finditer(source_text):
+            ctrl = m.group("controller")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:stimulus:{ctrl}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.90,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "stimulus_controls",
+                        "controller_name": ctrl,
+                    },
+                )
+            )
+
+        # --- asset_references ---
+        for m in _ASSET_ENCORE_RE.finditer(source_text):
+            entry = m.group("entry")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:asset:{entry}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.85,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "asset_references",
+                        "asset_entry": entry,
+                        "bundler": "encore",
+                    },
+                )
+            )
+
+        for m in _ASSET_VITE_RE.finditer(source_text):
+            entry = m.group("entry")
+            line_no = source_text[: m.start()].count("\n") + 1
+            new_edges.append(
+                Edge(
+                    source_id=tpl_node.id,
+                    target_id=f"__unresolved__:asset:{entry}",
+                    kind=EdgeKind.DEPENDS_ON,
+                    confidence=0.85,
+                    line_number=line_no,
+                    metadata={
+                        "framework": "symfony",
+                        "symfony_edge_type": "asset_references",
+                        "asset_entry": entry,
+                        "bundler": "vite",
+                    },
+                )
+            )
+
+        # Only return pattern if we found edges
+        if not new_edges:
+            return None
+
+        return FrameworkPattern(
+            framework_name="symfony",
+            pattern_type="twig_template",
+            nodes=new_nodes,
+            edges=new_edges,
+            metadata={
+                "template_file": file_path,
+                "edge_count": len(new_edges),
+            },
+        )
+
