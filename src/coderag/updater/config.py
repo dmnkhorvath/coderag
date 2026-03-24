@@ -19,7 +19,7 @@ class UpdateConfig:
     auto_install: bool = False
     channel: str = "stable"
     check_interval: int = 3600
-    github_repo: str = "dmnkhorvath/coderag"
+    github_repo: str = "dmnkhorvath/coderag-cli"
 
     @classmethod
     def load(cls, config_path: Path | None = None) -> UpdateConfig:

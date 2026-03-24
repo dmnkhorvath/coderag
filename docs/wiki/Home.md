@@ -32,5 +32,5 @@ CodeRAG parses PHP, JavaScript, TypeScript, Python, CSS, and SCSS codebases into
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/dmnkhorvath/coderag)
+- [GitHub Repository](https://github.com/dmnkhorvath/coderag-cli)
 - [Planning Documents (Gists)](https://gist.github.com/dmnkhorvth/9e69354c87310a2ae39edaf814e3e39e)

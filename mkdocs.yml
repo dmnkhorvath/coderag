@@ -1,8 +1,8 @@
 site_name: CodeRAG CLI
 site_description: Build knowledge graphs from your codebase for smarter AI coding assistants
-site_url: https://dmnkhorvath.github.io/coderag/
-repo_url: https://github.com/dmnkhorvath/coderag
-repo_name: dmnkhorvath/coderag
+site_url: https://dmnkhorvath.github.io/coderag-cli/
+repo_url: https://github.com/dmnkhorvath/coderag-cli
+repo_name: dmnkhorvath/coderag-cli
 edit_uri: edit/main/docs/
 
 theme:
@@ -126,6 +126,6 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/dmnkhorvath/coderag
+      link: https://github.com/dmnkhorvath/coderag-cli
 
 copyright: Copyright &copy; 2026 Dominik Horváth

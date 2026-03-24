@@ -120,7 +120,7 @@ class TestConfigCommand:
             mock_cfg.auto_install = False
             mock_cfg.channel = "stable"
             mock_cfg.check_interval = 3600
-            mock_cfg.github_repo = "dmnkhorvath/coderag"
+            mock_cfg.github_repo = "dmnkhorvath/coderag-cli"
             MockConfig.load.return_value = mock_cfg
             result = runner.invoke(cli, ["update", "config"])
             assert result.exit_code == 0
@@ -135,7 +135,7 @@ class TestConfigCommand:
             mock_cfg.auto_install = False
             mock_cfg.channel = "stable"
             mock_cfg.check_interval = 3600
-            mock_cfg.github_repo = "dmnkhorvath/coderag"
+            mock_cfg.github_repo = "dmnkhorvath/coderag-cli"
             MockConfig.load.return_value = mock_cfg
             result = runner.invoke(cli, ["update", "config", "--channel", "beta", "--interval", "7200"])
             assert result.exit_code == 0
@@ -149,7 +149,7 @@ class TestConfigCommand:
             mock_cfg.auto_install = False
             mock_cfg.channel = "stable"
             mock_cfg.check_interval = 3600
-            mock_cfg.github_repo = "dmnkhorvath/coderag"
+            mock_cfg.github_repo = "dmnkhorvath/coderag-cli"
             MockConfig.load.return_value = mock_cfg
             result = runner.invoke(cli, ["update", "config", "--no-auto-check"])
             assert result.exit_code == 0

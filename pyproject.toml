@@ -119,10 +119,10 @@ all = [
     "mkdocs-git-revision-date-localized-plugin>=1.2",
 ]
 [project.urls]
-Homepage = "https://github.com/dmnkhorvath/coderag"
-Repository = "https://github.com/dmnkhorvath/coderag"
-Issues = "https://github.com/dmnkhorvath/coderag/issues"
-Documentation = "https://github.com/dmnkhorvath/coderag#readme"
+Homepage = "https://github.com/dmnkhorvath/coderag-cli"
+Repository = "https://github.com/dmnkhorvath/coderag-cli"
+Issues = "https://github.com/dmnkhorvath/coderag-cli/issues"
+Documentation = "https://dmnkhorvath.github.io/coderag-cli/"
 
 [project.scripts]
 coderag = "coderag.cli.main:cli"

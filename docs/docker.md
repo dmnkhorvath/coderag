@@ -102,7 +102,7 @@ docker compose down
 
 ```bash
 # Clone the repository
-git clone https://github.com/dmnkhorvath/coderag.git
+git clone https://github.com/dmnkhorvath/coderag-cli.git
 cd coderag
 
 # Build the Docker image

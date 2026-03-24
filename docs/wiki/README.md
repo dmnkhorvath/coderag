@@ -12,4 +12,4 @@ Comprehensive documentation for CodeRAG — a modular codebase knowledge graph b
 | [CLI Reference](CLI-Reference.md) | All CLI commands and options |
 | [Configuration](Configuration.md) | `codegraph.yaml` configuration reference |
 
-> **Note:** These pages are also available as a [GitHub Wiki](https://github.com/dmnkhorvath/coderag/wiki) when enabled.
+> **Note:** These pages are also available as a [GitHub Wiki](https://github.com/dmnkhorvath/coderag-cli/wiki) when enabled.

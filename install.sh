@@ -1,6 +1,6 @@
 #!/bin/sh
 # CodeRAG Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install.sh | sh
 #
 # Environment variables:
 #   CODERAG_INSTALL_DIR  - Override install location (default: ~/.coderag)
@@ -13,7 +13,7 @@ set -e
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
-REPO_URL="https://github.com/dmnkhorvath/coderag.git"
+REPO_URL="https://github.com/dmnkhorvath/coderag-cli.git"
 MIN_PYTHON_MAJOR=3
 MIN_PYTHON_MINOR=11
 DEFAULT_INSTALL_DIR="$HOME/.coderag"
@@ -49,7 +49,7 @@ err()     { printf "%s\n" "${RED}error${RESET} $*" >&2; }
 abort() {
     err "$@"
     err "Installation failed. For help, visit:"
-    err "  https://github.com/dmnkhorvath/coderag/issues"
+    err "  https://github.com/dmnkhorvath/coderag-cli/issues"
     exit 1
 }
 
@@ -370,8 +370,8 @@ print_summary() {
     printf "%s\n" "    ${BOLD}coderag query \"UserController\"${RESET}"
     printf "\n"
     printf "%s\n" "  ${DIM}Update:${RESET}    coderag-update"
-    printf "%s\n" "  ${DIM}Uninstall:${RESET} curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/uninstall.sh | sh"
-    printf "%s\n" "  ${DIM}Docs:${RESET}      https://github.com/dmnkhorvath/coderag"
+    printf "%s\n" "  ${DIM}Uninstall:${RESET} curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/uninstall.sh | sh"
+    printf "%s\n" "  ${DIM}Docs:${RESET}      https://github.com/dmnkhorvath/coderag-cli"
     printf "\n"
 }
 

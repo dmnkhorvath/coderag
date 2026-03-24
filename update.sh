@@ -1,7 +1,7 @@
 #!/bin/sh
 # CodeRAG Updater
 # Usage: coderag-update
-#    or: curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/update.sh | sh
+#    or: curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/update.sh | sh
 
 set -e
 

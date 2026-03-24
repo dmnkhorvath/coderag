@@ -64,7 +64,7 @@ Create `.claude/settings.local.json`:
 Or use the install script which auto-detects the `coderag` binary path:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install-coderag.sh | bash
 ```
 
 #### Step 3: Start Claude Code

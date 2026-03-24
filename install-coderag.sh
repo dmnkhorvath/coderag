@@ -76,7 +76,7 @@ main() {
         echo "  Install with:"
         echo "    pip install coderag"
         echo "  or:"
-        echo "    curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh"
+        echo "    curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install.sh | sh"
         exit 1
     fi
     ok "coderag found: $(which coderag)"
@@ -178,13 +178,13 @@ main() {
         else
             # Fallback: download from GitHub
             info "Local template not found, downloading from GitHub..."
-            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag/main/skill/SKILL.md" \
+            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/skill/SKILL.md" \
                  -o "$SKILL_MD" 2>/dev/null; then
                 ok "Installed SKILL.md (downloaded from GitHub)"
             else
                 err "Could not install SKILL.md"
                 echo "  Download manually:"
-                echo "    https://github.com/dmnkhorvath/coderag/blob/main/skill/SKILL.md"
+                echo "    https://github.com/dmnkhorvath/coderag-cli/blob/main/skill/SKILL.md"
                 return 1
             fi
         fi
@@ -223,7 +223,7 @@ main() {
         else
             # Fallback: download from GitHub
             info "Local SKILL.md not found, downloading from GitHub..."
-            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag/main/skill/SKILL.md"                  -o "$GLOBAL_SKILL_MD" 2>/dev/null; then
+            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/skill/SKILL.md"                  -o "$GLOBAL_SKILL_MD" 2>/dev/null; then
                 ok "Installed global skill (downloaded from GitHub)"
             else
                 err "Could not install global skill"
@@ -279,12 +279,12 @@ main() {
         else
             # Fallback: download from GitHub
             info "Local template not found, downloading from GitHub..."
-            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag/main/CLAUDE.md"              -o "$CLAUDE_MD" 2>/dev/null; then
+            if curl -fsSL "https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/CLAUDE.md"              -o "$CLAUDE_MD" 2>/dev/null; then
                 ok "Installed CLAUDE.md (downloaded from GitHub)"
             else
                 err "Could not install CLAUDE.md"
                 echo "  Download manually:"
-                echo "    https://github.com/dmnkhorvath/coderag/blob/main/CLAUDE.md"
+                echo "    https://github.com/dmnkhorvath/coderag-cli/blob/main/CLAUDE.md"
                 return 1
             fi
         fi

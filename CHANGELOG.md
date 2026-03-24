@@ -92,5 +92,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FTS5 search for PascalCase/camelCase with SQL-level kind filter
 - Invalid `limit` parameter in React detector `get_edges` call
 
-[0.2.0]: https://github.com/dmnkhorvath/coderag/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/dmnkhorvath/coderag/releases/tag/v0.1.0
+[0.2.0]: https://github.com/dmnkhorvath/coderag-cli/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/dmnkhorvath/coderag-cli/releases/tag/v0.1.0

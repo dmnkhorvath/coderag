@@ -1,6 +1,6 @@
 #!/bin/sh
 # CodeRAG Uninstaller
-# Usage: curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/uninstall.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/uninstall.sh | sh
 
 set -e
 

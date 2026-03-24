@@ -30,7 +30,7 @@ CodeRAG parses your codebase using tree-sitter AST analysis, builds a rich knowl
 
 ```bash
 # Clone and install
-git clone https://github.com/dmnkhorvath/coderag.git
+git clone https://github.com/dmnkhorvath/coderag-cli.git
 cd coderag
 pip install -e '.[all]'
 ```
@@ -38,7 +38,7 @@ pip install -e '.[all]'
 Or use the automated installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install-coderag.sh | sh
 ```
 
 ### Parse a Codebase
@@ -130,4 +130,4 @@ Contributions are welcome! Please:
 
 ## :page_facing_up: License
 
-MIT License — see [LICENSE](https://github.com/dmnkhorvath/coderag/blob/main/LICENSE) for details.
+MIT License — see [LICENSE](https://github.com/dmnkhorvath/coderag-cli/blob/main/LICENSE) for details.

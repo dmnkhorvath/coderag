@@ -47,7 +47,7 @@ brew install python@3.11 git
 The fastest way to get started:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install.sh | sh
 ```
 
 This will:
@@ -67,7 +67,7 @@ This will:
 
 Example with custom install directory:
 ```bash
-CODERAG_INSTALL_DIR=/opt/coderag curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+CODERAG_INSTALL_DIR=/opt/coderag curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install.sh | sh
 ```
 
 ### Updating
@@ -85,7 +85,7 @@ sh ~/.coderag/src/update.sh
 ### Uninstalling
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/uninstall.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/uninstall.sh | sh
 ```
 
 Or manually:
@@ -115,7 +115,7 @@ After installing CodeRAG, use `install-coderag.sh` to set up a specific project.
 ### Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | sh -s /path/to/your/project
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install-coderag.sh | sh -s /path/to/your/project
 ```
 
 > **Generated files:** `codegraph.yaml`, `.codegraph/graph.db`, `.coderag/skill/SKILL.md`, `SKILL.md` (symlink), `CLAUDE.md`, `.mcp.json`
@@ -126,7 +126,7 @@ For development or if you want more control:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dmnkhorvath/coderag.git
+git clone https://github.com/dmnkhorvath/coderag-cli.git
 cd coderag
 
 # Create and activate a virtual environment
@@ -154,7 +154,7 @@ pip install -e ".[dev]"
 Install directly without cloning:
 
 ```bash
-pip install git+https://github.com/dmnkhorvath/coderag.git
+pip install git+https://github.com/dmnkhorvath/coderag-cli.git
 ```
 
 ---

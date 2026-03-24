@@ -28,7 +28,7 @@ class TestUpdateConfigDefaults:
 
     def test_default_github_repo(self):
         config = UpdateConfig()
-        assert config.github_repo == "dmnkhorvath/coderag"
+        assert config.github_repo == "dmnkhorvath/coderag-cli"
 
 
 class TestUpdateConfigLoad:

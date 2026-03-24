@@ -29,10 +29,10 @@ Next.js, Express, NestJS, Tailwind CSS, and more.
 
 ```bash
 # Option A: One-line installer
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install.sh | sh
 
 # Option B: From source
-git clone https://github.com/dmnkhorvath/coderag.git
+git clone https://github.com/dmnkhorvath/coderag-cli.git
 cd coderag && pip install -e .[full]
 ```
 

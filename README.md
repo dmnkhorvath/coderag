@@ -4,7 +4,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://github.com/dmnkhorvath/coderag/actions/workflows/ci.yml/badge.svg)](https://github.com/dmnkhorvath/coderag/actions/workflows/ci.yml)
+[![Tests](https://github.com/dmnkhorvath/coderag-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/dmnkhorvath/coderag-cli/actions/workflows/ci.yml)
 
 CodeRAG parses your codebase using tree-sitter AST analysis, builds a rich knowledge graph of symbols and relationships, and serves that intelligence to AI coding assistants via an MCP server. It understands classes, functions, routes, components, cross-language connections, and framework patterns — giving your AI tools deep structural awareness instead of naive file reading.
 
@@ -36,7 +36,7 @@ CodeRAG parses your codebase using tree-sitter AST analysis, builds a rich knowl
 
 ```bash
 # Clone and install
-git clone https://github.com/dmnkhorvath/coderag.git
+git clone https://github.com/dmnkhorvath/coderag-cli.git
 cd coderag
 pip install -e '.[all]'
 ```
@@ -44,7 +44,7 @@ pip install -e '.[all]'
 Or use the automated installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | sh
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install-coderag.sh | sh
 ```
 
 ### Parse a Codebase

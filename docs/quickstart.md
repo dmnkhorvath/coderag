@@ -14,7 +14,7 @@ Get up and running with CodeRAG in under 5 minutes. This guide walks you through
 
 ```bash
 # Clone the repository
-git clone https://github.com/dmnkhorvath/coderag.git
+git clone https://github.com/dmnkhorvath/coderag-cli.git
 cd coderag
 
 # Install with all dependencies
@@ -27,7 +27,7 @@ coderag --version
 ### Using the Install Script
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag/main/install-coderag.sh | bash
+curl -fsSL https://raw.githubusercontent.com/dmnkhorvath/coderag-cli/main/install-coderag.sh | bash
 ```
 
 The install script auto-generates `.mcp.json` and `CLAUDE.md` for Claude Code integration.
