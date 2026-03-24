@@ -46,6 +46,12 @@ from coderag.pipeline.events import (
 )
 from coderag.storage.sqlite_store import SQLiteStore
 
+# Optional incremental parsing v2 support
+try:
+    from coderag.pipeline.parse_cache import ParseTreeCache
+except ImportError:  # pragma: no cover
+    ParseTreeCache = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -230,6 +236,7 @@ class FileWatcher:
         *,
         debounce_seconds: float = 2.0,
         on_reparse: Callable[[dict[str, Any]], None] | None = None,
+        parse_cache: ParseTreeCache | None = None,
     ) -> None:
         self._config = config
         self._registry = registry
@@ -237,6 +244,7 @@ class FileWatcher:
         self._emitter = emitter
         self._debounce = debounce_seconds
         self._on_reparse = on_reparse
+        self._parse_cache = parse_cache
 
         self._observer: Any = None  # watchdog Observer
         self._collector: _ChangeCollector | None = None
@@ -411,7 +419,16 @@ class FileWatcher:
         )
 
     def _run_incremental(self, changed: set[str]) -> dict[str, Any]:
-        """Run the pipeline on a specific set of changed files."""
+        """Run the pipeline on a specific set of changed files.
+
+        If a :class:`ParseTreeCache` was provided, uses
+        :class:`IncrementalOrchestrator` for faster re-parsing via
+        tree-sitter's ``tree.edit()`` API.  Otherwise falls back to
+        the standard :class:`PipelineOrchestrator`.
+        """
+        if self._parse_cache is not None:
+            return self._run_incremental_v2(changed)
+
         # Lazy import to avoid circular dependency
         from coderag.pipeline.orchestrator import PipelineOrchestrator
 
@@ -431,6 +448,39 @@ class FileWatcher:
             "files_errored": summary.files_errored,
             "total_nodes": summary.total_nodes,
             "total_edges": summary.total_edges,
+        }
+
+    def _run_incremental_v2(self, changed: set[str]) -> dict[str, Any]:
+        """Run incremental v2 pipeline using parse-tree cache."""
+        from coderag.pipeline.incremental import IncrementalOrchestrator
+
+        # Read file contents for changed files
+        changed_files: dict[str, bytes] = {}
+        for path in changed:
+            try:
+                with open(path, "rb") as f:
+                    changed_files[path] = f.read()
+            except OSError:
+                logger.warning("Could not read changed file: %s", path)
+
+        orchestrator = IncrementalOrchestrator(
+            config=self._config,
+            registry=self._registry,
+            store=self._store,
+            emitter=self._emitter,
+            cache=self._parse_cache,
+        )
+        summary = orchestrator.process_changes(
+            changed_files=changed_files,
+        )
+        return {
+            "files_parsed": summary.files_incremental + summary.files_full,
+            "files_skipped": summary.files_skipped,
+            "files_incremental": summary.files_incremental,
+            "files_full": summary.files_full,
+            "cache_hits": summary.cache_hits,
+            "cache_misses": summary.cache_misses,
+            "total_time_ms": summary.total_time_ms,
         }
 
     def _emit(self, event: Any) -> None:
